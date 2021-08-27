@@ -1,0 +1,41 @@
+{
+	"folders": [
+		{
+			"path": "proceso1"
+		},
+		{
+			"path": "proceso2"
+		},
+		{
+			"path": "proceso3"
+		},
+		{
+			"path": "shared"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"proceso1.h": "c",
+			"stdarg.h": "c",
+			"type_traits": "cpp",
+			"guards.h": "c",
+			"serialize.h": "c"
+		},
+
+		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",
+		"doxdocgen.file.fileTemplate": "@file: {name}",
+		"doxdocgen.generic.briefTemplate": "@DESC: {text}",
+		"doxdocgen.generic.dateTemplate": "@date: {date}",
+		"doxdocgen.generic.paramTemplate": "@param {param}:",
+		"doxdocgen.generic.returnTemplate": "@return {type}:",
+		"doxdocgen.generic.order": [
+			"brief",
+			"tparam",
+			"param",
+			"return"
+		],
+		"doxdocgen.generic.authorName": "pepinOS",
+		"doxdocgen.generic.authorTag": "@author {author} {email}",
+		"doxdocgen.generic.authorEmail": ""
+	}
+}
