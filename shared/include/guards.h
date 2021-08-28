@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
+#include <string.h>
+#include <errno.h>
 
 /**
  * @DESC: revisa si un puntero es nulo y le asigna memoria
@@ -26,5 +28,11 @@ void guard_nullList(t_list** list);
  * @param dict: puntero al diccionario a proteger, por referencia
  */
 void guard_nullDict(t_dictionary** dict);
+
+/**
+ * @DESC: 
+ * @param returnCode:
+ */
+void guard_syscall(int returnCode);
 
 #endif // !GUARDS_H_
