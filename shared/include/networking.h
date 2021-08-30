@@ -4,9 +4,21 @@
 #include "serialize.h"
 #include "guards.h"
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 
-typedef enum msgHeader { HANDSHAKE, PING, ACK, DISCONNECTED } msgHeader;
+#define MAX_CLIENTS 100
 
+/**
+ * @DESC: Los posibles headers para comunicarse por socket
+ */
+typedef enum msgHeader { PING, ACK, DISCONNECTED } msgHeader;
+
+/**
+ * @DESC: Contiene:
+ *          - el header del mensaje
+ *          - un streamBuffer con el mensaje
+ */
 typedef struct packet {
     msgHeader header;
     t_streamBuffer* data;
@@ -64,19 +76,19 @@ t_packet* socket_getPacket(int socket);
  * @param port: puerto del server
  * @return int: socket del cliente conectado al server
  */
-int connectToServer(char* serverIp, char* serverPort); //TODO Desarrollar
+int connectToServer(char* serverIp, char* serverPort);
 
 /**
  * @DESC: Crea un servidor para escuchar conexiones
  * @param port: puerto del servidor
  * @return int: socket del servidor 
  */
-int createListenServer(char* serverPort); //TODO Desarrollar
+int createListenServer(char* serverIP, char* serverPort);
 
 /**
- * @DESC: queda a la escucha de nuevas conexiones
- * @param socket: retorna un socket al primer cliente en conectarse
+ * @DESC: queda a la espera de que se conecte un nuevo cliente
+ * @param socket: retorna un socket al cliente conectado
  */
-void listen(int clientSocket); //TODO Desarrollar
+int getNewClient(int serverSocket);
 
 #endif // !NETWORKING_H_

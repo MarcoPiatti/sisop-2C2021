@@ -26,12 +26,62 @@ void socket_get(int socket, void* dest, size_t size){
     guard_syscall(recv(socket, dest, size, 0));
 }
 
-t_packet* socket_getPacket(int socket){
+msgHeader socket_getHeader(int socket){
     uint8_t header;
-    uint32_t streamSize;
     socket_get(socket, &header, sizeof(uint8_t));
+    return (msgHeader)header;
+}
+
+t_packet* socket_getPacket(int socket){
+    msgHeader header = socket_getHeader(socket);
+    uint32_t streamSize;
     socket_get(socket, &streamSize, sizeof(uint32_t));
     t_packet* packet = createPacket(streamSize);
     socket_get(socket, packet->data->stream, streamSize);
+    packet->header = header;
     return packet;
+}
+
+int connectToServer(char* serverIp, char* serverPort){
+	int clientSocket = 0;
+    struct addrinfo hints;
+	struct addrinfo *serverInfo;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	guard_syscall(getaddrinfo(serverIp, serverPort, &hints, &serverInfo));
+	guard_syscall(clientSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol));
+	guard_syscall(connect(clientSocket, serverInfo->ai_addr, serverInfo->ai_addrlen));
+	freeaddrinfo(serverInfo);
+	return clientSocket;
+}
+
+int createListenServer(char* serverIP, char* serverPort){
+    int serverSocket = 0;
+    struct addrinfo hints;
+    struct addrinfo *serverInfo;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    getaddrinfo(serverIP, serverPort, &hints, &serverInfo);
+	guard_syscall(serverSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol));
+	guard_syscall(bind(serverSocket, serverInfo->ai_addr, serverInfo->ai_addrlen));
+	guard_syscall(listen(serverSocket, MAX_CLIENTS));
+    freeaddrinfo(serverInfo);
+    return serverSocket;
+}
+
+int getNewClient(int serverSocket){
+    int newClientSocket = 0;
+    struct sockaddr_in clientAddr;
+	socklen_t addrSize = sizeof(struct sockaddr_in);
+    guard_syscall(newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
+    return newClientSocket;
+}
+
+//TODO deberia tomar un cliente recien agregado, crear un thread y entregarselo para que lo atienda
+void clientDispatcher(int clientSocket){
+
 }

@@ -19,6 +19,5 @@ void guard_syscall(int returncode){
         strerror_r(error, buf, 100);
         log_error(logger, "Error: %s", buf);
         free(buf);
-        exit(error);
     }
 }
