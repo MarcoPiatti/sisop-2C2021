@@ -8,4 +8,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+// Header del proceso 1
+
 #endif

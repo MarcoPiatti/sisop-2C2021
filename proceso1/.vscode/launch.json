@@ -23,6 +23,9 @@
                 }
             ],
             "preLaunchTask": "Make",
+            "sourceFileMap": {
+                "/build/glibc-ViVLyQ": "/usr/src/glibc"
+            }
         }
     ]
 }
