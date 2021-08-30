@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <pthread.h>
 
 #define MAX_CLIENTS 100
 
@@ -87,8 +88,8 @@ int createListenServer(char* serverIP, char* serverPort);
 
 /**
  * @DESC: queda a la espera de que se conecte un nuevo cliente
- * @param socket: retorna un socket al cliente conectado
+ * @param socket: retorna un puntero al nuevo socket del cliente conectado
  */
-int getNewClient(int serverSocket);
+int* getNewClient(int serverSocket);
 
 #endif // !NETWORKING_H_

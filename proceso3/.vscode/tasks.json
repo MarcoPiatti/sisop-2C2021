@@ -12,17 +12,29 @@
         {
             "label": "Run",
             "type": "shell",
-            "command": "./exec.sh"
+            "command": "./exec.sh",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
         },
         {
             "label": "Valgrind",
             "type": "shell",
-            "command": "./vexec.sh"
+            "command": "./vexec.sh",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
         },
         {
             "label": "Helgrind",
             "type": "shell",
-            "command": "./hexec.sh"
+            "command": "./hexec.sh",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
         }
     ]
 }

@@ -17,9 +17,9 @@ void socket_send(int socket, void* source, size_t size){
 
 void socket_sendPacket(int socket, t_packet* packet){
     uint8_t header = packet->header;
-    socket_send(socket, packet->header, sizeof(uint8_t));
-    socket_send(socket, packet->data->offset, sizeof(uint32_t));
-    socket_send(socket, packet->data->stream, packet->data->offset);
+    socket_send(socket, (void*)&header, sizeof(uint8_t));
+    socket_send(socket, (void*)&packet->data->offset, sizeof(uint32_t));
+    socket_send(socket, (void*)packet->data->stream, packet->data->offset);
 }
 
 void socket_get(int socket, void* dest, size_t size){
@@ -73,15 +73,15 @@ int createListenServer(char* serverIP, char* serverPort){
     return serverSocket;
 }
 
-int getNewClient(int serverSocket){
-    int newClientSocket = 0;
+int* getNewClient(int serverSocket){
+    int* newClientSocket = malloc(sizeof(int));
     struct sockaddr_in clientAddr;
 	socklen_t addrSize = sizeof(struct sockaddr_in);
-    guard_syscall(newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
+    guard_syscall(*newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
     return newClientSocket;
 }
 
 //TODO deberia tomar un cliente recien agregado, crear un thread y entregarselo para que lo atienda
-void clientDispatcher(int clientSocket){
-
+void clientDispatcher(int* clientSocket){
+    
 }
