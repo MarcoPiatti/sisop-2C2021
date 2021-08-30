@@ -13,7 +13,7 @@
 /**
  * @DESC: Los posibles headers para comunicarse por socket
  */
-typedef enum msgHeader { PING, ACK, DISCONNECTED } msgHeader;
+typedef enum msgHeader { PING, ACK, DISCONNECTED, STRING, INTLIST } msgHeader;
 
 /**
  * @DESC: Contiene:
