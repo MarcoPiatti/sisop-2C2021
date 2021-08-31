@@ -15,6 +15,12 @@ DEPS = $(wildcard $(IDIR)/*.h)
 
 SRC = $(wildcard $(SRCDIR)/*.c)
 OBJ = $(patsubst $(SRCDIR)/%.c,$(ODIR)/%.o,$(SRC))
+SHARED_DEPS = $(wildcard $(SHARED_IDIR)/*.h)
+SHARED_SRC = $(wildcard $(SHARED_SRCDIR)/*.c)
+SHARED_OBJ = $(patsubst $(SHARED_SRCDIR)/%.c,$(SHARED_ODIR)/%.o,$(SHARED_SRC))
+
+$(PROCESS_NAME): $(OBJ) $(SHARED_OBJ)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS) $(SHARED_DEPS) | $(ODIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
@@ -28,13 +34,7 @@ $(SHARED_ODIR)/%.o: $(SHARED_SRCDIR)/%.c $(SHARED_DEPS) | $(SHARED_ODIR)
 $(SHARED_ODIR):
 	mkdir -p $@
 
-SHARED_DEPS = $(wildcard $(SHARED_IDIR)/*.h)
 
-SHARED_SRC = $(wildcard $(SHARED_SRCDIR)/*.c)
-SHARED_OBJ = $(patsubst $(SHARED_SRCDIR)/%.c,$(SHARED_ODIR)/%.o,$(SHARED_SRC))
-
-$(PROCESS_NAME): $(OBJ) $(SHARED_OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 
