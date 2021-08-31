@@ -69,7 +69,7 @@ void streamAdd_STRING_P(t_streamBuffer* stream, void* source){
 }
 
 void streamAdd_STRING(t_streamBuffer* stream, char* source){
-    streamAdd_STRING(stream, (void*)source);
+    streamAdd_STRING_P(stream, (void*)source);
 }
 
 //----------------------------------------------------------------------//
@@ -99,7 +99,7 @@ void streamAdd_DICT(t_streamBuffer* stream, t_dictionary* source, void(*streamAd
 
 void streamTake(t_streamBuffer* stream, void** dest, size_t size){
     guard_nullPtr(dest, size);
-    memcpy(dest, stream->stream + stream->offset, size);
+    memcpy(*dest, stream->stream + stream->offset, size);
     stream->offset += size;
 }
 
