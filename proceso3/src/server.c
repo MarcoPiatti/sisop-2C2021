@@ -15,14 +15,12 @@ pthread_mutex_t mutexLog = PTHREAD_MUTEX_INITIALIZER, mutexSocket = PTHREAD_MUTE
 void* leerSocket(void* args){
     int clientSocket = *(int*)args;
     char* msjRecibido;
-    pthread_mutex_unlock(&mutexSocket);
     t_packet* paqueteRecibido = socket_getPacket(clientSocket);
-    pthread_mutex_lock(&mutexSocket);
     while(paqueteRecibido->header != DISCONNECTED){
         switch (paqueteRecibido -> header){
         case STRING:
             msjRecibido = streamTake_STRING(paqueteRecibido->payload);
-            pthread_mutex_unlock(&mutexLog);
+            pthread_mutex_lock(&mutexLog);
             log_info(logger, "Marco: %s", msjRecibido);
             pthread_mutex_unlock(&mutexLog);
             free(msjRecibido);
@@ -31,9 +29,7 @@ void* leerSocket(void* args){
             break;
         }
         destroyPacket(paqueteRecibido);
-        pthread_mutex_unlock(&mutexSocket);
         paqueteRecibido = socket_getPacket(clientSocket);
-        pthread_mutex_lock(&mutexSocket);
     }
     pthread_exit((void*)0);
 }
@@ -55,11 +51,9 @@ int main(){
     while(strcmp(leido, "") != 0){
         t_packet* paqueton = createPacket_H(STRING);
         streamAdd_STRING(paqueton->payload, leido);
-        pthread_mutex_unlock(&mutexSocket);
         socket_sendPacket(*clientSocket, paqueton);
-        pthread_mutex_lock(&mutexSocket);
 
-        pthread_mutex_unlock(&mutexLog);
+        pthread_mutex_lock(&mutexLog);
         log_info(logger, "Ulises: %s", leido);
         pthread_mutex_unlock(&mutexLog);
 
@@ -72,13 +66,8 @@ int main(){
     free(leido);
 
     t_packet* paquetonto = createPacket_H(DISCONNECTED);
-
-    pthread_mutex_unlock(&mutexSocket);
     socket_sendPacket(*clientSocket, paquetonto);
-    pthread_mutex_lock(&mutexSocket);
-
     destroyPacket(paquetonto);
-
     int retorno = 0;
     pthread_join(lector, (void**)&retorno);
 
