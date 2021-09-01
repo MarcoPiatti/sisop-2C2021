@@ -1,20 +1,20 @@
-PROCESS_NAME=proceso1
+PROCESS_NAME=proceso1.out
+
 IDIR =./include
-SHARED_IDIR = ../shared/include
-CC=gcc
-CFLAGS=-I$(IDIR) -I$(SHARED_IDIR) -g -Wall
-
-ODIR=./obj
 SRCDIR =./src
-LIBS=-lcommons -lpthread -lreadline -lcunit -lrt
-
+ODIR=./obj
+SHARED_IDIR = ../shared/include
 SHARED_SRCDIR = ../shared/src
 SHARED_ODIR = ../shared/obj
 
-DEPS = $(wildcard $(IDIR)/*.h)
+CC=gcc
+CFLAGS=-I$(IDIR) -I$(SHARED_IDIR) -g -Wall
+LIBS=-lcommons -lpthread -lreadline -lcunit -lrt
 
+DEPS = $(wildcard $(IDIR)/*.h)
 SRC = $(wildcard $(SRCDIR)/*.c)
 OBJ = $(patsubst $(SRCDIR)/%.c,$(ODIR)/%.o,$(SRC))
+
 SHARED_DEPS = $(wildcard $(SHARED_IDIR)/*.h)
 SHARED_SRC = $(wildcard $(SHARED_SRCDIR)/*.c)
 SHARED_OBJ = $(patsubst $(SHARED_SRCDIR)/%.c,$(SHARED_ODIR)/%.o,$(SHARED_SRC))
@@ -33,8 +33,6 @@ $(SHARED_ODIR)/%.o: $(SHARED_SRCDIR)/%.c $(SHARED_DEPS) | $(SHARED_ODIR)
 
 $(SHARED_ODIR):
 	mkdir -p $@
-
-
 
 .PHONY: clean
 
