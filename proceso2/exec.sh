@@ -1,5 +1,5 @@
 #!/bin/bash
-FILE=proceso
+FILE=proceso2.out
 make $FILE
 if test -f "./$FILE"; then
     ./$FILE

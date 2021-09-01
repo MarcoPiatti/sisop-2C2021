@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Proceso1",
+            "name": "Proceso3",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/proceso1",
+            "program": "${workspaceFolder}/proceso3",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

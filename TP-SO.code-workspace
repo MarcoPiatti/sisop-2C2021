@@ -19,7 +19,9 @@
 			"stdarg.h": "c",
 			"type_traits": "cpp",
 			"guards.h": "c",
-			"serialize.h": "c"
+			"serialize.h": "c",
+			"exception": "cpp",
+			"limits": "cpp"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

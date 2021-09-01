@@ -69,7 +69,7 @@ void streamAdd_STRING_P(t_streamBuffer* stream, void* source){
 }
 
 void streamAdd_STRING(t_streamBuffer* stream, char* source){
-    streamAdd_STRING(stream, (void*)source);
+    streamAdd_STRING_P(stream, (void*)source);
 }
 
 //----------------------------------------------------------------------//
@@ -99,7 +99,7 @@ void streamAdd_DICT(t_streamBuffer* stream, t_dictionary* source, void(*streamAd
 
 void streamTake(t_streamBuffer* stream, void** dest, size_t size){
     guard_nullPtr(dest, size);
-    memcpy(dest, stream->stream + stream->offset, size);
+    memcpy(*dest, stream->stream + stream->offset, size);
     stream->offset += size;
 }
 
@@ -150,7 +150,7 @@ void streamTake_STRING_P(t_streamBuffer* stream, void** dest){
 }
 
 char* streamTake_STRING(t_streamBuffer* stream){
-    char* tmp;
+    char* tmp = NULL;
     streamTake_STRING_P(stream, (void**)&tmp);
     return tmp;
 }
@@ -161,14 +161,14 @@ void streamTake_LIST_P(t_streamBuffer* stream, t_list** source, void(*streamTake
     guard_nullList(source);
     uint32_t listSize = streamTake_UINT32(stream);
     for (uint32_t i = 0; i < listSize; i++){
-        void* elem;
+        void* elem = NULL;
         streamTake_ELEM_P(stream, &elem);
         list_add(*source, elem);
     }
 }
 
 t_list* streamTake_LIST(t_streamBuffer* stream, void(*streamTake_ELEM_P)(t_streamBuffer*, void**)){
-    t_list* tmpList;
+    t_list* tmpList = NULL;
     streamTake_LIST_P(stream, &tmpList, streamTake_ELEM_P);
     return tmpList;
 }
@@ -180,14 +180,14 @@ void streamTake_DICT_P(t_streamBuffer* stream, t_dictionary** source, void(*stre
     uint32_t dictSize = streamTake_UINT32(stream);
     for(uint32_t i = 0; i < dictSize; i++){
         char* tmpKey = streamTake_STRING(stream);
-        void* tmpValue; 
+        void* tmpValue = NULL; 
         streamTake_VALUE_P(stream, &tmpValue);
         dictionary_put(*source, tmpKey, tmpValue);
     }
 }
 
 t_dictionary* streamTake_DICT(t_streamBuffer* stream, void(*streamTake_VALUE_P)(t_streamBuffer*, void**)){
-    t_dictionary* tmpDict;
+    t_dictionary* tmpDict = NULL;
     streamTake_DICT_P(stream, &tmpDict, streamTake_VALUE_P);
     return tmpDict;
 }
