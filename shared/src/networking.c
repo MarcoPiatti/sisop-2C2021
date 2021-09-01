@@ -1,13 +1,19 @@
 #include "networking.h"
 
-t_packet* createPacket(size_t size){
+t_packet* createPacket_S(size_t size){
     t_packet* tmp = malloc(sizeof(t_packet));
-    tmp->data = createStream(size);
+    tmp->payload = createStream(size);
+    return tmp;
+}
+
+t_packet* createPacket_H(msgHeader header){
+    t_packet* tmp = createPacket_S(INITIAL_STREAM_SIZE);
+    tmp->header = header;
     return tmp;
 }
 
 void destroyPacket(t_packet* packet){
-    destroyStream(packet->data);
+    destroyStream(packet->payload);
     free(packet);
 }
 
@@ -18,8 +24,8 @@ void socket_send(int socket, void* source, size_t size){
 void socket_sendPacket(int socket, t_packet* packet){
     uint8_t header = packet->header;
     socket_send(socket, (void*)&header, sizeof(uint8_t));
-    socket_send(socket, (void*)&packet->data->offset, sizeof(uint32_t));
-    socket_send(socket, (void*)packet->data->stream, packet->data->offset);
+    socket_send(socket, (void*)&packet->payload->offset, sizeof(uint32_t));
+    socket_send(socket, (void*)packet->payload->stream, packet->payload->offset);
 }
 
 void socket_get(int socket, void* dest, size_t size){
@@ -36,8 +42,8 @@ t_packet* socket_getPacket(int socket){
     msgHeader header = socket_getHeader(socket);
     uint32_t streamSize;
     socket_get(socket, &streamSize, sizeof(uint32_t));
-    t_packet* packet = createPacket(streamSize);
-    socket_get(socket, packet->data->stream, streamSize);
+    t_packet* packet = createPacket_S(streamSize);
+    socket_get(socket, packet->payload->stream, streamSize);
     packet->header = header;
     return packet;
 }
@@ -68,7 +74,7 @@ int createListenServer(char* serverIP, char* serverPort){
     getaddrinfo(serverIP, serverPort, &hints, &serverInfo);
 	guard_syscall(serverSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol));
 	guard_syscall(bind(serverSocket, serverInfo->ai_addr, serverInfo->ai_addrlen));
-	guard_syscall(listen(serverSocket, MAX_CLIENTS));
+	guard_syscall(listen(serverSocket, MAX_BACKLOG));
     freeaddrinfo(serverInfo);
     return serverSocket;
 }
@@ -81,7 +87,9 @@ int* getNewClient(int serverSocket){
     return newClientSocket;
 }
 
-//TODO deberia tomar un cliente recien agregado, crear un thread y entregarselo para que lo atienda
-void clientDispatcher(int* clientSocket){
-    
+void runListenServer(int serverSocket, void*(*clientHandler)(void*)){
+    int* newClient = getNewClient(serverSocket);
+    pthread_t clientHandlerThread = 0;
+    guard_syscall(pthread_create(&clientHandlerThread, NULL, clientHandler, (void*)newClient));
+    pthread_detach(clientHandlerThread);
 }

@@ -8,7 +8,7 @@
 #include <netdb.h>
 #include <pthread.h>
 
-#define MAX_CLIENTS 100
+#define MAX_BACKLOG 100
 
 /**
  * @DESC: Los posibles headers para comunicarse por socket
@@ -22,15 +22,24 @@ typedef enum msgHeader { PING, ACK, DISCONNECTED, STRING, INTLIST } msgHeader;
  */
 typedef struct packet {
     msgHeader header;
-    t_streamBuffer* data;
+    t_streamBuffer* payload;
 } t_packet;
 
 /**
- * @DESC: Crea un objeto Packet en memoria
+ * @DESC: Crea un objeto Packet en memoria, a partir de un tamanio de payload inicial
  * @param size: tamanio alojado al stream que contiene
  * @return t_packet*: puntero al packet creado
  */
-t_packet* createPacket(size_t size);
+t_packet* createPacket_S(size_t size);
+
+/**
+ * @DESC: Crea un objeto Packet en memoria, a partir de un header
+ * @param size: header asignado al packet
+ * @return t_packet*: puntero al packet creado
+ * 
+ * NOTA: El tamanio del payload se inicializa segun el valor default
+ */
+t_packet* createPacket_H(msgHeader header);
 
 /**
  * @DESC: Destruye un packet de memoria
@@ -91,5 +100,12 @@ int createListenServer(char* serverIP, char* serverPort);
  * @param socket: retorna un puntero al nuevo socket del cliente conectado
  */
 int* getNewClient(int serverSocket);
+
+/**
+ * @DESC: Eternamente recibe clientes y los delega a un thread que los atiende
+ * @param serverSocket: socket retornado en createListenServer()
+ * @param clientHandler: funcion para atender clientes que los threads va a usar
+ */
+void runListenServer(int serverSocket, void*(*clientHandler)(void*));
 
 #endif // !NETWORKING_H_

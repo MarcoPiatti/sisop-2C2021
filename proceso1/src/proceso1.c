@@ -11,7 +11,7 @@ void* leerSocket(void* args){
     while(paqueteRecibido->header != DISCONNECTED){
         switch (paqueteRecibido -> header){
         case STRING:
-            msjRecibido = streamTake_STRING(paqueteRecibido->data);
+            msjRecibido = streamTake_STRING(paqueteRecibido->payload);
             pthread_mutex_unlock(&mutexLog);
             log_info(logger, "Ulises: %s", msjRecibido);
             pthread_mutex_unlock(&mutexLog);
@@ -48,9 +48,9 @@ int main(int argc, char** argv)
 
     char* leido = readline(">");
     while(strcmp(leido, "") != 0){
-        t_packet* paqueton = createPacket(INITIAL_STREAM_SIZE);
+        t_packet* paqueton = createPacket_H(STRING);
         paqueton->header = STRING;
-        streamAdd_STRING(paqueton->data, leido);
+        streamAdd_STRING(paqueton->payload, leido);
         pthread_mutex_unlock(&mutexSocket);
         socket_sendPacket(clientSocket, paqueton);
         pthread_mutex_lock(&mutexSocket);
@@ -63,8 +63,7 @@ int main(int argc, char** argv)
     }
 
     free(leido);
-    t_packet* paquetonto = createPacket(0);
-    paquetonto->header = DISCONNECTED;
+    t_packet* paquetonto = createPacket_H(DISCONNECTED);
     pthread_mutex_unlock(&mutexSocket);
     socket_sendPacket(clientSocket, paquetonto);
     pthread_mutex_lock(&mutexSocket);

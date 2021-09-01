@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define SERVER_IP "192.168.0.3" 
+#define SERVER_IP "127.0.0.1" 
 #define SERVER_PORT "4444"
 
 pthread_mutex_t mutexLog = PTHREAD_MUTEX_INITIALIZER, mutexSocket = PTHREAD_MUTEX_INITIALIZER;
@@ -21,7 +21,7 @@ void* leerSocket(void* args){
     while(paqueteRecibido->header != DISCONNECTED){
         switch (paqueteRecibido -> header){
         case STRING:
-            msjRecibido = streamTake_STRING(paqueteRecibido->data);
+            msjRecibido = streamTake_STRING(paqueteRecibido->payload);
             pthread_mutex_unlock(&mutexLog);
             log_info(logger, "Marco: %s", msjRecibido);
             pthread_mutex_unlock(&mutexLog);
@@ -53,9 +53,8 @@ int main(){
     char* leido = readline(" > ");
 
     while(strcmp(leido, "") != 0){
-        t_packet* paqueton = createPacket(INITIAL_STREAM_SIZE);
-        paqueton->header = STRING;
-        streamAdd_STRING(paqueton->data, leido);
+        t_packet* paqueton = createPacket_H(STRING);
+        streamAdd_STRING(paqueton->payload, leido);
         pthread_mutex_unlock(&mutexSocket);
         socket_sendPacket(*clientSocket, paqueton);
         pthread_mutex_lock(&mutexSocket);
@@ -72,8 +71,7 @@ int main(){
 
     free(leido);
 
-    t_packet* paquetonto = createPacket(0);
-    paquetonto->header = DISCONNECTED;
+    t_packet* paquetonto = createPacket_H(DISCONNECTED);
 
     pthread_mutex_unlock(&mutexSocket);
     socket_sendPacket(*clientSocket, paquetonto);
