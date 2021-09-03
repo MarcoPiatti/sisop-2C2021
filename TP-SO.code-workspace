@@ -21,7 +21,8 @@
 			"guards.h": "c",
 			"serialize.h": "c",
 			"exception": "cpp",
-			"limits": "cpp"
+			"limits": "cpp",
+			"server.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",
