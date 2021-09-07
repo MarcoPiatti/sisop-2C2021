@@ -26,20 +26,12 @@ typedef struct packet {
 } t_packet;
 
 /**
- * @DESC: Crea un objeto Packet en memoria, a partir de un tamanio de payload inicial
+ * @DESC: Crea un objeto Packet en memoria, a partir de un header y tamanio de payload inicial
+ * @param header: header del mensaje
  * @param size: tamanio alojado al stream que contiene
  * @return t_packet*: puntero al packet creado
  */
-t_packet* createPacket_S(size_t size);
-
-/**
- * @DESC: Crea un objeto Packet en memoria, a partir de un header
- * @param size: header asignado al packet
- * @return t_packet*: puntero al packet creado
- * 
- * NOTA: El tamanio del payload se inicializa segun el valor default
- */
-t_packet* createPacket_H(msgHeader header);
+t_packet* createPacket(msgHeader header, size_t size);
 
 /**
  * @DESC: Destruye un packet de memoria

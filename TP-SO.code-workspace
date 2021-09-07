@@ -22,7 +22,8 @@
 			"serialize.h": "c",
 			"exception": "cpp",
 			"limits": "cpp",
-			"server.h": "c"
+			"server.h": "c",
+			"networking.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

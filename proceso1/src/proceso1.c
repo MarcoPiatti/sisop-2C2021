@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
     char* leido = readline(">");
     while(strcmp(leido, "") != 0){
-        t_packet* paqueton = createPacket_H(STRING);
+        t_packet* paqueton = createPacket(STRING, INITIAL_STREAM_SIZE);
         paqueton->header = STRING;
         streamAdd_STRING(paqueton->payload, leido);
         socket_sendPacket(clientSocket, paqueton);
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     }
 
     free(leido);
-    t_packet* paquetonto = createPacket_H(DISCONNECTED);
+    t_packet* paquetonto = createPacket(DISCONNECTED, INITIAL_STREAM_SIZE);
     socket_sendPacket(clientSocket, paquetonto);
     destroyPacket(paquetonto);
     int retorno = 0;

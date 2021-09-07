@@ -1,14 +1,9 @@
 #include "networking.h"
 
-t_packet* createPacket_S(size_t size){
+t_packet* createPacket(msgHeader header, size_t size){
     t_packet* tmp = malloc(sizeof(t_packet));
-    tmp->payload = createStream(size);
-    return tmp;
-}
-
-t_packet* createPacket_H(msgHeader header){
-    t_packet* tmp = createPacket_S(INITIAL_STREAM_SIZE);
     tmp->header = header;
+    tmp->payload = createStream(size);
     return tmp;
 }
 
@@ -42,9 +37,8 @@ t_packet* socket_getPacket(int socket){
     msgHeader header = socket_getHeader(socket);
     uint32_t streamSize;
     socket_get(socket, &streamSize, sizeof(uint32_t));
-    t_packet* packet = createPacket_S(streamSize);
+    t_packet* packet = createPacket(header, streamSize);
     socket_get(socket, packet->payload->stream, streamSize);
-    packet->header = header;
     return packet;
 }
 
