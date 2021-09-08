@@ -1,4 +1,4 @@
-PROCESS_NAME=proceso1.out
+PROCESS_NAME=kernel.out
 
 IDIR =./include
 SRCDIR =./src

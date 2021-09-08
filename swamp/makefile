@@ -1,4 +1,4 @@
-PROCESS_NAME=proceso2.out
+PROCESS_NAME=swamp.out
 
 IDIR =./include
 SRCDIR =./src
