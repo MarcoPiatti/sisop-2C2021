@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Proceso3",
+            "name": "Kernel",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/proceso3",
+            "program": "${workspaceFolder}/kernel.out",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

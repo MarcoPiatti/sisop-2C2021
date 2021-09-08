@@ -8,33 +8,6 @@
             "problemMatcher": [
                 "$gcc"
             ]
-        },
-        {
-            "label": "Run",
-            "type": "shell",
-            "command": "./exec.sh",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build"
-        },
-        {
-            "label": "Valgrind",
-            "type": "shell",
-            "command": "./vexec.sh",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build"
-        },
-        {
-            "label": "Helgrind",
-            "type": "shell",
-            "command": "./hexec.sh",
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build"
         }
     ]
 }

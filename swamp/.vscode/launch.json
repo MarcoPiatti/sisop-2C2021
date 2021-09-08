@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Proceso2",
+            "name": "SWAmP",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/proceso2",
+            "program": "${workspaceFolder}/swamp.out",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
