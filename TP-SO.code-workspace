@@ -4,13 +4,13 @@
 			"path": "kernel"
 		},
 		{
+			"path": "libmate"
+		},
+		{
 			"path": "memory"
 		},
 		{
 			"path": "swamp"
-		},
-		{
-			"path": "libmate"
 		},
 		{
 			"path": "shared"
