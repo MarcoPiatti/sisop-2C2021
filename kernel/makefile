@@ -11,8 +11,8 @@ SHARED_SRCDIR = ../shared/src
 SHARED_ODIR = ../shared/obj
 
 CC=gcc
-CFLAGS=-I$(IDIR) -I$(SHARED_IDIR) -g -Wall
-LIBS=-lcommons -lpthread -lreadline -lrt
+CFLAGS=-I$(IDIR) -I$(SHARED_IDIR) -g3 -Wall
+LIBS=-lcommons -lpthread -lreadline
 
 DEPS = $(wildcard $(IDIR)/*.h)
 SRC = $(wildcard $(SRCDIR)/*.c)
@@ -28,39 +28,34 @@ TEST_OBJ = $(patsubst $(TDIR)/%.c, $(ODIR)/%.o, $(TEST_SRC))
 $(PROCESS_NAME): $(OBJ) $(SHARED_OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
-$(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS) $(SHARED_DEPS) | $(ODIR)
+$(TEST_NAME): $(OBJ) $(TEST_OBJ) $(SHARED_OBJ)
+	$(CC) -o $(TEST_NAME) $^ $(CFLAGS) $(LIBS) -lcspecs
+
+$(OBJ): $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS) $(SHARED_DEPS) | $(ODIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(ODIR)/%.o: $(TDIR)/%.c $(DEPS) $(SHARED_DEPS)
+$(TEST_OBJ): $(ODIR)/%.o: $(TDIR)/%.c $(DEPS) $(SHARED_DEPS) | $(ODIR)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(ODIR):
 	mkdir -p $@
 
-$(SHARED_ODIR)/%.o: $(SHARED_SRCDIR)/%.c $(SHARED_DEPS) | $(SHARED_ODIR)
-	$(CC) -c -o $@ $< $(CFLAGS)
-
-$(SHARED_ODIR):
-	mkdir -p $@
+$(SHARED_OBJ):
+	cd ../shared && make objs
 
 .PHONY: clean run val hel test
 
-test: $(OBJ) $(SHARED_OBJ) $(TEST_OBJ)
-	$(CC) -o $(TEST_NAME) $^ $(CFLAGS) $(LIBS) -lcspecs && \
-	rm -f ./test/*.o && \
+test: $(TEST_NAME)
 	./$(TEST_NAME)
 
-run:
-	make && \
+run: $(PROCESS_NAME)
 	./$(PROCESS_NAME)
 
-hel:
-	make && \
+hel: $(PROCESS_NAME)
 	valgrind --tool=helgrind ./$(PROCESS_NAME)
 
-val:
-	make && \
+val: $(PROCESS_NAME)
 	valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 ./$(PROCESS_NAME)
 
 clean:
-	rm -f $(ODIR)/*.o $(PROCESS_NAME) $(SHARED_ODIR)/*.o 
+	rm -f $(ODIR)/*.o $(PROCESS_NAME) $(TEST_NAME)
