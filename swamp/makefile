@@ -37,15 +37,15 @@ $(SHARED_ODIR):
 .PHONY: clean run val hel
 
 run: 
-	make
+	make && \
 	./$(PROCESS_NAME)
 
 hel:
-	make
+	make && \
 	valgrind --tool=helgrind ./$(PROCESS_NAME)
 
 val:
-	make
+	make && \
 	valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 ./$(PROCESS_NAME)
 
 clean:
