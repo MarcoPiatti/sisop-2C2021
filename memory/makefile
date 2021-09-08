@@ -1,15 +1,18 @@
 PROCESS_NAME=memory.out
+TEST_NAME=test.out
 
 IDIR =./include
 SRCDIR =./src
 ODIR=./obj
+TDIR = ./test
+
 SHARED_IDIR = ../shared/include
 SHARED_SRCDIR = ../shared/src
 SHARED_ODIR = ../shared/obj
 
 CC=gcc
 CFLAGS=-I$(IDIR) -I$(SHARED_IDIR) -g -Wall
-LIBS=-lcommons -lpthread -lreadline -lcunit -lrt
+LIBS=-lcommons -lpthread -lreadline -lrt
 
 DEPS = $(wildcard $(IDIR)/*.h)
 SRC = $(wildcard $(SRCDIR)/*.c)
@@ -19,10 +22,16 @@ SHARED_DEPS = $(wildcard $(SHARED_IDIR)/*.h)
 SHARED_SRC = $(wildcard $(SHARED_SRCDIR)/*.c)
 SHARED_OBJ = $(patsubst $(SHARED_SRCDIR)/%.c,$(SHARED_ODIR)/%.o,$(SHARED_SRC))
 
+TEST_SRC = $(wildcard $(TDIR)/*.c)
+TEST_OBJ = $(patsubst $(TDIR)/%.c, $(ODIR)/%.o, $(TEST_SRC))
+
 $(PROCESS_NAME): $(OBJ) $(SHARED_OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 $(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS) $(SHARED_DEPS) | $(ODIR)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+$(ODIR)/%.o: $(TDIR)/%.c $(DEPS) $(SHARED_DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(ODIR):
@@ -34,9 +43,14 @@ $(SHARED_ODIR)/%.o: $(SHARED_SRCDIR)/%.c $(SHARED_DEPS) | $(SHARED_ODIR)
 $(SHARED_ODIR):
 	mkdir -p $@
 
-.PHONY: clean run val hel
+.PHONY: clean run val hel test
 
-run: 
+test: $(OBJ) $(SHARED_OBJ) $(TEST_OBJ)
+	$(CC) -o $(TEST_NAME) $^ $(CFLAGS) $(LIBS) -lcspecs && \
+	rm -f ./test/*.o && \
+	./$(TEST_NAME)
+
+run:
 	make && \
 	./$(PROCESS_NAME)
 
