@@ -1,13 +1,16 @@
 {
 	"folders": [
 		{
-			"path": "proceso1"
+			"path": "kernel"
 		},
 		{
-			"path": "proceso2"
+			"path": "libmate"
 		},
 		{
-			"path": "proceso3"
+			"path": "memory"
+		},
+		{
+			"path": "swamp"
 		},
 		{
 			"path": "shared"
