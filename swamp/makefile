@@ -34,7 +34,19 @@ $(SHARED_ODIR)/%.o: $(SHARED_SRCDIR)/%.c $(SHARED_DEPS) | $(SHARED_ODIR)
 $(SHARED_ODIR):
 	mkdir -p $@
 
-.PHONY: clean
+.PHONY: clean run val hel
+
+run: 
+	make
+	./$(PROCESS_NAME)
+
+hel:
+	make
+	valgrind --tool=helgrind ./$(PROCESS_NAME)
+
+val:
+	make
+	valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 ./$(PROCESS_NAME)
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(IDIR)/*~ $(PROCESS_NAME) $(SHARED_ODIR)/*.o 
+	rm -f $(ODIR)/*.o $(PROCESS_NAME) $(SHARED_ODIR)/*.o 
