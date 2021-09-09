@@ -1,4 +1,4 @@
-#include "scheduler.h"
+#include "kernel.h"
 
 void* processInitializer(void* nada){
     t_process* process;

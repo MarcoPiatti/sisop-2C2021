@@ -1,5 +1,5 @@
-#ifndef SCHEDULER_H_
-#define SCHEDULER_H_
+#ifndef  KERNEL_H_
+#define  KERNEL_H_
 
 #include "pQueue.h"
 #include "process.h"
@@ -10,11 +10,10 @@
 
 #define MAX_MULTIPROCESSING 10
 
-t_pQueue *new, *ready, suspendedBlocked, suspendedReady;
+//Colas de estado compartidas
+t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue;
 
-sem_t sem_multiprogram;
-
-pthread_t thread_processInitializer, thread_executorIO, thread_executor[MAX_MULTIPROCESSING];
+pthread_t thread_longTerm, thread_mediumTerm, thread_shortTerm;
 
 /**
  * @DESC: Funcion de thread que lleva procesos de new a ready
@@ -60,4 +59,4 @@ void* executorIO(void* nada);
  */
 void createScheduler();
 
-#endif // !LOGS_H_
+#endif // !KERNEL_H_
