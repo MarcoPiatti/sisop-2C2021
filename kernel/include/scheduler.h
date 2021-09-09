@@ -1,74 +1,20 @@
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
-#include <commons/collections/queue.h>
+#include "pQueue.h"
+#include "process.h"
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
 
 #define MAX_MULTIPROCESSING 10
-#define QUANTUM 4
-#define QUANTUM_LENGTH 1
 
-typedef struct processQueue{
-    t_queue* elems;
-    pthread_mutex_t mutex;
-    sem_t sem;
-} t_processQueue;
+t_pQueue *new, *ready, suspendedBlocked, suspendedReady;
 
-typedef struct process{
-    int pid;
-    t_queue* tasks;
-} t_process;
-
-typedef struct task{
-    bool isIO;
-    int remaining;
-} t_task;
-
-t_processQueue *new, *ready, *blocked;
+sem_t sem_multiprogram;
 
 pthread_t thread_processInitializer, thread_executorIO, thread_executor[MAX_MULTIPROCESSING];
-
-/**
- * @DESC: Crea un objeto Process en memoria
- * @param id: id asignado al proceso
- * @return t_process*: puntero al Proceso
- */
-t_process* createProcess(int id);
-
-/**
- * @DESC: Destruye un Proceso de memoria
- * @param process: puntero al proceso a destruir
- */
-void destroyProcess(t_process* process);
-
-/**
- * @DESC: Crea una Cola de Procesos, protegida con mutex y semaforo
- * @return t_processQueue*: puntero a la cola protegida
- */
-t_processQueue* createProcessQueue();
-
-/**
- * @DESC: Destruye una cola de procesos
- * @param queue: puntero a la cola a destruir
- */
-void destroyProcessQueue(t_processQueue* queue);
-
-/**
- * @DESC: Mete un proceso en una cola de procesos
- * @param process: puntero al proceso
- * @param queue: puntero a la cola
- */
-void putProcess(t_process* process, t_processQueue* queue);
-
-/**
- * @DESC: Saca un puntero de una cola de procesos
- * @param queue: la cola
- * @return t_process*: puntero retornado
- */
-t_process* takeProcess(t_processQueue* queue);
 
 /**
  * @DESC: Funcion de thread que lleva procesos de new a ready
