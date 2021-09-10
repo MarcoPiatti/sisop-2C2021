@@ -18,16 +18,17 @@ typedef enum msgHeader {
     ID_MEMORIA,         // | HEADER |
     SEM_INIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
     SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
-    SEM_POST,           // | 
-    SEM_DESTROY,        // | 
-    CALL_IO,            // | 
-    MEMALLOC,           // | 
+    SEM_POST,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
+    SEM_DESTROY,        // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
+    CALL_IO,            // | HEADER | PAYLOAD_SIZE | STRING_SIZE | IO_NAME = STRING  |
+    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | SIZE = INT32 |
     MEMFREE,            // | 
     MEMREAD,            // | 
     MEMWRITE,           // | 
+    POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
     OK,                 // | HEADER |
     ERROR,              // | HEADER |
-    DISCONNECTED        // | 
+    DISCONNECTED        // | HEADER | PAYLOAD_SIZE = 0 |
 } msgHeader;
 
 /**
