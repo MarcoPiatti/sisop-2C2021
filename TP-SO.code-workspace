@@ -26,7 +26,8 @@
 			"exception": "cpp",
 			"limits": "cpp",
 			"server.h": "c",
-			"networking.h": "c"
+			"networking.h": "c",
+			"socket.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

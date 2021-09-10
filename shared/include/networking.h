@@ -13,7 +13,22 @@
 /**
  * @DESC: Los posibles headers para comunicarse por socket
  */
-typedef enum msgHeader { PING, ACK, DISCONNECTED, STRING, INTLIST } msgHeader;
+typedef enum msgHeader { 
+    ID_KERNEL,          // | HEADER | 
+    ID_MEMORIA,         // | HEADER |
+    SEM_INIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
+    SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
+    SEM_POST,           // | 
+    SEM_DESTROY,        // | 
+    CALL_IO,            // | 
+    MEMALLOC,           // | 
+    MEMFREE,            // | 
+    MEMREAD,            // | 
+    MEMWRITE,           // | 
+    OK,                 // | HEADER |
+    ERROR,              // | HEADER |
+    DISCONNECTED        // | 
+} msgHeader;
 
 /**
  * @DESC: Contiene:
@@ -48,6 +63,13 @@ void destroyPacket(t_packet* packet);
 void socket_send(int socket, void* source, size_t size);
 
 /**
+ * @DESC: Envia unicamente un header al socket
+ * @param socket: socket para enviar
+ * @param header: header enviado
+ */
+void socket_sendHeader(int socket, msgHeader header);
+
+/**
  * @DESC: Envia un packet al socket
  * 
  * formato: [ header | tamanio del stream | stream ]
@@ -64,6 +86,13 @@ void socket_sendPacket(int socket, t_packet* packet);
  * @param size: tamanio de los datos (el puntero debe tener alojado ese tamanio minimo)
  */
 void socket_get(int socket, void* dest, size_t size);
+
+/**
+ * @DESC: Obtiene unicamente un header del socket
+ * @param socket: socket del cual se obtiene el header
+ * @return msgHeader: header obtenido
+ */
+msgHeader socket_getHeader(int socket);
 
 /**
  * @DESC: Obtiene un packet del socket

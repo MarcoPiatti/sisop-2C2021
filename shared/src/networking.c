@@ -16,9 +16,13 @@ void socket_send(int socket, void* source, size_t size){
     guard_syscall(send(socket, source, size, 0));
 }
 
+void socket_sendHeader(int socket, msgHeader header){
+    uint8_t tmpHeader = (uint8_t)header;
+    socket_send(socket, (void*)&tmpHeader, sizeof(uint8_t));
+}
+
 void socket_sendPacket(int socket, t_packet* packet){
-    uint8_t header = packet->header;
-    socket_send(socket, (void*)&header, sizeof(uint8_t));
+    socket_sendHeader(socket, packet->header);
     socket_send(socket, (void*)&packet->payload->offset, sizeof(uint32_t));
     socket_send(socket, (void*)packet->payload->stream, packet->payload->offset);
 }
