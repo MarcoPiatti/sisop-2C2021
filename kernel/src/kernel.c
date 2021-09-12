@@ -1,72 +1,79 @@
 #include "kernel.h"
 
-void* processInitializer(void* nada){
-    t_process* process;
+void* thread_longTermFunc(void* args){
+    t_process *process;
     while(1){
         sem_wait(&sem_multiprogram);
-        if()
-            process = takeProcess(new);
-        //Realiza algun procesamiento...
-        putProcess(process, ready);
+        if(pQueue_isEmpty(suspendedReadyQueue))
+            process = pQueue_take(newQueue);
+        else process = pQueue_take(suspendedReadyQueue);
     }
 }
 
-int runCPU(t_queue* tasks, int quantums){
-    t_task* task = queue_peek(tasks);
-    if(task == NULL) return -1;
-    if(task->isIO) return 0;
-    while(quantums){
-        sleep(QUANTUM_LENGTH);
-        task->remaining--;
-        quantums--;
-        if(task->remaining == 0){
-            task = queue_pop(tasks); 
-            free(task);
-            task = queue_peek(tasks);
-            if(task == NULL) return -1;
-            if(task->isIO) return 0;
-        }
-    }
-    return 1;
+void* thread_mediumTermFunc(void* args){
+    //TODO: Desarrollar funcion medium term
 }
 
-void* executor(void* nada){
+void* thread_CPUFunc(void* args){
+    //TODO: Desarrollar funcion CPU
+}
+
+void* thread_IODeviceFunc(void* args){
+    //TODO: Desarrollar funcion IODevices
+}
+
+void* thread_semFunc(void* args){
+    //TODO: Desarrollar funcion semaforos
+}
+
+int main(){
+    kernelConfig = getKernelConfig("./cfg/kernel.config");
+
+    /* Inicializar estructuras de estado */
+    newQueue = pQueue_create();
+    readyQueue = pQueue_create();
+    blockedQueue = pQueue_create();
+    suspendedReadyQueue = pQueue_create();
+
+    /* Inicializar semaforo de multiprocesamiento */
+    sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
+
+    /* Inicializar CPUs */
+    thread_CPUs = malloc(sizeof(pthread_t) * kernelConfig->multiprocess);
+    for(int i = 0; i < kernelConfig->multiprocess; i++){
+        pthread_create(thread_CPUs + i, 0, thread_CPUFunc, NULL);
+        pthread_detach(thread_CPUs[i]);
+    }
+
+    /* Inicializar Dispositivos IO */
+    IO_dict = dictionary_create();
+    for(int i = 0; kernelConfig->IODeviceNames[i]; i++){
+        dictionary_put( IO_dict,
+                        kernelConfig->IODeviceNames[i],
+                        createIODevice( kernelConfig->IODeviceNames[i],
+                                        kernelConfig->IODeviceDelays[i],
+                                        thread_IODeviceFunc));
+    }
+
+    /* Crear estructura para agregar semaforos */
+    sem_dict = dictionary_create();
+
+    /* Inicializar Planificador de largo plazo */
+    pthread_create(&thread_longTerm, 0, thread_longTermFunc, NULL);
+    pthread_detach(thread_longTerm);
+    
+    /* Inicializar Planificador de mediano plazo */
+    pthread_create(&thread_mediumTerm, 0, thread_mediumTermFunc, NULL);
+    pthread_detach(thread_mediumTerm);
+
+    /* Inicializar servidor */
+    int serverSocket = createListenServer(kernelConfig->kernelIP, kernelConfig->kernelPort);
+    
     while(1){
-
-    }   
-}
-
-void runIO(t_queue* tasks){
-    t_task* task = queue_peek(tasks);
-    while(task->isIO){
-        sleep(QUANTUM_LENGTH);
-        task->remaining--;
-        if(task->remaining == 0){
-            task = queue_pop(tasks);
-            free(task);
-            task = queue_peek(tasks);
-        }
+        int newProcessSocket = getNewClient(serverSocket);
+        socket_sendHeader(newProcessSocket, ID_KERNEL);
+        pQueue_put(newQueue, createProcess(newProcessSocket, newProcessSocket));
     }
-}
 
-void* executorIO(void* nada){
-    while(1){
-        t_process* process = takeProcess(blocked);
-        runIO(process->tasks);
-        putProcess(process, ready);
-    }
-}
-
-void createScheduler(){
-    new = createpQueue();
-    ready = createpQueue();
-    blocked = createpQueue();
-    pthread_create(&thread_processInitializer, NULL, processInitializer, NULL);
-    pthread_detach(thread_processInitializer);
-    pthread_create(&thread_executorIO, NULL, executorIO, NULL);
-    pthread_detach(thread_executorIO);
-    for (int i = 0; i < MAX_MULTIPROCESSING; i++){
-        pthread_create(&thread_executor[i], NULL, executor, NULL);
-        pthread_detach(thread_executor[i]);
-    }
+    return 0;
 }

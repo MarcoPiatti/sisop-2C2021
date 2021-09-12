@@ -3,60 +3,39 @@
 
 #include "pQueue.h"
 #include "process.h"
+#include "IODevice.h"
+#include "kernelConfig.h"
+#include "networking.h"
+
+#include <commons/collections/dictionary.h>
+
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
 
-#define MAX_MULTIPROCESSING 10
+t_kernelConfig *kernelConfig;
 
-//Colas de estado compartidas
 t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue;
 
-pthread_t thread_longTerm, thread_mediumTerm, thread_shortTerm;
+sem_t sem_multiprogram;
 
-/**
- * @DESC: Funcion de thread que lleva procesos de new a ready
- * @param nada: obligatorio por firma, no se usa
- * @return void*: obligatorio por firma, no se usa
- */
-void* processInitializer(void* nada);
+pthread_t thread_longTerm, thread_mediumTerm;
 
-/**
- * @DESC: Ejecuta las tareas de un proceso, determinados quantums
- * @param tasks: lista de tareas de un proceso
- * @param quantums: cantidad de "ciclos de cpu" que se ejecutan, si es 0 es indeterminado
- * @return int: 
- * - Retorna -1 si no hay mas tareas para procesar.
- * - Retorna 0 si la tarea a procesar es IO.
- * - Retorna 1 si quedan mas tareas CPU por procesar.
- */
-int runCPU(t_queue* tasks, int quantums);
+pthread_t *thread_CPUs;
 
-/**
- * @DESC: Funcion de thread que ejecuta rafagas de CPU de procesos
- * @param nada: obligatorio por firma, no se usa
- * @return void*: obligatorio por firma, no se usa
- */
-void* executor(void* nada);
+t_dictionary *IO_dict, *sem_dict;
 
-/**
- * @DESC: Ejecuta las tareas IO de un proceso, hasta llegar a una de CPU
- * @param tasks: cola de tareas de un proceso
- */
-void runIO(t_queue* tasks);
+void* thread_longTermFunc(void* args);
 
-/**
- * @DESC: Funcion de thread que ejecuta las rafagas IO de procesos
- * @param nada: obligatorio por firma, no se usa
- * @return void*: obligatorio por firma, no se usa
- */
-void* executorIO(void* nada);
+void* thread_mediumTermFunc(void* args);
 
-/**
- * @DESC: Crea todas las estructuras administrativas e hilos
- *        Para que empiece a funcionar el scheduler
- */
-void createScheduler();
+void* thread_CPUFunc(void* args);
+
+void* thread_IODeviceFunc(void* args);
+
+void* thread_semFunc(void* args);
+
+extern const t_packet*(*petitionHandlers[MAX_PETITIONS])(t_packet* petition);
 
 #endif // !KERNEL_H_
