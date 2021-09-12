@@ -100,7 +100,6 @@ int mate_sem_destroy(mate_instance *lib_ref, mate_sem_name sem){
 
 //--------------------IO Functions------------------------/
 
-//TODO preguntar para que sirve void *msg, ya que los IO supuestamente no toman mensajes
 int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
