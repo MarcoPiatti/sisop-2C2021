@@ -84,6 +84,13 @@ void socket_sendHeader(int socket, msgHeader header);
 void socket_sendPacket(int socket, t_packet* packet);
 
 /**
+ * @DESC: Reenvia un packet previamente recibido a un socket
+ * @param socket: socket destinatario
+ * @param packet: packet previamente recibido
+ */
+void socket_relayPacket(int socket, t_packet* packet);
+
+/**
  * @DESC: (wrapper) recv sin flags con guarda
  * @param socket: socket del cual recibir los datos
  * @param dest: puntero al cual se alojaran los datos

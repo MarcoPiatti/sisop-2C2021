@@ -27,6 +27,11 @@ void socket_sendPacket(int socket, t_packet* packet){
     socket_send(socket, (void*)packet->payload->stream, packet->payload->offset);
 }
 
+void socket_relayPacket(int socket, t_packet* packet){
+    packet->payload->offset = (uint32_t)packet->payload->mallocSize;
+    socket_sendPacket(socket, packet);
+}
+
 void socket_get(int socket, void* dest, size_t size){
     guard_syscall(recv(socket, dest, size, 0));
 }
