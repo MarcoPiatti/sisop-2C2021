@@ -13,22 +13,25 @@
 /**
  * @DESC: Los posibles headers para comunicarse por socket
  */
-typedef enum msgHeader { 
+typedef enum msgHeader {
+    /* Peticiones */        /* Formato de los mensajes serializados */
+    SEM_INIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
+    SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
+    SEM_POST,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
+    SEM_DESTROY,        // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
+    CALL_IO,            // | HEADER | PAYLOAD_SIZE | IO_NAME = STRING  |
+    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | SIZE = INT32 |
+    MEMFREE,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 |
+    MEMREAD,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 | SIZE = INT32 |
+    MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
+    /* Respuestas */ 
     ID_KERNEL,          // | HEADER | 
     ID_MEMORIA,         // | HEADER |
-    SEM_INIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
-    SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
-    SEM_POST,           // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
-    SEM_DESTROY,        // | HEADER | PAYLOAD_SIZE | STRING_SIZE | SEM_NAME = STRING |
-    CALL_IO,            // | HEADER | PAYLOAD_SIZE | STRING_SIZE | IO_NAME = STRING  |
-    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | SIZE = INT32 |
-    MEMFREE,            // | 
-    MEMREAD,            // | 
-    MEMWRITE,           // | 
+    OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
+    ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
+    DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
-    OK,                 // | HEADER |
-    ERROR,              // | HEADER |
-    DISCONNECTED        // | HEADER | PAYLOAD_SIZE = 0 |
+    MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
 } msgHeader;
 
 /**
