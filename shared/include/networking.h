@@ -24,12 +24,13 @@ typedef enum msgHeader {
     MEMFREE,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 |
     MEMREAD,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 | SIZE = INT32 |
     MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
+    DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
+    MAX_PETITIONS,
     /* Respuestas */ 
     ID_KERNEL,          // | HEADER | 
     ID_MEMORIA,         // | HEADER |
     OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
     ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
-    DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
     MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
 } msgHeader;
