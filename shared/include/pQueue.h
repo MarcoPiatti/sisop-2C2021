@@ -52,10 +52,43 @@ void* pQueue_take(t_pQueue* queue);
 bool pQueue_isEmpty(t_pQueue* queue);
 
 /**
+ * @DESC: Itera una funcion sobre cada elemento de la cola
+ * @param queue:
+ * @param closure: funcion que modifica un elemento
+ */
+void pQueue_iterate(t_pQueue* queue, void(*closure)(void*));
+
+/**
  * @DESC: Reordena una cola de procesos segun un algoritmo
  * @param queue: cola a ordenar
  * @param algorithm: algoritmo comparador, indica si el primer elemento va antes que el segundo
  */
 void pQueue_sort(t_pQueue* queue, bool (*algorithm)(void*, void*));
+
+/**
+ * @DESC: Quita un elemento de la cola que cumpla la comparacion
+ * @param queue:
+ * @param comparison: funcion que evalue a true si se debe tomar el elemento
+ */
+void* pQueue_removeBy(t_pQueue* queue, bool (*condition)(void*));
+
+/**
+ * @DESC: Obtiene el mutex de la pQueue
+ * @param queue:
+ */
+void pQueue_lock(t_pQueue* queue);
+
+/**
+ * @DESC: Libera el mutex de la pQueue
+ * @param queue: 
+ */
+void pQueue_unlock(t_pQueue* queue);
+
+/**
+ * @DESC: Obtiene el ultimo elemento de la cola sin quitarlo
+ * @param queue: 
+ * @return void*: ultimo elemento de la lista
+ */
+void* pQueue_peekLast(t_pQueue* queue);
 
 #endif // !PQUEUE_H_

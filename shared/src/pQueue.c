@@ -39,8 +39,37 @@ bool pQueue_isEmpty(t_pQueue* queue){
     result;
 }
 
+void pQueue_iterate(t_pQueue* queue, void(*closure)(void*)){
+    pthread_mutex_lock(&queue->mutex);
+    list_iterate(queue->elems->elements, closure);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
 void pQueue_sort(t_pQueue* queue, bool (*algorithm)(void*, void*)){
     pthread_mutex_lock(&queue->mutex);
     list_sort(queue->elems->elements, algorithm);
     pthread_mutex_unlock(&queue->mutex);
 }
+
+void* pQueue_removeBy(t_pQueue* queue, bool (*condition)(void*)){
+    pthread_mutex_lock(&queue->mutex);
+    list_remove_by_condition(queue->elems->elements, condition);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+void pQueue_lock(t_pQueue* queue){
+    pthread_mutex_lock(&queue->mutex);
+}
+
+void pQueue_unlock(t_pQueue* queue){
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+void* pQueue_peekLast(t_pQueue* queue){
+    pthread_mutex_lock(&queue->mutex);
+    void* elem = list_get(queue->elems->elements, queue->elems->elements->elements_count - 1);
+    pthread_mutex_unlock(&queue->mutex);
+    return elem;
+}
+
+
