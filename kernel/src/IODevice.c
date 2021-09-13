@@ -16,7 +16,10 @@ t_IODevice* createIODevice(char* nombre, int duracion, void* (* IOfunc)(void*)){
 
 void destroyIODevice(t_IODevice* IODevice){
     pthread_cancel(IODevice->thread_IODevice);
-    pQueue_destroy(IODevice->waitingProcesses, destroyProcess);
+    void destroyer(void*elem){
+        destroyProcess((t_process*)elem);
+    };
+    pQueue_destroy(IODevice->waitingProcesses, destroyer);
     free(IODevice->nombre);
     free(IODevice);
 }

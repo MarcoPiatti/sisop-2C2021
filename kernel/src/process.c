@@ -1,4 +1,6 @@
 #include "process.h"
+#include <stdlib.h>
+#include <unistd.h>
 
 t_process* createProcess(int id, int socket, double estimate){
     t_process* process = malloc(sizeof(t_process));

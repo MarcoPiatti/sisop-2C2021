@@ -3,10 +3,6 @@
 #include "commons/string.h"
 #include <stdlib.h>
 
-t_mateSem hola;
-int hola;
-
-
 t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial, void* (* mateSemFunc)(void*)){
     t_mateSem* mateSem = malloc(sizeof(t_mateSem));
     mateSem->nombre = string_duplicate(nombre);
@@ -19,7 +15,10 @@ t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial, void* (* m
 
 void mateSem_destroy(t_mateSem* mateSem){
     pthread_cancel(mateSem->thread_mateSem);
-    pQueue_destroy(mateSem->waitingProcesses, destroyProcess);
+    void destroyer(void*elem){
+        destroyProcess((t_process*)elem);
+    };
+    pQueue_destroy(mateSem->waitingProcesses, destroyer);
     free(mateSem->nombre);
     free(mateSem);
 }

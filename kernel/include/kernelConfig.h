@@ -4,6 +4,7 @@
 #include <commons/config.h>
 
 typedef struct kernelConfig{
+    t_config* config;
     char* kernelIP;
     char* kernelPort;
     char* memoryIP;
