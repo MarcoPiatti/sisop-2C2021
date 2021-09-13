@@ -82,11 +82,11 @@ int createListenServer(char* serverIP, char* serverPort){
     return serverSocket;
 }
 
-int* getNewClient(int serverSocket){
-    int* newClientSocket = malloc(sizeof(int));
+int getNewClient(int serverSocket){
+    int newClientSocket;
     struct sockaddr_in clientAddr;
 	socklen_t addrSize = sizeof(struct sockaddr_in);
-    guard_syscall(*newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
+    guard_syscall(newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
     return newClientSocket;
 }
 

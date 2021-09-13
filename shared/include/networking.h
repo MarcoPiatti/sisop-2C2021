@@ -132,7 +132,7 @@ int createListenServer(char* serverIP, char* serverPort);
  * @DESC: queda a la espera de que se conecte un nuevo cliente
  * @param socket: retorna un puntero al nuevo socket del cliente conectado
  */
-int* getNewClient(int serverSocket);
+int getNewClient(int serverSocket);
 
 /**
  * @DESC: Eternamente recibe clientes y los delega a un thread que los atiende
