@@ -4,6 +4,7 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdlib.h>
 
 /**
  * @DESC: Estructura FIFO con acceso protegido para multiples hilos.
@@ -85,10 +86,10 @@ void pQueue_lock(t_pQueue* queue);
 void pQueue_unlock(t_pQueue* queue);
 
 /**
- * @DESC: Obtiene el ultimo elemento de la cola sin quitarlo
+ * @DESC: Obtiene el ultimo elemento de la cola quitandolo
  * @param queue: 
  * @return void*: ultimo elemento de la lista
  */
-void* pQueue_peekLast(t_pQueue* queue);
+void* pQueue_takeLast(t_pQueue* queue);
 
 #endif // !PQUEUE_H_
