@@ -8,7 +8,7 @@ t_kernelConfig* getKernelConfig(char* path){
     kernelConfig->memoryIP = config_get_string_value(config, "IP_MEMORIA");
     kernelConfig->memoryPort = config_get_string_value(config, "PUERTO_MEMORIA");
     kernelConfig->schedulerAlgorithm = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
-    kernelConfig->initialEstimator = config_get_int_value(config, "ESTIMACION_INICIAL");
+    kernelConfig->initialEstimator = config_get_double_value(config, "ESTIMACION_INICIAL");
     kernelConfig->alpha = config_get_double_value(config, "ALFA");
     kernelConfig->IODeviceNames = config_get_array_value(config, "DISPOSITIVOS_IO");
     kernelConfig->IODeviceDelays = config_get_array_value(config, "DURACIONES_IO");
@@ -25,10 +25,14 @@ void destroyKernelConfig(t_kernelConfig* config){
     free(config->memoryIP);
     free(config->memoryPort);
     free(config->schedulerAlgorithm);
-    for(int i = 0; config->IODeviceNames[i]; i++){
+    int i = 0;
+    while(config->IODeviceNames[i]){
         free(config->IODeviceNames[i]);
         free(config->IODeviceDelays[i]);
+        i++;
     }
+    free(config->IODeviceNames[i]);
+    free(config->IODeviceDelays[i]);
     free(config->IODeviceNames);
     free(config->IODeviceDelays);
     free(config);

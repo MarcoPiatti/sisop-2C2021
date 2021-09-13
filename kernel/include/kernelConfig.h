@@ -9,7 +9,7 @@ typedef struct kernelConfig{
     char* memoryIP;
     char* memoryPort;
     char* schedulerAlgorithm;
-    int initialEstimator;
+    double initialEstimator;
     double alpha;
     char** IODeviceNames;
     char** IODeviceDelays;
