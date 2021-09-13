@@ -1,21 +1,22 @@
 #include "kernel.h"
 #include <commons/temporal.h>
+#include <string.h>
 
 void putToReady(t_process* process){
     pQueue_lock(readyQueue);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
-    time_t timeSinceLastReschedule = (stop.tv_sec - start.tv_sec);
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+        time_t timeSinceLastReschedule = (stop.tv_sec - start.tv_sec);
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
-    void updateMetrics(void* elem){
-        t_process* process = (t_process*)elem;
-        process->waitedTime += timeSinceLastReschedule;
-    };
-    pQueue_iterate(readyQueue, updateMetrics);
+        void updateMetrics(void* elem){
+            t_process* process = (t_process*)elem;
+            process->waitedTime += timeSinceLastReschedule;
+        };
+        pQueue_iterate(readyQueue, updateMetrics);
 
-    process->waitedTime = 0;
-    pQueue_put(readyQueue, (void*)process);
-    pQueue_sort(readyQueue, sortingAlgoritm);
+        process->waitedTime = 0;
+        pQueue_put(readyQueue, (void*)process);
+        pQueue_sort(readyQueue, sortingAlgoritm);
     pQueue_unlock(readyQueue);
 }
 
@@ -35,14 +36,18 @@ bool HRRN(void*elem1, void*elem2){
 void* thread_longTermFunc(void* args){
     t_process *process;
     while(1){
-        sem_post(&sem_mediumLong);
         sem_wait(&sem_multiprogram);
+        sem_post(&sem_multiprogram);
         sem_wait(&sem_newProcess);
-        if(pQueue_isEmpty(suspendedReadyQueue))
-            process = (t_process*)pQueue_take(newQueue);
-        else process = (t_process*)pQUeue_take(suspendedReadyQueue);
-        process->state = READY;
-        putToReady(process);
+        pthread_mutex_lock(&mutex_mediumTerm);
+            if(pQueue_isEmpty(suspendedReadyQueue))
+                process = (t_process*)pQueue_take(newQueue);
+            else process = (t_process*)pQueue_take(suspendedReadyQueue);
+            process->state = READY;
+            putToReady(process);
+            sem_wait(&sem_multiprogram);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
     }
 }
 
@@ -50,15 +55,17 @@ void* thread_mediumTermFunc(void* args){
     t_process *process;
     int availablePrograms;
     while(1){
-        sem_getvalue(&sem_multiprogram, &availablePrograms);
-        while(availablePrograms >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
-            sem_wait(&sem_mediumLong);
-            sem_getvalue(&sem_multiprogram, &availablePrograms);     
-        }
-        process = (t_process*)pQueue_peekLast(blockedQueue);
-        process->state = SUSP_BLOCKED;
-        pQueue_put(&suspendedBlockedQueue, (void*)process);
-        sem_post(&sem_multiprogram);
+        pthread_mutex_lock(&mutex_mediumTerm);
+            sem_getvalue(&sem_multiprogram, &availablePrograms);
+            while(availablePrograms >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
+                pthread_cond_wait(&cond_mediumTerm, &mutex_mediumTerm);
+                sem_getvalue(&sem_multiprogram, &availablePrograms);
+            }
+            process = (t_process*)pQueue_takeLast(blockedQueue);
+            process->state = SUSP_BLOCKED;
+            pQueue_put(suspendedBlockedQueue, (void*)process);
+            sem_post(&sem_multiprogram);
+        pthread_mutex_unlock(&mutex_mediumTerm);
     }
 }
 
@@ -67,10 +74,14 @@ void* thread_CPUFunc(void* args){
     t_packet *request;
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
     int rafaga;
-    bool keepServing = true;
+    bool keepServing;
     while(1){
         rafaga = 0;
-        process = pQueue_take(readyQueue);
+        keepServing = true;
+        pthread_mutex_lock(&mutex_mediumTerm);
+            process = pQueue_take(readyQueue);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
         while(keepServing){
             request = socket_getPacket(process->socket);
             for(int i = 0; i < kernelConfig->CPUDelay; i++){
@@ -101,7 +112,7 @@ void* thread_IODeviceFunc(void* args){
         }
         if(process->state == BLOCKED){
             pQueue_removeBy(blockedQueue, matchesPid);
-            putToRead(process);
+            putToReady(process);
         }
         else if(process->state == SUSP_BLOCKED){
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
@@ -127,7 +138,7 @@ void* thread_semFunc(void* args){
         process = (t_process*)pQueue_take(self->waitingProcesses);
         if(process->state == BLOCKED){
             pQueue_removeBy(blockedQueue, matchesPid);
-            putToRead(process);
+            putToReady(process);
         }
         else if(process->state == SUSP_BLOCKED){
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
@@ -142,6 +153,9 @@ void* thread_semFunc(void* args){
 
 /* El main hace de server, escucha conexiones nuevas y las pone en new */
 int main(){
+    logger = log_create("./cfg/kernel.log", "kernel", true, LOG_LEVEL_TRACE);
+    pthread_mutex_init(&mutex_log, NULL);
+
     kernelConfig = getKernelConfig("./cfg/kernel.config");
 
     /* Inicializar estructuras de estado */
@@ -160,7 +174,9 @@ int main(){
     /* Inicializar semaforo de multiprocesamiento */
     sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
     sem_init(&sem_newProcess, 0, 0);
-    sem_init(&sem_mediumLong, 0, 0);
+
+    pthread_cond_init(&cond_mediumTerm, NULL);
+    pthread_mutex_init(&mutex_mediumTerm, NULL);
 
     /* Inicializar CPUs */
     thread_CPUs = malloc(sizeof(pthread_t) * kernelConfig->multiprocess);
@@ -175,12 +191,15 @@ int main(){
         dictionary_put( IO_dict,
                         kernelConfig->IODeviceNames[i],
                         createIODevice( kernelConfig->IODeviceNames[i],
-                                        kernelConfig->IODeviceDelays[i],
+                                        atoi(kernelConfig->IODeviceDelays[i]),
                                         thread_IODeviceFunc));
     }
+    pthread_mutex_init(&mutex_IO_dict, NULL);
 
     /* Crear estructura para agregar semaforos */
     sem_dict = dictionary_create();
+    pthread_mutex_init(&mutex_sem_dict, NULL);
+
 
     /* Inicializar Planificador de largo plazo */
     pthread_create(&thread_longTerm, 0, thread_longTermFunc, NULL);
@@ -196,8 +215,11 @@ int main(){
     while(1){
         int newProcessSocket = getNewClient(serverSocket);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
-        pQueue_put(newQueue, createProcess(newProcessSocket, newProcessSocket, kernelConfig->initialEstimator));
-        sem_post(&sem_newProcess);
+        pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_put(newQueue, createProcess(newProcessSocket, newProcessSocket, kernelConfig->initialEstimator));
+            sem_post(&sem_newProcess);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
     }
 
     return 0;
