@@ -7,6 +7,7 @@ t_pQueue* pQueue_create(){
     pthread_mutexattr_init(&mta);
     pthread_mutexattr_settype(&mta, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&queue->mutex, &mta);
+    pthread_mutexattr_destroy(&mta);
     sem_init(&queue->sem, 0, 0);
     return queue;
 }
