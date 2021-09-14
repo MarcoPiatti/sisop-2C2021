@@ -20,6 +20,7 @@ void mateSem_destroy(t_mateSem* mateSem){
     };
     pQueue_destroy(mateSem->waitingProcesses, destroyer);
     free(mateSem->nombre);
+    sem_destroy(&mateSem->sem);
     free(mateSem);
 }
 
