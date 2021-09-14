@@ -80,7 +80,6 @@ void* thread_CPUFunc(void* args){
         process = NULL;
         rafaga = 0;
         keepServing = true;
-        pthread_mutex_lock(&mutex_mediumTerm);
         process = pQueue_take(readyQueue);
         process->state = EXEC;
         pthread_mutex_lock(&mutex_mediumTerm);
@@ -151,7 +150,7 @@ void* thread_semFunc(void* args){
         }
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
-        free(response);
+        destroyPacket(response);
     }
 }
 
