@@ -15,6 +15,7 @@ void putToReady(t_process* process){
         pQueue_iterate(readyQueue, updateMetrics);
 
         process->waitedTime = 0;
+        process->state = READY;
         pQueue_put(readyQueue, (void*)process);
         pQueue_sort(readyQueue, sortingAlgoritm);
     pQueue_unlock(readyQueue);
@@ -70,16 +71,19 @@ void* thread_mediumTermFunc(void* args){
 }
 
 void* thread_CPUFunc(void* args){
-    t_process *process;
-    t_packet *request;
+    t_process *process = NULL;
+    t_packet *request = NULL;
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
-    int rafaga;
-    bool keepServing;
+    int rafaga = 0;
+    bool keepServing = true;
     while(1){
+        process = NULL;
         rafaga = 0;
         keepServing = true;
         pthread_mutex_lock(&mutex_mediumTerm);
-            process = pQueue_take(readyQueue);
+        process = pQueue_take(readyQueue);
+        process->state = EXEC;
+        pthread_mutex_lock(&mutex_mediumTerm);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
         while(keepServing){
@@ -99,8 +103,8 @@ void* thread_CPUFunc(void* args){
 
 void* thread_IODeviceFunc(void* args){
     t_IODevice* self = (t_IODevice*) args;
-    t_process* process;
-    t_packet *response;
+    t_process* process = NULL;
+    t_packet *response = NULL;
     bool matchesPid(void* elem){
         return process->pid == ((t_process*)elem)->pid;
     };
@@ -127,8 +131,8 @@ void* thread_IODeviceFunc(void* args){
 
 void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
-    t_process* process;
-    t_packet *response;
+    t_process* process = NULL;
+    t_packet *response = NULL;
     bool matchesPid(void* elem){
         return process->pid == ((t_process*)elem)->pid;
     };

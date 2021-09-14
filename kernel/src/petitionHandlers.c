@@ -31,6 +31,7 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
         pthread_mutex_unlock(&mutex_sem_dict);
 
         pthread_mutex_lock(&mutex_mediumTerm);
+            process->state = BLOCKED;
             pQueue_put(blockedQueue, process);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
@@ -101,6 +102,7 @@ bool callIO(t_process* process, t_packet* petition, int memorySocket){
         pthread_mutex_unlock(&mutex_IO_dict);
 
         pthread_mutex_lock(&mutex_mediumTerm);
+            process->state = BLOCKED;
             pQueue_put(blockedQueue, process);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
