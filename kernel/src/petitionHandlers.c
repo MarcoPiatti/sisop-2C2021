@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 bool semInit(t_process* process, t_packet* petition, int memorySocket){
-    t_packet *response;
+    t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
     int32_t semValue = streamTake_INT32(petition->payload);
     pthread_mutex_lock(&mutex_sem_dict);
@@ -9,9 +9,18 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
         dictionary_put(sem_dict, semName, mateSem_create(semName, (unsigned int)semValue, thread_semFunc));
         pthread_mutex_unlock(&mutex_sem_dict);
         response = createPacket(OK, 0);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "se creo el semaforo %s", semName);
+        pthread_mutex_unlock(&mutex_log);
     }
     else{
         pthread_mutex_unlock(&mutex_sem_dict);
+        
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "se trato de crear el semaforo %s, que ya existe", semName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(ERROR, 0);
     }
     socket_sendPacket(process->socket, response);
@@ -21,9 +30,9 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
 }
 
 bool semWait(t_process* process, t_packet* petition, int memorySocket){
-    t_packet *response;
+    t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
-    t_mateSem* sem;
+    t_mateSem* sem = NULL;
     bool rc;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
@@ -52,20 +61,19 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
 }
 
 bool semPost(t_process* process, t_packet* petition, int memorySocket){
-    t_packet *response;
+    t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
-    t_mateSem* sem;
+    t_mateSem* sem = NULL;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         sem = (t_mateSem*)dictionary_get(sem_dict, semName);
-        pthread_mutex_unlock(&mutex_sem_dict);
         mateSem_post(sem);
         response = createPacket(OK, 0);
     }
     else {
-        pthread_mutex_unlock(&mutex_sem_dict);
         response = createPacket(ERROR, 0);
     }
+    pthread_mutex_unlock(&mutex_sem_dict);
     socket_sendPacket(process->socket, response);
     destroyPacket(response);
     free(semName);
@@ -73,19 +81,30 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
 }
 
 bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
-    t_packet *response;
+    t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
+    pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         void destroyer(void*elem){
             mateSem_destroy((t_mateSem*)elem);
         }
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "se destruye el semaforo %s", semName);
+        pthread_mutex_unlock(&mutex_log);
+
         dictionary_remove_and_destroy(sem_dict, semName, destroyer);
         response = createPacket(OK, 0);
     }
     else{
+
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "se trato de destruir el semaforo %s, que no existe", semName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(ERROR, 0);
     }
-    
+    pthread_mutex_unlock(&mutex_sem_dict);
     socket_sendPacket(process->socket, response);
     destroyPacket(response);
     free(semName);
@@ -93,9 +112,9 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
 }
 
 bool callIO(t_process* process, t_packet* petition, int memorySocket){
-    t_packet *response;
+    t_packet *response = NULL;
     char* IOName = streamTake_STRING(petition->payload);
-    t_IODevice* device;
+    t_IODevice* device = NULL;
     pthread_mutex_lock(&mutex_IO_dict);
     if(dictionary_has_key(IO_dict, IOName)){
         device = (t_IODevice*)dictionary_get(IO_dict, IOName);
@@ -133,6 +152,11 @@ bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
 bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = createPacket(OK, 0);
     socket_sendPacket(process->socket, response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "se desconecta el proceso %i", process->pid);
+    pthread_mutex_unlock(&mutex_log);
+    
     destroyPacket(response);
     destroyProcess(process);
     sem_post(&sem_multiprogram);

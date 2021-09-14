@@ -223,6 +223,10 @@ int main(){
             sem_post(&sem_newProcess);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "se conecto el proceso %i", newProcessSocket);
+        pthread_mutex_unlock(&mutex_log);
     }
 
     return 0;
