@@ -3,6 +3,7 @@
 #include "networking.h"
 #include <commons/config.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
     t_config* mateConfig;
@@ -30,9 +31,13 @@ int mate_close(mate_instance *lib_ref){
     t_packet* packet = createPacket(DISCONNECTED, 0);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
+
+    packet = socket_getPacket(mateStruct->mateSocket);
+    int rc = (packet->header == OK) ? 0 : -1;
+
     close(mateStruct->mateSocket);
     config_destroy(mateStruct->mateConfig);
-    return 0;
+    return rc;
 }
 
 //-----------------Semaphore Functions---------------------/
