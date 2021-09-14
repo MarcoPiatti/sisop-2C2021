@@ -9,7 +9,7 @@
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
 
-#define INITIAL_STREAM_SIZE 256
+#define INITIAL_STREAM_SIZE 64
 
 /**
  * @DESC: Contiene 
