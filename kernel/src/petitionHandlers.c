@@ -11,14 +11,14 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
         response = createPacket(OK, 0);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "se creo el semaforo %s", semName);
+        log_info(logger, "Proceso %i: crea el semaforo %s", process->pid, semName);
         pthread_mutex_unlock(&mutex_log);
     }
     else{
         pthread_mutex_unlock(&mutex_sem_dict);
         
         pthread_mutex_lock(&mutex_log);
-        log_warning(logger, "se trato de crear el semaforo %s, que ya existe", semName);
+        log_warning(logger, "Proceso %i: trata de crear el semaforo %s, que ya existe", process->pid, semName);
         pthread_mutex_unlock(&mutex_log);
 
         response = createPacket(ERROR, 0);
@@ -46,17 +46,26 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
         pthread_mutex_unlock(&mutex_mediumTerm);
         
         mateSem_wait(sem, process);
-        free(semName);
+        
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "Proceso %i: espera en el semaforo %s", process->pid, semName);
+        pthread_mutex_unlock(&mutex_log);
+        
         rc = false;
     }
     else{
         pthread_mutex_unlock(&mutex_sem_dict);
+
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "Proceso %i: trata de esperar en el semaforo %s, que no existe", process->pid, semName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(ERROR, 0);
         socket_sendPacket(process->socket, response);
         destroyPacket(response);
-        free(semName);
         rc = true;
     }
+    free(semName);
     return rc;
 }
 
@@ -67,13 +76,25 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         sem = (t_mateSem*)dictionary_get(sem_dict, semName);
+        pthread_mutex_unlock(&mutex_sem_dict);
         mateSem_post(sem);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %i: postea el semaforo %s", process->pid, semName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(OK, 0);
     }
     else {
+        pthread_mutex_unlock(&mutex_sem_dict);
+        
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "Proceso %i: trata de postear el semaforo %s, que no existe", process->pid, semName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(ERROR, 0);
     }
-    pthread_mutex_unlock(&mutex_sem_dict);
+    
     socket_sendPacket(process->socket, response);
     destroyPacket(response);
     free(semName);
@@ -90,7 +111,7 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
         }
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "se destruye el semaforo %s", semName);
+        log_info(logger, "Proceso %i: destruye el semaforo %s", process->pid, semName);
         pthread_mutex_unlock(&mutex_log);
 
         dictionary_remove_and_destroy(sem_dict, semName, destroyer);
@@ -99,7 +120,7 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
     else{
 
         pthread_mutex_lock(&mutex_log);
-        log_warning(logger, "se trato de destruir el semaforo %s, que no existe", semName);
+        log_warning(logger, "Proceso %i: trata de destruir el semaforo %s, que no existe", process->pid, semName);
         pthread_mutex_unlock(&mutex_log);
 
         response = createPacket(ERROR, 0);
@@ -127,11 +148,21 @@ bool callIO(t_process* process, t_packet* petition, int memorySocket){
         pthread_mutex_unlock(&mutex_mediumTerm);
         
         pQueue_put(device->waitingProcesses, process);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %i: llama al dispositivo IO %s", process->pid, IOName);
+        pthread_mutex_unlock(&mutex_log);
+
         free(IOName);
         return false;
     }
     else{
         pthread_mutex_unlock(&mutex_IO_dict);
+
+        pthread_mutex_lock(&mutex_log);
+        log_warning(logger, "Proceso %i: llama al dispositivo IO %s, que no existe", process->pid, IOName);
+        pthread_mutex_unlock(&mutex_log);
+
         response = createPacket(ERROR, 0);
         socket_sendPacket(process->socket, response);
         destroyPacket(response);
@@ -144,6 +175,11 @@ bool callIO(t_process* process, t_packet* petition, int memorySocket){
 bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
     socket_relayPacket(memorySocket, petition);
     t_packet* response = socket_getPacket(memorySocket);
+    
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %i: hace un pedido a memoria");
+    pthread_mutex_unlock(&mutex_log);
+    
     socket_relayPacket(process->socket, response);
     destroyPacket(response);
     return true;
@@ -154,7 +190,7 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     socket_sendPacket(process->socket, response);
 
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "se desconecta el proceso %i", process->pid);
+    log_info(logger, "Proceso %i: se desconecta", process->pid);
     pthread_mutex_unlock(&mutex_log);
     
     destroyPacket(response);

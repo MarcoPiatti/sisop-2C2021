@@ -50,6 +50,7 @@ void* thread_IODeviceFunc(void* args);
 void* thread_semFunc(void* args);
 
 //Array con funciones para procesar cada posible pedido de los procesos
+//TODO: Modelar tad de cpu con todos los datos importantes en el struct, y pasarla en lugar de estos argumentos
 extern bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, int memorySocket);
 
 #endif // !KERNEL_H_

@@ -49,6 +49,10 @@ void* thread_longTermFunc(void* args){
             sem_wait(&sem_multiprogram);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Largo Plazo: el proceso %i pasa a ready", process->pid);
+        pthread_mutex_unlock(&mutex_log);
     }
 }
 
@@ -67,10 +71,15 @@ void* thread_mediumTermFunc(void* args){
             pQueue_put(suspendedBlockedQueue, (void*)process);
             sem_post(&sem_multiprogram);
         pthread_mutex_unlock(&mutex_mediumTerm);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Mediano Plazo: el proceso %i pasa a suspended blocked", process->pid);
+        pthread_mutex_unlock(&mutex_log);
     }
 }
 
 void* thread_CPUFunc(void* args){
+    intptr_t CPUid = (intptr_t)args;
     t_process *process = NULL;
     t_packet *request = NULL;
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
@@ -85,6 +94,11 @@ void* thread_CPUFunc(void* args){
         pthread_mutex_lock(&mutex_mediumTerm);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "CPU %i: el proceso %i pasa a exec", CPUid, process->pid);
+        pthread_mutex_unlock(&mutex_log);
+
         while(keepServing){
             request = socket_getPacket(process->socket);
             for(int i = 0; i < kernelConfig->CPUDelay; i++){
@@ -116,11 +130,19 @@ void* thread_IODeviceFunc(void* args){
         if(process->state == BLOCKED){
             pQueue_removeBy(blockedQueue, matchesPid);
             putToReady(process);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Dispositivo IO %s: el proceso %i pasa a ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
         }
         else if(process->state == SUSP_BLOCKED){
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
             pQueue_put(suspendedReadyQueue, (void*)process);
             sem_post(&sem_newProcess);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Dispositivo IO %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
         }
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
@@ -142,11 +164,19 @@ void* thread_semFunc(void* args){
         if(process->state == BLOCKED){
             pQueue_removeBy(blockedQueue, matchesPid);
             putToReady(process);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Semaforo %s: el proceso %i pasa a ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
         }
         else if(process->state == SUSP_BLOCKED){
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
             pQueue_put(suspendedReadyQueue, (void*)process);
             sem_post(&sem_newProcess);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Semaforo %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
         }
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
@@ -154,7 +184,6 @@ void* thread_semFunc(void* args){
     }
 }
 
-/* El main hace de server, escucha conexiones nuevas y las pone en new */
 int main(){
     logger = log_create("./cfg/kernel.log", "kernel", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
@@ -169,6 +198,7 @@ int main(){
     suspendedBlockedQueue = pQueue_create();
     suspendedReadyQueue = pQueue_create();
 
+    /* Se toma el algoritmo de planificacion */
     if(!strcmp(kernelConfig->schedulerAlgorithm, "SJF"))
         sortingAlgoritm = SJF;
     if(!strcmp(kernelConfig->schedulerAlgorithm, "HRRN"))
@@ -178,13 +208,14 @@ int main(){
     sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
     sem_init(&sem_newProcess, 0, 0);
 
+    /* Inicializo condition variable para despertar al planificador de mediano plazo */
     pthread_cond_init(&cond_mediumTerm, NULL);
     pthread_mutex_init(&mutex_mediumTerm, NULL);
 
     /* Inicializar CPUs */
     thread_CPUs = malloc(sizeof(pthread_t) * kernelConfig->multiprocess);
-    for(int i = 0; i < kernelConfig->multiprocess; i++){
-        pthread_create(thread_CPUs + i, 0, thread_CPUFunc, NULL);
+    for(intptr_t i = 0; i < kernelConfig->multiprocess; i++){
+        pthread_create(thread_CPUs + i, 0, thread_CPUFunc, (void*)i);
         pthread_detach(thread_CPUs[i]);
     }
 
@@ -215,6 +246,7 @@ int main(){
     /* Inicializar servidor */
     int serverSocket = createListenServer(kernelConfig->kernelIP, kernelConfig->kernelPort);
     
+    /* El main hace de server, escucha conexiones nuevas y las pone en new */
     while(1){
         int newProcessSocket = getNewClient(serverSocket);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
@@ -225,7 +257,7 @@ int main(){
         pthread_mutex_unlock(&mutex_mediumTerm);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "se conecto el proceso %i", newProcessSocket);
+        log_info(logger, "Proceso %i: se conecta", newProcessSocket);
         pthread_mutex_unlock(&mutex_log);
     }
 
