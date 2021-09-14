@@ -150,6 +150,9 @@ void* thread_IODeviceFunc(void* args){
     }
 }
 
+/*TODO: Ver como limpar bien el thread cuando se lo cancela para evitar leaks
+      Referencias: pthread_cleanup_push
+*/
 void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
     t_process* process = NULL;
