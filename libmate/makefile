@@ -43,7 +43,9 @@ $(ODIR):
 $(SHARED_OBJ):
 	cd ../shared && make objs
 
-.PHONY: clean test
+.PHONY: clean test build
+
+build: $(PROCESS_NAME)
 
 test: $(TEST_NAME)
 	./$(TEST_NAME)

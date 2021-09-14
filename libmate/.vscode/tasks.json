@@ -8,6 +8,15 @@
             "problemMatcher": [
                 "$gcc"
             ]
+        },
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "make build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build"
         }
     ]
 }
