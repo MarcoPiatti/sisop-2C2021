@@ -129,6 +129,9 @@ bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
 }
 
 bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
+    t_packet *response = createPacket(OK, 0);
+    socket_sendPacket(process->socket, response);
+    destroyPacket(response);
     destroyProcess(process);
     sem_post(&sem_multiprogram);
     return false;
