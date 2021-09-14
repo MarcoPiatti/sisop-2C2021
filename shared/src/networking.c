@@ -33,7 +33,7 @@ void socket_relayPacket(int socket, t_packet* packet){
 }
 
 void socket_get(int socket, void* dest, size_t size){
-    guard_syscall(recv(socket, dest, size, 0));
+    if(size != 0) guard_syscall(recv(socket, dest, size, 0));
 }
 
 msgHeader socket_getHeader(int socket){
@@ -83,7 +83,7 @@ int createListenServer(char* serverIP, char* serverPort){
 }
 
 int getNewClient(int serverSocket){
-    int newClientSocket;
+    int newClientSocket = 0;
     struct sockaddr_in clientAddr;
 	socklen_t addrSize = sizeof(struct sockaddr_in);
     guard_syscall(newClientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &addrSize));
@@ -91,7 +91,7 @@ int getNewClient(int serverSocket){
 }
 
 void runListenServer(int serverSocket, void*(*clientHandler)(void*)){
-    int* newClient = getNewClient(serverSocket);
+    int newClient = getNewClient(serverSocket);
     pthread_t clientHandlerThread = 0;
     guard_syscall(pthread_create(&clientHandlerThread, NULL, clientHandler, (void*)newClient));
     pthread_detach(clientHandlerThread);
