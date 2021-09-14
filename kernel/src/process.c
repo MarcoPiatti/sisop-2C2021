@@ -13,6 +13,6 @@ t_process* createProcess(int id, int socket, double estimate){
 }
 
 void destroyProcess(t_process* process){
-    free(process);
     close(process->socket);
+    free(process);
 }
