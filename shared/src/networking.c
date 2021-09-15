@@ -1,6 +1,6 @@
 #include "networking.h"
 
-t_packet* createPacket(msgHeader header, size_t size){
+t_packet* createPacket(uint8_t header, size_t size){
     t_packet* tmp = malloc(sizeof(t_packet));
     tmp->header = header;
     tmp->payload = createStream(size);
@@ -16,8 +16,8 @@ void socket_send(int socket, void* source, size_t size){
     guard_syscall(send(socket, source, size, 0));
 }
 
-void socket_sendHeader(int socket, msgHeader header){
-    uint8_t tmpHeader = (uint8_t)header;
+void socket_sendHeader(int socket, uint8_t header){
+    uint8_t tmpHeader = header;
     socket_send(socket, (void*)&tmpHeader, sizeof(uint8_t));
 }
 
@@ -36,14 +36,14 @@ void socket_get(int socket, void* dest, size_t size){
     if(size != 0) guard_syscall(recv(socket, dest, size, 0));
 }
 
-msgHeader socket_getHeader(int socket){
+uint8_t socket_getHeader(int socket){
     uint8_t header;
     socket_get(socket, &header, sizeof(uint8_t));
-    return (msgHeader)header;
+    return header;
 }
 
 t_packet* socket_getPacket(int socket){
-    msgHeader header = socket_getHeader(socket);
+    uint8_t header = socket_getHeader(socket);
     uint32_t streamSize;
     socket_get(socket, &streamSize, sizeof(uint32_t));
     t_packet* packet = createPacket(header, streamSize);

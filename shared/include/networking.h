@@ -14,7 +14,7 @@
  * @DESC: Los posibles headers para comunicarse por socket
  */
 typedef enum msgHeader {
-    /* Peticiones */        /* Formato de los mensajes serializados */
+    /* Peticiones de los carpinchos, respetar orden *//* Formato de los mensajes serializados */
     SEM_INIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
     SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
     SEM_POST,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
@@ -26,13 +26,13 @@ typedef enum msgHeader {
     MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     MAX_PETITIONS,
-    /* Respuestas */ 
+    /* Respuestas a carpinchos*/ 
     ID_KERNEL,          // | HEADER | 
     ID_MEMORIA,         // | HEADER |
     OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
     ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
     POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
-    MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
+    MEM_CHUNK          // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
 } msgHeader;
 
 /**
@@ -41,7 +41,7 @@ typedef enum msgHeader {
  *          - un streamBuffer con el mensaje
  */
 typedef struct packet {
-    msgHeader header;
+    uint8_t header;
     t_streamBuffer* payload;
 } t_packet;
 
@@ -51,7 +51,7 @@ typedef struct packet {
  * @param size: tamanio alojado al stream que contiene
  * @return t_packet*: puntero al packet creado
  */
-t_packet* createPacket(msgHeader header, size_t size);
+t_packet* createPacket(uint8_t header, size_t size);
 
 /**
  * @DESC: Destruye un packet de memoria
@@ -72,7 +72,7 @@ void socket_send(int socket, void* source, size_t size);
  * @param socket: socket para enviar
  * @param header: header enviado
  */
-void socket_sendHeader(int socket, msgHeader header);
+void socket_sendHeader(int socket, uint8_t header);
 
 /**
  * @DESC: Envia un packet al socket
@@ -104,7 +104,7 @@ void socket_get(int socket, void* dest, size_t size);
  * @param socket: socket del cual se obtiene el header
  * @return msgHeader: header obtenido
  */
-msgHeader socket_getHeader(int socket);
+uint8_t socket_getHeader(int socket);
 
 /**
  * @DESC: Obtiene un packet del socket
