@@ -1,3 +1,14 @@
+/**
+ * @file: kernel.c
+ * @author pepinOS 
+ * @DESC: Main del modulo Kernel del TP Carpinchos 2C2021
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #include "kernel.h"
 #include <commons/temporal.h>
 #include <string.h>
@@ -46,13 +57,14 @@ void* thread_longTermFunc(void* args){
             else process = (t_process*)pQueue_take(suspendedReadyQueue);
             process->state = READY;
             putToReady(process);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Largo Plazo: el proceso %i pasa a ready", process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
             sem_wait(&sem_multiprogram);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
-
-        pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Largo Plazo: el proceso %i pasa a ready", process->pid);
-        pthread_mutex_unlock(&mutex_log);
     }
 }
 
@@ -124,6 +136,11 @@ void* thread_IODeviceFunc(void* args){
 
     while(1){
         process = (t_process*)pQueue_take(self->waitingProcesses);
+        
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Dispositivo IO %s: el proceso %i se bloquea %ims", self->nombre, process->pid, self->duracion);
+        pthread_mutex_unlock(&mutex_log);
+        
         for(int i = 0; i < self->duracion; i++){
             usleep(1000);
         }
@@ -157,33 +174,59 @@ void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
     t_process* process = NULL;
     t_packet *response = NULL;
+    t_packet *ddTell = NULL;
     bool matchesPid(void* elem){
         return process->pid == ((t_process*)elem)->pid;
     };
 
     while(1){
-        sem_wait(&self->sem);
+        pthread_mutex_lock(&self->sem_mutex);
+        while(pQueue_isEmpty(self->waitingProcesses) || !self->sem){
+            pthread_cond_wait(&self->sem_cond, &self->sem_mutex);
+        }
         process = (t_process*)pQueue_take(self->waitingProcesses);
+        self->sem--;
+        pthread_mutex_unlock(&self->sem_mutex);
         if(process->state == BLOCKED){
             pQueue_removeBy(blockedQueue, matchesPid);
-            putToReady(process);
 
             pthread_mutex_lock(&mutex_log);
             log_info(logger, "Semaforo %s: el proceso %i pasa a ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
+            putToReady(process);
         }
         else if(process->state == SUSP_BLOCKED){
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
-            pQueue_put(suspendedReadyQueue, (void*)process);
-            sem_post(&sem_newProcess);
 
             pthread_mutex_lock(&mutex_log);
             log_info(logger, "Semaforo %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
+            pQueue_put(suspendedReadyQueue, (void*)process);
+            sem_post(&sem_newProcess);
         }
+
+        ddTell = createPacket(DD_SEM_ALLOC, INITIAL_STREAM_SIZE);
+        streamAdd_UINT32(ddTell->payload,process);
+        streamAdd_UINT32(ddTell->payload,self);
+        pQueue_put(dd->queue, (void*)ddTell);
+
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
         destroyPacket(response);
+    }
+}
+
+void* thread_deadlockDetectorFunc(void* args){
+    t_deadlockDetector* self = (t_deadlockDetector*)args;
+
+    t_packet* newInfo = NULL;
+
+    while(1){
+        newInfo = (t_packet*)pQueue_take(self->queue);
+        newInfo->payload->offset = 0;
+        deadlockHandlers[newInfo->header](self, newInfo);
+        destroyPacket(newInfo);
+        //TODO: Falta algoritmo de deteccion y eliminacion
     }
 }
 
@@ -246,22 +289,31 @@ int main(){
     pthread_create(&thread_mediumTerm, 0, thread_mediumTermFunc, NULL);
     pthread_detach(thread_mediumTerm);
 
+    /* Inicializar detector de deadlocks */
+    dd = createDeadlockDetector(thread_deadlockDetectorFunc);
+
     /* Inicializar servidor */
     int serverSocket = createListenServer(kernelConfig->kernelIP, kernelConfig->kernelPort);
     
     /* El main hace de server, escucha conexiones nuevas y las pone en new */
+    t_packet* ddTell = NULL;
+    t_process* process = NULL;
     while(1){
         int newProcessSocket = getNewClient(serverSocket);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
+        process = createProcess(newProcessSocket, newProcessSocket, kernelConfig->initialEstimator);
         pthread_mutex_lock(&mutex_mediumTerm);
-            pQueue_put(newQueue, createProcess(newProcessSocket, newProcessSocket, kernelConfig->initialEstimator));
+            pQueue_put(newQueue, process);
             sem_post(&sem_newProcess);
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Proceso %i: se conecta", newProcessSocket);
+            pthread_mutex_unlock(&mutex_log);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
-
-        pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Proceso %i: se conecta", newProcessSocket);
-        pthread_mutex_unlock(&mutex_log);
+        
+        ddTell = createPacket(DD_PROC_INIT, INITIAL_STREAM_SIZE);
+        streamAdd_UINT32(ddTell->payload,process);
+        pQueue_put(dd->queue, (void*)ddTell);
     }
 
     return 0;

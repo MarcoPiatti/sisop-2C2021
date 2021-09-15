@@ -1,14 +1,37 @@
+/**
+ * @file: petitionHandlers.c
+ * @author pepinOS 
+ * @DESC: Funciones que ejecutan los CPUs para atender pedidos concretos.
+ * Este .c incluye directamente a kernel.h y no a su propio header,
+ * debido a que interactua con variables globales (colas de estado, por ejemplo).
+ * Podria tranquilamente agregarse todo al .c principal, pero separado queda mas entendible. 
+ * 
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #include "kernel.h"
 
 bool semInit(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
+    t_mateSem* sem = NULL;
+    t_packet* ddTell = NULL;
     char* semName = streamTake_STRING(petition->payload);
     int32_t semValue = streamTake_INT32(petition->payload);
     pthread_mutex_lock(&mutex_sem_dict);
     if(!dictionary_has_key(sem_dict, semName)){
-        dictionary_put(sem_dict, semName, mateSem_create(semName, (unsigned int)semValue, thread_semFunc));
+        sem = mateSem_create(semName, (unsigned int)semValue, thread_semFunc);
+        dictionary_put(sem_dict, semName, sem);
         pthread_mutex_unlock(&mutex_sem_dict);
         response = createPacket(OK, 0);
+
+        ddTell = createPacket(DD_SEM_INIT, INITIAL_STREAM_SIZE);
+        streamAdd_UINT32(ddTell->payload, sem);
+        streamAdd_INT32(ddTell->payload, semValue);
+        pQueue_put(dd->queue, (void*)ddTell);
 
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Proceso %i: crea el semaforo %s", process->pid, semName);
@@ -33,25 +56,47 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
     t_mateSem* sem = NULL;
+    t_packet *ddTell = NULL;
     bool rc;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         sem = (t_mateSem*)dictionary_get(sem_dict, semName);
         pthread_mutex_unlock(&mutex_sem_dict);
 
-        pthread_mutex_lock(&mutex_mediumTerm);
-            process->state = BLOCKED;
-            pQueue_put(blockedQueue, process);
-        pthread_cond_signal(&cond_mediumTerm);
-        pthread_mutex_unlock(&mutex_mediumTerm);
         
-        mateSem_wait(sem, process);
-        
-        pthread_mutex_lock(&mutex_log);
-        log_warning(logger, "Proceso %i: espera en el semaforo %s", process->pid, semName);
-        pthread_mutex_unlock(&mutex_log);
-        
-        rc = false;
+        if(mateSem_wait(sem, process)){
+            pthread_mutex_lock(&mutex_mediumTerm);
+                process->state = BLOCKED;
+                pQueue_put(blockedQueue, process);
+            pthread_cond_signal(&cond_mediumTerm);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+            
+            ddTell = createPacket(DD_SEM_REQ, INITIAL_STREAM_SIZE);
+
+            pthread_mutex_lock(&mutex_log);
+            log_warning(logger, "Proceso %i: se frena en el semaforo %s", process->pid, semName);
+            pthread_mutex_unlock(&mutex_log);
+
+            rc = false;
+        }
+        else {
+
+            ddTell = createPacket(DD_SEM_ALLOC_INST, INITIAL_STREAM_SIZE);
+
+            pthread_mutex_lock(&mutex_log);
+            log_warning(logger, "Proceso %i: descuenta el semaforo %s", process->pid, semName);
+            pthread_mutex_unlock(&mutex_log);
+
+            response = createPacket(OK, 0);
+            socket_sendPacket(process->socket, response);
+            destroyPacket(response);
+
+            rc = true;
+        }
+
+        streamAdd_UINT32(ddTell->payload,process);
+        streamAdd_UINT32(ddTell->payload,sem);
+        pQueue_put(dd->queue, (void*)ddTell);
     }
     else{
         pthread_mutex_unlock(&mutex_sem_dict);
@@ -73,15 +118,22 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
     t_mateSem* sem = NULL;
+    t_packet *ddTell = NULL;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         sem = (t_mateSem*)dictionary_get(sem_dict, semName);
         pthread_mutex_unlock(&mutex_sem_dict);
-        mateSem_post(sem);
 
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Proceso %i: postea el semaforo %s", process->pid, semName);
         pthread_mutex_unlock(&mutex_log);
+        
+        mateSem_post(sem);
+
+        ddTell = createPacket(DD_SEM_REL, INITIAL_STREAM_SIZE);
+        streamAdd_UINT32(ddTell->payload,process);
+        streamAdd_UINT32(ddTell->payload,sem);
+        pQueue_put(dd->queue, (void*)ddTell);
 
         response = createPacket(OK, 0);
     }
@@ -103,12 +155,17 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
 
 bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
+    t_packet *ddTell = NULL;
     char* semName = streamTake_STRING(petition->payload);
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         void destroyer(void*elem){
             mateSem_destroy((t_mateSem*)elem);
-        }
+        };
+        t_mateSem* sem = dictionary_get(sem_dict, semName);
+        ddTell = createPacket(DD_SEM_DESTROY, INITIAL_STREAM_SIZE);
+        streamAdd_UINT32(ddTell->payload,sem);
+        pQueue_put(dd->queue, (void*)ddTell);
 
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Proceso %i: destruye el semaforo %s", process->pid, semName);
@@ -188,6 +245,10 @@ bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
 bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = createPacket(OK, 0);
     socket_sendPacket(process->socket, response);
+
+    t_packet* ddTell = createPacket(DD_PROC_TERM, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(ddTell->payload, process);
+    pQueue_put(dd->queue, (void*)ddTell);
 
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Proceso %i: se desconecta", process->pid);
