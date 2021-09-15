@@ -1,3 +1,14 @@
+/**
+ * @file: mateSem.h
+ * @author pepinOS 
+ * @DESC: TAD para semaforos "mate", para su uso en el kernel.
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #ifndef MATESEM_H_
 #define MATESEM_H_
 
@@ -13,7 +24,9 @@
  */
 typedef struct mateSem {
     char* nombre;
-    sem_t sem;
+    unsigned int sem;
+    pthread_cond_t sem_cond;
+    pthread_mutex_t sem_mutex;
     t_pQueue* waitingProcesses;
     pthread_t thread_mateSem;
 } t_mateSem;
@@ -42,7 +55,7 @@ void mateSem_destroy(t_mateSem* mateSem);
  * @param mateSem: el mateSem usado
  * @param process: proceso (carpincho) que espera
  */
-void mateSem_wait(t_mateSem* mateSem, t_process* process);
+bool mateSem_wait(t_mateSem* mateSem, t_process* process);
 
 /**
  * @DESC: Incrementa el contador del mateSem en 1

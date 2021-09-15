@@ -1,3 +1,14 @@
+/**
+ * @file: IODevice.h
+ * @author pepinOS 
+ * @DESC: TAD para dispositivos entrada-salida
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #ifndef IODEVICE_H_
 #define IODEVICE_H_
 

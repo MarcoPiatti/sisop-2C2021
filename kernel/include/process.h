@@ -1,3 +1,14 @@
+/**
+ * @file: process.h
+ * @author pepinOS 
+ * @DESC: TAD para un proceso en el kernel
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #ifndef PROCESS_H_
 #define PROCESS_H_
 

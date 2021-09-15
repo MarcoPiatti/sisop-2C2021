@@ -1,3 +1,14 @@
+/**
+ * @file: kernelConfig.h
+ * @author pepinOS 
+ * @DESC: TAD para un archivo de configuracion del Kernel
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #ifndef KERNELCONFIG_H_
 #define KERNELCONFIG_H_
 

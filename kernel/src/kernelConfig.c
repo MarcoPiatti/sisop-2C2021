@@ -1,3 +1,14 @@
+/**
+ * @file: kernelConfig.c
+ * @author pepinOS 
+ * @DESC: TAD para un archivo de configuracion del Kernel
+ * @version 0.1
+ * @date: 2021-09-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
+
 #include "kernelConfig.h"
 #include <stdlib.h>
 
@@ -25,16 +36,19 @@ void destroyKernelConfig(t_kernelConfig* config){
     free(config->memoryIP);
     free(config->memoryPort);
     free(config->schedulerAlgorithm);
+    
     int i = 0;
     while(config->IODeviceNames[i]){
         free(config->IODeviceNames[i]);
         free(config->IODeviceDelays[i]);
         i++;
     }
+    
     free(config->IODeviceNames[i]);
     free(config->IODeviceDelays[i]);
     free(config->IODeviceNames);
     free(config->IODeviceDelays);
+
     config_destroy(config->config);
     free(config);
 }
