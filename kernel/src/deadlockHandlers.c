@@ -226,6 +226,7 @@ bool findDeadlocks(t_deadlockDetector* dd){
             destroyPacket(response);
             
             destroyProcess(dd->procs[i]);
+            sem_post(&sem_multiprogram);
 
             dd->n--;
             memmove(dd->procs+i, dd->procs+i+1, sizeof(t_process*) * (dd->n - i));
