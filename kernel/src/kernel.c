@@ -144,8 +144,12 @@ void* thread_IODeviceFunc(void* args){
         for(int i = 0; i < self->duracion; i++){
             usleep(1000);
         }
+        
         if(process->state == BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_removeBy(blockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
             putToReady(process);
 
             pthread_mutex_lock(&mutex_log);
@@ -153,7 +157,10 @@ void* thread_IODeviceFunc(void* args){
             pthread_mutex_unlock(&mutex_log);
         }
         else if(process->state == SUSP_BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
             pQueue_put(suspendedReadyQueue, (void*)process);
             sem_post(&sem_newProcess);
 
@@ -161,15 +168,13 @@ void* thread_IODeviceFunc(void* args){
             log_info(logger, "Dispositivo IO %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
         }
+
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
         free(response);
     }
 }
 
-/*TODO: Ver como limpar bien el thread cuando se lo cancela para evitar leaks
-      Referencias: pthread_cleanup_push
-*/
 void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
     t_process* process = NULL;
@@ -188,7 +193,9 @@ void* thread_semFunc(void* args){
         self->sem--;
         pthread_mutex_unlock(&self->sem_mutex);
         if(process->state == BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_removeBy(blockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
             log_info(logger, "Semaforo %s: el proceso %i pasa a ready", self->nombre, process->pid);
@@ -196,7 +203,9 @@ void* thread_semFunc(void* args){
             putToReady(process);
         }
         else if(process->state == SUSP_BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
             log_info(logger, "Semaforo %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
@@ -206,8 +215,8 @@ void* thread_semFunc(void* args){
         }
 
         ddTell = createPacket(DD_SEM_ALLOC, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,process);
-        streamAdd_UINT32(ddTell->payload,self);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)self);
         pQueue_put(dd->queue, (void*)ddTell);
 
         response = createPacket(OK, 0);
@@ -226,7 +235,7 @@ void* thread_deadlockDetectorFunc(void* args){
         newInfo->payload->offset = 0;
         deadlockHandlers[newInfo->header](self, newInfo);
         destroyPacket(newInfo);
-        //TODO: Falta algoritmo de deteccion y eliminacion
+        while(findDeadlocks(self));
     }
 }
 
@@ -312,7 +321,7 @@ int main(){
         pthread_mutex_unlock(&mutex_mediumTerm);
         
         ddTell = createPacket(DD_PROC_INIT, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,process);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
         pQueue_put(dd->queue, (void*)ddTell);
     }
 
