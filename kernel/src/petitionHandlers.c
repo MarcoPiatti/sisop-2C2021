@@ -29,7 +29,7 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
         response = createPacket(OK, 0);
 
         ddTell = createPacket(DD_SEM_INIT, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload, sem);
+        streamAdd_UINT32(ddTell->payload, (uint32_t)sem);
         streamAdd_INT32(ddTell->payload, semValue);
         pQueue_put(dd->queue, (void*)ddTell);
 
@@ -94,8 +94,8 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
             rc = true;
         }
 
-        streamAdd_UINT32(ddTell->payload,process);
-        streamAdd_UINT32(ddTell->payload,sem);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
         pQueue_put(dd->queue, (void*)ddTell);
     }
     else{
@@ -131,8 +131,8 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
         mateSem_post(sem);
 
         ddTell = createPacket(DD_SEM_REL, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,process);
-        streamAdd_UINT32(ddTell->payload,sem);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
         pQueue_put(dd->queue, (void*)ddTell);
 
         response = createPacket(OK, 0);
@@ -164,7 +164,7 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
         };
         t_mateSem* sem = dictionary_get(sem_dict, semName);
         ddTell = createPacket(DD_SEM_DESTROY, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,sem);
+        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
         pQueue_put(dd->queue, (void*)ddTell);
 
         pthread_mutex_lock(&mutex_log);
@@ -247,7 +247,7 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     socket_sendPacket(process->socket, response);
 
     t_packet* ddTell = createPacket(DD_PROC_TERM, INITIAL_STREAM_SIZE);
-    streamAdd_UINT32(ddTell->payload, process);
+    streamAdd_UINT32(ddTell->payload, (uint32_t)process);
     pQueue_put(dd->queue, (void*)ddTell);
 
     pthread_mutex_lock(&mutex_log);
