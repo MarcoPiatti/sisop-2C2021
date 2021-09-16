@@ -72,7 +72,7 @@ void DDSemRelease(t_deadlockDetector* dd, t_packet* newInfo){
     while (dd->procs[i] != proc) i++;
 
     dd->available[j]++;
-    dd->allocation[i][j]--;
+    if(dd->allocation[i][j])dd->allocation[i][j]--;
 }
 
 void DDSemDestroy(t_deadlockDetector* dd, t_packet* newInfo){
@@ -147,3 +147,100 @@ void(*deadlockHandlers[DD_MAX])(t_deadlockDetector* dd, t_packet* newInfo) =
     DDProcInit,
     DDProcTerm
 };
+
+bool findDeadlocks(t_deadlockDetector* dd){
+    bool isDeadlock = false;
+
+    int *work = malloc(sizeof(int) * dd->m);
+    memcpy(work, dd->available, dd->m * sizeof(int));
+    bool *finish = malloc(sizeof(int) * dd->n);
+    for(int i = 0; i < dd->n; i++){
+        finish[i] = true;
+        for(int j = 0; j < dd->m; j++){
+            if(dd->allocation[i][j]){
+                finish[i] = false;
+                break;
+            }
+        }
+    }
+    for(int i = 0; i < dd->n; i++){
+        bool found = true;
+        for(int j = 0; j < dd->m; j++){
+            if(dd->request[i][j] > work[j]){
+                found = false;
+                break;
+            }
+        }
+        if(!finish[i] && found){
+            for(int j = 0; j < dd->m; j++){
+                work[j] += dd->allocation[i][j];
+                finish[i] = true;
+            }
+        }
+    }
+
+    t_process* locked = NULL;
+    for(int i = 0; i < dd->n; i++){
+        if(!finish[i]){
+            isDeadlock = true;
+            if(locked == NULL) locked = dd->procs[i];
+            if(locked->pid <= dd->procs[i]->pid) locked = dd->procs[i];
+        }
+    }
+    
+    bool matchesPid(void* elem){
+        return locked->pid == ((t_process*)elem)->pid;
+    };
+    
+    free(work);
+    free(finish);
+    
+    if (!isDeadlock){
+        return false;
+    }
+
+    for(int i = 0; i < dd->n; i++){
+        if(locked == dd->procs[i]){
+            for(int j = 0; j < dd->m; j++){
+                if(dd->request[i][j]){
+                    pthread_mutex_lock(&mutex_mediumTerm);
+                    pQueue_removeBy(dd->sems[j]->waitingProcesses, matchesPid);
+                    if(locked->state == BLOCKED) pQueue_removeBy(blockedQueue, matchesPid);
+                    else if(locked->state == SUSP_BLOCKED) pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+                    pthread_mutex_unlock(&mutex_mediumTerm);
+                    dd->request[i][j] = 0;
+                }
+                while(dd->allocation[i][j]){
+                    mateSem_post(dd->sems[j]);
+                    dd->allocation[i][j]--;
+                    dd->available[j]++;
+                }
+            }
+
+            pthread_mutex_lock(&mutex_log);
+            log_warning(logger, "DEADLOCK: proceso %i terminado", dd->procs[i]->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            t_packet* response = createPacket(ERROR, 0);
+            socket_sendPacket(dd->procs[i]->socket, response);
+            destroyPacket(response);
+            
+            destroyProcess(dd->procs[i]);
+
+            dd->n--;
+            memmove(dd->procs+i, dd->procs+i+1, sizeof(t_process*) * (dd->n - i));
+            dd->procs = realloc(dd->procs, sizeof(t_process*) * dd->n);
+
+            free(dd->allocation[i]);
+            memmove(dd->allocation+i, dd->allocation+i+1, sizeof(int*) * (dd->n - i));
+            dd->allocation = realloc(dd->allocation, sizeof(int*) * dd->n);
+        
+            free(dd->request[i]);
+            memmove(dd->request+i, dd->request+i+1, sizeof(int*) * (dd->n - i));
+            dd->request = realloc(dd->request, sizeof(int*) * dd->n);
+
+            break;
+        }
+    }
+    return true;
+}

@@ -66,10 +66,12 @@ void* thread_semFunc(void* args);
 void* thread_deadlockDetectorFunc(void* args);
 
 //Array con funciones para procesar cada posible pedido de los procesos
-//TODO: Modelar tad de cpu con todos los datos importantes en el struct, y pasarla en lugar de estos argumentos
+//TODO: Opcional, convertir CPU en TAD
 extern bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, int memorySocket);
 
 //Array con funciones para procesar cada posible situacion con el deadlockDetector
 extern void(*deadlockHandlers[DD_MAX])(t_deadlockDetector* dd, t_packet* newInfo);
+
+bool findDeadlocks(t_deadlockDetector* dd);
 
 #endif // !KERNEL_H_
