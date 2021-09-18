@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
+    uint32_t pid;
     t_config* mateConfig;
     char* mateIP;
     char* matePort;
@@ -23,6 +24,7 @@ int mate_init(mate_instance *lib_ref, char *config){
     mateStruct->matePort = config_get_string_value(mateStruct->mateConfig, "PUERTO_MATE");
     mateStruct->mateSocket = connectToServer(mateStruct->mateIP, mateStruct->matePort);
     mateStruct->isMemory = (socket_getHeader(mateStruct->mateSocket) == ID_MEMORIA);
+    //Inicializar pid de alguna forma
     return 0;
 }
 
