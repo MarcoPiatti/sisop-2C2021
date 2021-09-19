@@ -7,6 +7,11 @@
 #include <sys/mman.h>
 #include <string.h>
 
+typedef struct pageMetadata{
+    uint32_t pid;
+    int32_t pageNumber;
+} t_pageMetadata;
+
 t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     t_swapFile* self = malloc(sizeof(t_swapFile));
     self->path = string_duplicate(path);
@@ -15,7 +20,12 @@ t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     self->maxPages = size / pageSize;
     self->fd = open(self->path, O_RDWR|O_CREAT, S_IRWXU);
     ftruncate(self->fd, self->size);
-    swapFile_cleanAll(self);
+    void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
+    memset(mappedFile, 0, sf->size);
+    msync(mappedFile, sf->size, MS_SYNC);
+    munmap(mappedFile, sf->size);
+
+    self->entries = list_create();
     return self;
 }
 
@@ -25,14 +35,7 @@ void swapFile_destroy(t_swapFile* self){
     free(self);
 }
 
-void swapFile_cleanAll(t_swapFile* sf){
-    void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
-    memset(mappedFile, 0, sf->size);
-    msync(mappedFile, sf->size, MS_SYNC);
-    munmap(mappedFile, sf->size);
-}
-
-void swapFile_cleanAtIndex(t_swapFile* sf, int index){
+void swapFile_clearAtIndex(t_swapFile* sf, int index){
     void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
     memset(mappedFile + index * sf->pageSize, 0, sf->pageSize);
     msync(mappedFile, sf->size, MS_SYNC);
@@ -51,4 +54,22 @@ void* swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr){
     memcpy(mappedFile + index * sf->pageSize, pagePtr, sf->pageSize);
     msync(mappedFile, sf->size, MS_SYNC);
     munmap(mappedFile, sf->size);
+}
+
+bool swapFile_isFull(t_swapFile* sf){
+    return list_size(sf->entries) == sf->maxPages;
+}
+
+bool swapFile_hasProcess(t_swapFile* sf){
+    bool samePid(void* elem){
+        pid == ((t_pageMetadata*)elem)->pid;
+    };
+    return list_any_satisfy(sf->entries, samePid);
+}
+
+int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid){
+    bool samePid(void* elem){
+        pid == ((t_pageMetadata*)elem)->pid;
+    };
+    return list_count_satisfying(sf->entries, samePid);
 }
