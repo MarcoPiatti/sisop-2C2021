@@ -51,6 +51,7 @@ void* swapFile_readAtIndex(t_swapFile* sf, int index){
     void* pagePtr = NULL;
     memcpy(pagePtr, mappedFile + index * sf->pageSize, sf->pageSize);
     munmap(mappedFile, sf->size);
+    return pagePtr;
 }
 
 void swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr){
