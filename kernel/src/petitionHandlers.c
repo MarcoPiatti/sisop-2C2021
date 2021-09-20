@@ -260,8 +260,21 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     return false;
 }
 
+bool relayTerminate(t_process* process, t_packet* petition, int memorySocket){
+    socket_relayPacket(memorySocket, petition);
+    t_packet* response = socket_getPacket(memorySocket);
+    socket_relayPacket(process->socket, response);
+    destroyPacket(response);
+
+    t_packet* finalPacket = socket_getPacket(process->socket);
+    terminateProcess(process, finalPacket, memorySocket);
+
+    return false;
+}
+
 bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, int memorySocket) = 
-{
+{   
+    NULL,
     semInit,
     semWait,
     semPost,
@@ -271,5 +284,6 @@ bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, i
     relayPetition,
     relayPetition,
     relayPetition,
+    relayTerminate,
     terminateProcess
 };

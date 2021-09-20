@@ -148,7 +148,7 @@ void(*deadlockHandlers[DD_MAX])(t_deadlockDetector* dd, t_packet* newInfo) =
     DDProcTerm
 };
 
-bool findDeadlocks(t_deadlockDetector* dd){
+bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
     bool isDeadlock = false;
 
     int *work = malloc(sizeof(int) * dd->m);
@@ -221,10 +221,15 @@ bool findDeadlocks(t_deadlockDetector* dd){
             log_warning(logger, "DEADLOCK: proceso %i terminado", dd->procs[i]->pid);
             pthread_mutex_unlock(&mutex_log);
 
+            t_packet* termMemory = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
+            streamAdd_UINT32(termMemory, dd->procs[i]->pid);
+            socket_sendPacket(memorySocket, termMemory);
+            destroyPacket(termMemory);
+
             t_packet* response = createPacket(ERROR, 0);
             socket_sendPacket(dd->procs[i]->socket, response);
             destroyPacket(response);
-            
+
             destroyProcess(dd->procs[i]);
             sem_post(&sem_multiprogram);
 

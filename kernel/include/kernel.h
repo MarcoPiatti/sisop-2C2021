@@ -19,6 +19,7 @@
 #include "deadlockDetector.h"
 #include "kernelConfig.h"
 #include "networking.h"
+#include "headers.h"
 
 #include <commons/collections/dictionary.h>
 
@@ -72,6 +73,6 @@ extern bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* peti
 //Array con funciones para procesar cada posible situacion con el deadlockDetector
 extern void(*deadlockHandlers[DD_MAX])(t_deadlockDetector* dd, t_packet* newInfo);
 
-bool findDeadlocks(t_deadlockDetector* dd);
+bool findDeadlocks(t_deadlockDetector* dd, int memorySocket);
 
 #endif // !KERNEL_H_

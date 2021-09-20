@@ -95,6 +95,7 @@ void* thread_CPUFunc(void* args){
     t_process *process = NULL;
     t_packet *request = NULL;
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    socket_ignoreHeader(memorySocket);
     int rafaga = 0;
     bool keepServing = true;
     while(1){
@@ -229,13 +230,14 @@ void* thread_deadlockDetectorFunc(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 
     t_packet* newInfo = NULL;
-
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    socket_ignoreHeader(memorySocket);
     while(1){
         newInfo = (t_packet*)pQueue_take(self->queue);
         newInfo->payload->offset = 0;
         deadlockHandlers[newInfo->header](self, newInfo);
         destroyPacket(newInfo);
-        while(findDeadlocks(self));
+        while(findDeadlocks(self, memorySocket));
     }
 }
 
@@ -307,10 +309,15 @@ int main(){
     /* El main hace de server, escucha conexiones nuevas y las pone en new */
     t_packet* ddTell = NULL;
     t_process* process = NULL;
+    int memSock = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    socket_ignoreHeader(memSock);
     while(1){
         int newProcessSocket = getNewClient(serverSocket);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
-        process = createProcess(newProcessSocket, newProcessSocket, kernelConfig->initialEstimator);
+        t_packet* idPacket = socket_getPacket(newProcessSocket);
+        uint32_t pid = streamTake_UINT32(idPacket);
+        socket_relayPacket(memSock, idPacket);
+        process = createProcess(pid, newProcessSocket, kernelConfig->initialEstimator);
         pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_put(newQueue, process);
             sem_post(&sem_newProcess);
