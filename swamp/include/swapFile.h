@@ -6,13 +6,19 @@
 #include <stdint.h>
 #include <commons/collections/list.h>
 
+typedef struct pageMetadata{
+    uint32_t pid;
+    int32_t pageNumber;
+    bool used;
+} t_pageMetadata;
+
 typedef struct swapFile{
     char* path;
     int fd;
     size_t size;
     size_t pageSize;
     int maxPages;
-    t_list* entries;
+    t_pageMetadata* entries;
 } t_swapFile;
 
 t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize);
@@ -29,11 +35,11 @@ bool swapFile_isFull(t_swapFile* sf);
 
 bool swapFile_hasRoom(t_swapFile* sf);
 
-bool swapFile_hasProcess(t_swapFile* sf);
+bool swapFile_hasPid(t_swapFile* sf, uint32_t pid);
 
-int swapFile_countProcesses(t_swapFile* sf);
+int swapFile_countPidPages(t_swapFile* sf, uint32_t pid);
 
-int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid);
+bool swapFile_isFreeIndex(t_swapFile* sf, int index);
 
 int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber);
 

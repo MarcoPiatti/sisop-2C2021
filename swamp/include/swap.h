@@ -7,4 +7,6 @@
 t_swapConfig* swapConfig;
 t_list* swapFiles;
 
+bool (*asignacion)(uint32_t pid, int32_t page, void* pageContent);
+
 #endif // !SWAP_H_
