@@ -6,11 +6,25 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <stdlib.h>
 
 typedef struct pageMetadata{
     uint32_t pid;
     int32_t pageNumber;
+    int index;
 } t_pageMetadata;
+
+bool matchesIndex(t_pageMetadata* entry, int index){
+    return entry->index == index;
+}
+
+bool matchesPid(t_pageMetadata* entry, uint32_t pid){
+    return entry->pid == pid;
+}
+
+bool matchesPage(t_pageMetadata* entry, int32_t pageNumber){
+    return entry->pageNumber == pageNumber;
+}
 
 t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     t_swapFile* self = malloc(sizeof(t_swapFile));
@@ -26,8 +40,6 @@ t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     munmap(mappedFile, self->size);
 
     self->entries = list_create();
-    for(int i = 0; i < self->maxPages; i++)
-        list_add(self->entries, NULL);
 
     return self;
 }
@@ -65,16 +77,65 @@ bool swapFile_isFull(t_swapFile* sf){
     return list_size(sf->entries) == sf->maxPages;
 }
 
+bool swapFile_hasRoom(t_swapFile* sf){
+    return !swapFile_isFull(sf);
+}
+
 bool swapFile_hasProcess(t_swapFile* sf){
     bool samePid(void* elem){
-        pid == ((t_pageMetadata*)elem)->pid;
+        return matchesPid((t_pageMetadata*) elem, pid);
     };
     return list_any_satisfy(sf->entries, samePid);
 }
 
+int swapFile_countProcesses(t_swapFile* sf){
+    t_list* foundPids = list_create();
+    void addIfUnrepeated(void* entry){
+        bool samePid(void* elem){
+            return matchesPid((t_pageMetadata*) elem, ((t_pageMetadata*)entry)->pid);
+        };
+        if(!list_any_satisfy(sf->entries, samePid)) list_add(foundPids, entry);
+    };
+    list_iterate(sf->entries, addIfUnrepeated);
+    int amountFound = list_size(foundPids);
+    list_destroy(foundPids);
+    return amountFound;
+}
+
 int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid){
     bool samePid(void* elem){
-        pid == ((t_pageMetadata*)elem)->pid;
+        return matchesPid((t_pageMetadata*) elem, pid);
     };
     return list_count_satisfying(sf->entries, samePid);
+}
+
+int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber){
+    bool samePidAndPage(void* elem){
+        return matchesPid((t_pageMetadata*) elem, pid) && matchesPage((t_pageMetadata*) elem), pageNumber);
+    };
+    t_pageMetadata* value = list_find(sf->entries, samePidAndPage);
+    return value ? value->index : -1;
+}
+
+int swapFile_findFreeIndex(t_swapFile* sf){
+    int i = 0;
+
+    bool differentPid(void* elem){
+        return !matchesPid((t_swapFile*)elem, i);
+    }
+
+    while(i < sf->maxPages){
+        if(list_all_satisfy(sf->entries, differentPid)) break;
+        i++;
+    }
+
+    return i;
+}
+
+void swapFile_register(t_swapFile* sf, uint32_t pid, int32_t pageNumber, int index){
+    t_pageMetadata* newEntry = malloc(sizeof(t_pageMetadata));
+    newEntry->index = index;
+    newEntry->pageNumber = pageNumber;
+    newEntry->pid = pid;
+    list_add(sf->entries, (void*)newEntry);
 }
