@@ -1,6 +1,4 @@
 #include "swap.h"
-#include "networking.h"
-#include "swapFile.h"
 
 t_swapFile* pidExists(uint32_t pid){
     bool hasProcess(void* elem){
@@ -90,9 +88,18 @@ int main(){
 
     int serverSocket = createListenServer(swapConfig->swapIP, swapConfig->swapPort);
     int memorySocket = getNewClient(serverSocket);
+    swapHeader asignType = socket_getHeader(memorySocket);
+    if (asignType == ASIGN_FIJO) asignacion = fija;
+    else if (asignType == ASIGN_GLOBAL) asignacion = global;
 
+    t_packet* petition;
     while(1){
-        
+        petition = socket_getPacket(memorySocket);
+        for(int i = 0; i < swapConfig->delay; i++){
+            usleep(1000);
+        }
+        swapHandler[petition->header](petition, memorySocket);
+        destroyPacket(petition);
     }
 
     return 0;
