@@ -63,7 +63,7 @@ void streamAdd_UINT8(t_streamBuffer* stream, uint8_t value){
 //----------------------------------------------------------------------//
 
 void streamAdd_STRING_P(t_streamBuffer* stream, void* source){
-    uint32_t size = string_length(source) + 1;
+    uint32_t size = string_length((char*)source) + 1;
     streamAdd_UINT32(stream, size);
     streamAdd(stream, source, size);
 }

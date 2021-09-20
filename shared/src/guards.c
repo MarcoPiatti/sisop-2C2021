@@ -17,7 +17,9 @@ void guard_syscall(int returncode){
         int error = errno;
         char* buf = malloc(100);
         strerror_r(error, buf, 100);
+        pthread_mutex_lock(&mutex_log);
         log_error(logger, "Error: %s", buf);
+        pthread_mutex_unlock(&mutex_log);
         free(buf);
     }
 }
