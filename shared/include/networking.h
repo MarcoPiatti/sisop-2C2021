@@ -11,31 +11,6 @@
 #define MAX_BACKLOG 100
 
 /**
- * @DESC: Los posibles headers para comunicarse por socket
- */
-typedef enum msgHeader {
-    /* Peticiones de los carpinchos, respetar orden *//* Formato de los mensajes serializados */
-    SEM_INIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING | SEM_VALUE = UINT32 |
-    SEM_WAIT,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
-    SEM_POST,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
-    SEM_DESTROY,        // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
-    CALL_IO,            // | HEADER | PAYLOAD_SIZE | IO_NAME = STRING  |
-    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | SIZE = INT32 |
-    MEMFREE,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 |
-    MEMREAD,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 | SIZE = INT32 |
-    MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
-    DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
-    MAX_PETITIONS,
-    /* Respuestas a carpinchos*/ 
-    ID_KERNEL,          // | HEADER | 
-    ID_MEMORIA,         // | HEADER |
-    OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
-    ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
-    POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
-    MEM_CHUNK          // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
-} msgHeader;
-
-/**
  * @DESC: Contiene:
  *          - el header del mensaje
  *          - un streamBuffer con el mensaje
@@ -102,9 +77,11 @@ void socket_get(int socket, void* dest, size_t size);
 /**
  * @DESC: Obtiene unicamente un header del socket
  * @param socket: socket del cual se obtiene el header
- * @return msgHeader: header obtenido
+ * @return uint8_t: header obtenido
  */
 uint8_t socket_getHeader(int socket);
+
+void socket_ignoreHeader(int socket);
 
 /**
  * @DESC: Obtiene un packet del socket

@@ -4,6 +4,8 @@
 #include <commons/config.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "headers.h"
+#include <time.h>
 
 typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
     uint32_t pid;
@@ -22,20 +24,39 @@ int mate_init(mate_instance *lib_ref, char *config){
     mateStruct->mateConfig = config_create(config);
     mateStruct->mateIP = config_get_string_value(mateStruct->mateConfig, "IP_MATE");
     mateStruct->matePort = config_get_string_value(mateStruct->mateConfig, "PUERTO_MATE");
+    //Inicializar pid de alguna forma
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    mateStruct->pid = (uint32_t)time.tv_nsec;
     mateStruct->mateSocket = connectToServer(mateStruct->mateIP, mateStruct->matePort);
     mateStruct->isMemory = (socket_getHeader(mateStruct->mateSocket) == ID_MEMORIA);
-    //Inicializar pid de alguna forma
+
+    t_packet* packet = createPacket(ID_CAPI, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
+    socket_sendPacket(mateStruct->mateSocket, packet);
+    destroyPacket(packet);
     return 0;
 }
 
 int mate_close(mate_instance *lib_ref){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
+    
+    t_packet* packet = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
+    socket_sendPacket(mateStruct->mateSocket, packet);
+    destroyPacket(packet);
+
+    packet = socket_getPacket(mateStruct->mateSocket);
+    int rc = (packet->header == OK) ? 0 : -1;
+    destroyPacket(packet);
+
     t_packet* packet = createPacket(DISCONNECTED, 0);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
     packet = socket_getPacket(mateStruct->mateSocket);
     int rc = (packet->header == OK) ? 0 : -1;
+    destroyPacket(packet);    
 
     close(mateStruct->mateSocket);
     config_destroy(mateStruct->mateConfig);
