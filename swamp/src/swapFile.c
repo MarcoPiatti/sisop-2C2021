@@ -20,23 +20,27 @@ t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     self->maxPages = size / pageSize;
     self->fd = open(self->path, O_RDWR|O_CREAT, S_IRWXU);
     ftruncate(self->fd, self->size);
-    void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
-    memset(mappedFile, 0, sf->size);
-    msync(mappedFile, sf->size, MS_SYNC);
-    munmap(mappedFile, sf->size);
+    void* mappedFile = mmap(NULL, self->size, PROT_READ|PROT_WRITE,MAP_SHARED, self->fd, 0);
+    memset(mappedFile, 0, self->size);
+    msync(mappedFile, self->size, MS_SYNC);
+    munmap(mappedFile, self->size);
 
     self->entries = list_create();
+    for(int i = 0; i < self->maxPages; i++)
+        list_add(self->entries, NULL);
+
     return self;
 }
 
 void swapFile_destroy(t_swapFile* self){
     close(self->fd);
     free(self->path);
+    list_destroy_and_destroy_elements(self->entries, free);
     free(self);
 }
 
 void swapFile_clearAtIndex(t_swapFile* sf, int index){
-    void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
+    void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE, MAP_SHARED, sf->fd, 0);
     memset(mappedFile + index * sf->pageSize, 0, sf->pageSize);
     msync(mappedFile, sf->size, MS_SYNC);
     munmap(mappedFile, sf->size);
@@ -49,7 +53,7 @@ void* swapFile_readAtIndex(t_swapFile* sf, int index){
     munmap(mappedFile, sf->size);
 }
 
-void* swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr){
+void swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr){
     void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
     memcpy(mappedFile + index * sf->pageSize, pagePtr, sf->pageSize);
     msync(mappedFile, sf->size, MS_SYNC);

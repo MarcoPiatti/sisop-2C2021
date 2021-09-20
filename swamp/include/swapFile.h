@@ -8,7 +8,7 @@
 
 typedef struct swapFile{
     char* path;
-    int fd;
+    int fd;         
     size_t size;
     size_t pageSize;
     int maxPages;
@@ -23,7 +23,7 @@ void swapFile_clearAtIndex(t_swapFile* sf, int index);
 
 void* swapFile_readAtIndex(t_swapFile* sf, int index);
 
-void* swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr);
+void swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr);
 
 bool swapFile_isFull(t_swapFile* sf);
 
