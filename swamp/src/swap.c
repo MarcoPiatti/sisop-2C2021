@@ -47,13 +47,15 @@ bool fija(uint32_t pid, int32_t page, void* pageContent){
     if (file == NULL)
         return false;
 
-    int base = getChunk(file, pid);
-    if (base == -1) base = findFreeChunk(file);
-
-    int offset = swapFile_countPidPages(file, pid);
-    if (offset == swapConfig->maxFrames) return false;
-
-    int assignedIndex = base * swapConfig->maxFrames + offset;
+    int assignedIndex = swapFile_getIndex(file, pid, page);
+    if (assignedIndex == -1){
+        int base = getChunk(file, pid);
+        if (base == -1) base = findFreeChunk(file);
+        if (base == -1) return false;
+        int offset = swapFile_countPidPages(file, pid);
+        if (offset == swapConfig->maxFrames) return false;
+        assignedIndex = base * swapConfig->maxFrames + offset;
+    }
     swapFile_writeAtIndex(file, assignedIndex, pageContent);
     swapFile_register(file, pid, page, assignedIndex);
 
@@ -70,10 +72,11 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
         file = list_find(swapFiles, _hasRoom);
     if (file == NULL)
         return false;
-    if (swapFile_isFull(file))
-        return false;
-    
-    int assignedIndex = swapFile_findFreeIndex(file);
+    int assignedIndex = swapFile_getIndex(file, pid, page);
+    if (assignedIndex == -1){
+        if (swapFile_isFull(file)) return false;
+        assignedIndex = swapFile_findFreeIndex(file);
+    }
     swapFile_writeAtIndex(file, assignedIndex, pageContent);
     swapFile_register(file, pid, page, assignedIndex);
 
@@ -81,9 +84,9 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
 }
 
 int main(){
-    swapConfig = getswapConfig("./cfg/swap.config");
-
-    for(int i = 0; swapConfig->swapFiles; i++)
+    swapConfig = getswapConfig("./cfg/swamp.config");
+    swapFiles = list_create();
+    for(int i = 0; swapConfig->swapFiles[i]; i++)
         list_add(swapFiles, swapFile_create(swapConfig->swapFiles[i], swapConfig->fileSize, swapConfig->pageSize));
 
     int serverSocket = createListenServer(swapConfig->swapIP, swapConfig->swapPort);
