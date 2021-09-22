@@ -50,12 +50,12 @@ int mate_close(mate_instance *lib_ref){
     int rc = (packet->header == OK) ? 0 : -1;
     destroyPacket(packet);
 
-    t_packet* packet = createPacket(DISCONNECTED, 0);
+    packet = createPacket(DISCONNECTED, 0);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
     packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
+    rc = (packet->header == OK) ? 0 : -1;
     destroyPacket(packet);    
 
     close(mateStruct->mateSocket);
