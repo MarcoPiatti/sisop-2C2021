@@ -13,6 +13,8 @@
 #include <commons/temporal.h>
 #include <string.h>
 
+// Funcion para poner un proceso a ready, actualiza la cola de ready y la reordena segun algoritmo
+// No hay hilo de corto plazo ya que esta funcion hace exactamente eso de un saque
 void putToReady(t_process* process){
     pQueue_lock(readyQueue);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
@@ -44,7 +46,7 @@ bool HRRN(void*elem1, void*elem2){
     return RR1 > RR2;
 }
 
-
+// Hilo del largo plazo, toma un proceso de new o suspended_ready y lo pasa a ready
 void* thread_longTermFunc(void* args){
     t_process *process;
     while(1){
@@ -59,7 +61,7 @@ void* thread_longTermFunc(void* args){
             putToReady(process);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Largo Plazo: el proceso %i pasa a ready", process->pid);
+            log_info(logger, "Largo Plazo: el proceso %u pasa a ready", process->pid);
             pthread_mutex_unlock(&mutex_log);
 
             sem_wait(&sem_multiprogram);
@@ -68,6 +70,8 @@ void* thread_longTermFunc(void* args){
     }
 }
 
+// Hilo de mediano plazo, se despierta solo cuando el grado de multiprogramacion esta copado de procesos en blocked
+// Agarra un proceso de blocked, lo pasa a suspended blocked y sube el grado de multiprogramacion
 void* thread_mediumTermFunc(void* args){
     t_process *process;
     int availablePrograms;
@@ -85,11 +89,13 @@ void* thread_mediumTermFunc(void* args){
         pthread_mutex_unlock(&mutex_mediumTerm);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Mediano Plazo: el proceso %i pasa a suspended blocked", process->pid);
+        log_info(logger, "Mediano Plazo: el proceso %u pasa a suspended blocked", process->pid);
         pthread_mutex_unlock(&mutex_log);
     }
 }
 
+// Hilo CPU, toma un proceso de ready y ejecuta todas sus peticiones hasta que se termine o pase a blocked
+// Cuando lo pasa a blocked, recalcula el estimador de rafaga del proceso segun la cantidad de rafagas que duro
 void* thread_CPUFunc(void* args){
     intptr_t CPUid = (intptr_t)args;
     t_process *process = NULL;
@@ -109,7 +115,7 @@ void* thread_CPUFunc(void* args){
         pthread_mutex_unlock(&mutex_mediumTerm);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "CPU %i: el proceso %i pasa a exec", CPUid, process->pid);
+        log_info(logger, "CPU %i: el proceso %u pasa a exec", CPUid, process->pid);
         pthread_mutex_unlock(&mutex_log);
 
         while(keepServing){
@@ -127,6 +133,8 @@ void* thread_CPUFunc(void* args){
     }
 }
 
+// Hilo Dispositivo IO, toma un proceso de su cola de espera, lo "procesa" y lo manda a la cola respectiva
+// Si estaba en blocked, lo manda a ready, si estaba en suspended blocked, lo manda a suspended Ready
 void* thread_IODeviceFunc(void* args){
     t_IODevice* self = (t_IODevice*) args;
     t_process* process = NULL;
@@ -139,7 +147,7 @@ void* thread_IODeviceFunc(void* args){
         process = (t_process*)pQueue_take(self->waitingProcesses);
         
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Dispositivo IO %s: el proceso %i se bloquea %ims", self->nombre, process->pid, self->duracion);
+        log_info(logger, "Dispositivo IO %s: el proceso %u se bloquea %ims", self->nombre, process->pid, self->duracion);
         pthread_mutex_unlock(&mutex_log);
         
         for(int i = 0; i < self->duracion; i++){
@@ -154,7 +162,7 @@ void* thread_IODeviceFunc(void* args){
             putToReady(process);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Dispositivo IO %s: el proceso %i pasa a ready", self->nombre, process->pid);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
         }
         else if(process->state == SUSP_BLOCKED){
@@ -166,7 +174,7 @@ void* thread_IODeviceFunc(void* args){
             sem_post(&sem_newProcess);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Dispositivo IO %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
         }
 
@@ -176,6 +184,8 @@ void* thread_IODeviceFunc(void* args){
     }
 }
 
+// Hilo para semaforo, se despierta solo si el contador < 1 y hay algun proceso en espera
+// Toma un proceso y lo pone en ready o suspended ready respectivamente
 void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
     t_process* process = NULL;
@@ -199,7 +209,7 @@ void* thread_semFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Semaforo %s: el proceso %i pasa a ready", self->nombre, process->pid);
+            log_info(logger, "Semaforo %s: el proceso %u pasa a ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
             putToReady(process);
         }
@@ -209,7 +219,7 @@ void* thread_semFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Semaforo %s: el proceso %i pasa a suspended ready", self->nombre, process->pid);
+            log_info(logger, "Semaforo %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
             pQueue_put(suspendedReadyQueue, (void*)process);
             sem_post(&sem_newProcess);
@@ -226,6 +236,9 @@ void* thread_semFunc(void* args){
     }
 }
 
+// Hilo deadlock detector. Infinitamente lee un mensaje que le envian los otros hilos actualizandolo de la situacion
+// Y luego de leer cada mensaje y actualizar, revisa si no hay un deadlock. Si lo hay termina al proceso de mayor pid y prueba devuelta.
+// TODO: Puede que tenga bastante overhead revisar deadlocks con cada movimiento de cada proceso, habria que ver si mejor se prueba con cada wait.
 void* thread_deadlockDetectorFunc(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 
@@ -241,6 +254,7 @@ void* thread_deadlockDetectorFunc(void* args){
     }
 }
 
+// Hilo main del kernel, inicializa todo, crea a los otros hilo y hace de server para recibir nuevos procesos y mandarlos a ready
 int main(){
     logger = log_create("./cfg/kernel.log", "kernel", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
@@ -314,15 +328,17 @@ int main(){
     while(1){
         int newProcessSocket = getNewClient(serverSocket);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
+
         t_packet* idPacket = socket_getPacket(newProcessSocket);
-        uint32_t pid = streamTake_UINT32(idPacket);
+        uint32_t pid = streamTake_UINT32(idPacket->payload);
         socket_relayPacket(memSock, idPacket);
         process = createProcess(pid, newProcessSocket, kernelConfig->initialEstimator);
+
         pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_put(newQueue, process);
             sem_post(&sem_newProcess);
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Proceso %i: se conecta", newProcessSocket);
+            log_info(logger, "Proceso %u: se conecta", pid);
             pthread_mutex_unlock(&mutex_log);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);

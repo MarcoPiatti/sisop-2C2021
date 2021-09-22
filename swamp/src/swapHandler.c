@@ -1,5 +1,6 @@
 #include "swap.h"
 
+// CUando memoria pide guardar una pagina en swap, se ejecuta esto
 void savePage(t_packet* petition, int memorySocket){
     uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t pageNumber = streamTake_INT32(petition->payload);
@@ -11,8 +12,10 @@ void savePage(t_packet* petition, int memorySocket){
     else response = createPacket(ERROR_MEM, 0);
     socket_sendPacket(memorySocket, response);
     destroyPacket(response);
+    free(pageData);
 }
 
+// CUando memoria pide leer una pagina de swap, se ejecuta esto
 void loadPage(t_packet* petition, int memorySocket){
     uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t pageNumber = streamTake_INT32(petition->payload);
@@ -36,8 +39,10 @@ void loadPage(t_packet* petition, int memorySocket){
     streamAdd(response->payload, pageData, swapConfig->pageSize);
     socket_sendPacket(memorySocket, response);
     destroyPacket(response);
+    free(pageData);
 }
 
+// CUando memoria pide borrar un proceso de swap, se ejecuta esto
 void eraseProcess(t_packet* petition, int memorySocket){
     uint32_t pid = streamTake_UINT32(petition->payload);
     t_swapFile* file = pidExists(pid);
@@ -53,8 +58,13 @@ void eraseProcess(t_packet* petition, int memorySocket){
             file->entries[i].used = false;
         }
     }
+    t_packet* response = createPacket(OK_MEM, 0);
+    socket_sendPacket(memorySocket, response);
+    destroyPacket(response);
+    return;
 }
 
+// CUando memoria se quiere desconectar, se ejecuta esto
 void sayGoodbye(t_packet* petition, int memorySocket){
     t_packet* response = createPacket(OK_MEM, 0);
     socket_sendPacket(memorySocket, response);

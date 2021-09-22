@@ -1,5 +1,7 @@
 #include "kernel.h"
-
+/**
+ * @DESC: Cuando se crea un semaforo nuevo, el DD lo agrega a sus matrices
+ */
 void DDSemInit(t_deadlockDetector* dd, t_packet* newInfo){
     t_mateSem* newSem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
     int newSemValue = streamTake_INT32(newInfo->payload);
@@ -19,6 +21,9 @@ void DDSemInit(t_deadlockDetector* dd, t_packet* newInfo){
     }
 }
 
+/**
+ * @DESC: Cuando un proceso pasa derecho por un sem, el DD actualiza sus matrices
+ */
 void DDSemAllocatedInstant(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* proc = (t_process*)streamTake_UINT32(newInfo->payload);
     t_mateSem* sem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
@@ -33,6 +38,9 @@ void DDSemAllocatedInstant(t_deadlockDetector* dd, t_packet* newInfo){
     dd->allocation[i][j]++;
 }
 
+/**
+ * @DESC: Cuando un proceso paso por un sem despues de esperar, el DD actualiza sus matrices
+ */
 void DDSemAllocated(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* proc = (t_process*)streamTake_UINT32(newInfo->payload);
     t_mateSem* sem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
@@ -48,6 +56,9 @@ void DDSemAllocated(t_deadlockDetector* dd, t_packet* newInfo){
     dd->allocation[i][j]++;
 }
 
+/**
+ * @DESC: Cuando un proceso se freno en espera de un semaforo, el DD actualiza sus matrices
+ */
 void DDSemRequested(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* proc = (t_process*)streamTake_UINT32(newInfo->payload);
     t_mateSem* sem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
@@ -61,6 +72,9 @@ void DDSemRequested(t_deadlockDetector* dd, t_packet* newInfo){
     dd->request[i][j]++;
 }
 
+/**
+ * @DESC: Cuando un proceso postea un semaforo, el DD actualiza sus matrices
+ */
 void DDSemRelease(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* proc = (t_process*)streamTake_UINT32(newInfo->payload);
     t_mateSem* sem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
@@ -75,6 +89,9 @@ void DDSemRelease(t_deadlockDetector* dd, t_packet* newInfo){
     if(dd->allocation[i][j])dd->allocation[i][j]--;
 }
 
+/**
+ * @DESC: Cuando un semaforo es destruido, el DD reactualiza sus matrices
+ */
 void DDSemDestroy(t_deadlockDetector* dd, t_packet* newInfo){
     t_mateSem* sem = (t_mateSem*)streamTake_UINT32(newInfo->payload);
 
@@ -97,6 +114,9 @@ void DDSemDestroy(t_deadlockDetector* dd, t_packet* newInfo){
     }
 }
 
+/**
+ * @DESC: Cuando un proceso es iniciado, el DD actualiza sus matrices
+ */
 void DDProcInit(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* newProc = (t_process*)streamTake_UINT32(newInfo->payload);
 
@@ -117,6 +137,9 @@ void DDProcInit(t_deadlockDetector* dd, t_packet* newInfo){
     }
 }
 
+/**
+ * @DESC: Cuando un proceso es terminado, el DD reactualiza sus matrices
+ */
 void DDProcTerm(t_deadlockDetector* dd, t_packet* newInfo){
     t_process* proc = (t_process*)streamTake_UINT32(newInfo->payload);
 
@@ -148,6 +171,12 @@ void(*deadlockHandlers[DD_MAX])(t_deadlockDetector* dd, t_packet* newInfo) =
     DDProcTerm
 };
 
+/**
+ * @DESC: La funcion mas importante del DD.
+ * Segun sus matrices busca procesos que pidan mas recursos de los que hay.
+ * Si se da el caso, implicando un deadlock, termina al de mayor pid, y notifica a la memoria de esto.
+ * Si todo esto sucedio, retorna true para que externamente se vuelva a llamar a la funcion hasta que no haya deadlocks
+ */
 bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
     bool isDeadlock = false;
 
@@ -222,7 +251,7 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
             pthread_mutex_unlock(&mutex_log);
 
             t_packet* termMemory = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
-            streamAdd_UINT32(termMemory, dd->procs[i]->pid);
+            streamAdd_UINT32(termMemory->payload, dd->procs[i]->pid);
             socket_sendPacket(memorySocket, termMemory);
             destroyPacket(termMemory);
 

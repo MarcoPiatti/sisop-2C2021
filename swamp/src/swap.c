@@ -8,6 +8,7 @@ t_swapFile* pidExists(uint32_t pid){
     return file;
 }
 
+// Se fija si en un dado swapFile hay un "chunk" libre (acorde a asignacion fija)
 bool hasFreeChunk(t_swapFile* sf){
     bool hasFreeChunk = false;
     for(int i = 0; i < sf->maxPages; i += swapConfig->maxFrames)
@@ -18,6 +19,7 @@ bool hasFreeChunk(t_swapFile* sf){
     return hasFreeChunk;
 }
 
+// Encuentra el indice de comienzo de un chunk libre (acorde a asignacion fija)
 int findFreeChunk(t_swapFile* sf){
     int i = 0;
     while(!sf->entries[i].used){
@@ -27,6 +29,7 @@ int findFreeChunk(t_swapFile* sf){
     return i;
 }
 
+// Encuentra el indice de comienzo del chunk donde se encuentra PID (acorde a asignacion fija)
 int getChunk(t_swapFile* sf, uint32_t pid){
     int i = 0;
     while(sf->entries[i].pid != pid){
@@ -37,6 +40,11 @@ int getChunk(t_swapFile* sf, uint32_t pid){
     return i;
 }
 
+// Algoritmo de asignacion fija. 
+// Si el proceso existe en algun archivo, y hay lugar para una pagina mas en su chunk, se asigna.
+// Si el proceso existe en algun archivo, y no hay mas lugar, no se asigna.
+// Si el proceso NO existe en ningun archivo, pero hay un archivo con un chunk disponible, se asigna.
+// Si el proceso NO existe en ningun archivo, y no hay ningun archivo con un chunk disponible, no se asigna.
 bool fija(uint32_t pid, int32_t page, void* pageContent){
     t_swapFile* file = pidExists(pid);
     bool _hasFreeChunk(void* elem){
@@ -62,6 +70,11 @@ bool fija(uint32_t pid, int32_t page, void* pageContent){
     return true;
 }
 
+//Algoritmo de Asignacion global.
+// Si el proceso existe en algun archivo, y hay mas lugar en ese archivo, se asigna.
+// Si el proceso existe en algun archivo, y NO hay mas lugar en ese archivo, no se asigna.
+// Si el proceso NO existe en ningun archivo, pero hay un archivo con un lugar disponible, se asigna.
+// Si el proceso NO existe en ningun archivo, y NO hay ningun archivo con un lugar disponible, no se asigna.
 bool global(uint32_t pid, int32_t page, void* pageContent){
     t_swapFile* file = pidExists(pid);
     
@@ -83,6 +96,7 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
     return true;
 }
 
+// Main. inicializa todo, y se pone a escuchar y responder peticiones
 int main(){
     swapConfig = getswapConfig("./cfg/swamp.config");
     swapFiles = list_create();

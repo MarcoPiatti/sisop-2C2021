@@ -16,9 +16,11 @@
 #include "pQueue.h"
 
 /**
- * @DESC: TAD de dispositivo I/O. tiene un nombre y duracion de consulta.
- *        Tiene una cola de espera para los dispositivos que lo deban usar-
- *        Y un thread que procesara los dispositivos de la cola de espera.
+ * @DESC: TAD de dispositivo I/O.
+ * - nombre: nombre.
+ * - duracion: duracion en ms que el IO tarda en responder
+ * - waitingProcesses: cola de procesos en espera de usar al dispositivo
+ * - thread_IODevice: hilo que ejecuta haciendo de dispositivo IO
  */
 typedef struct IODevice {
     char* nombre;

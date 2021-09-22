@@ -18,9 +18,12 @@
 
 /**
  * @DESC: Semaforo para carpinchos.
- *        tiene un nombre, y un semaforo interno con el cual gestiona su contador.
- *        tiene una cola de procesos en espera (que hicieron mateSem_wait).
- *        tiene un thread que con cada post debe tomar un proceso de la cola y lo pone en ready
+ * - nombre: nombre.
+ * - sem: contador del semaforo.
+ * - sem_cond: condition variable para despertar al semaforo cuando tenga que pasar alguien
+ * - sem_mutex: mutex de la contidion variable
+ * - waitingProcesses: cola de procesos que esperan a usar al semaforo
+ * - thread_mateSem: hilo que hara de semaforo, dejando pasar procesos
  */
 typedef struct mateSem {
     char* nombre;
@@ -36,9 +39,6 @@ typedef struct mateSem {
  * @param nombre: nombre del mateSem
  * @param contadorInicial: valor inicial del contador.
  * @param mateSemFunc: funcion que ejecutara el thread del mateSem.
- *                     Debe tomar por argumento un puntero a mateSem, para tener una referencia de si mismo.
- *                     Debe hacer un wait del semaforo interno cada vez que tome un proceso.
- *                     Y luego meterlo a una cola de ready, o similar.
  * @return t_mateSem*: puntero al struct del mateSem creado
  */
 t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial, void* (* mateSemFunc)(void*));

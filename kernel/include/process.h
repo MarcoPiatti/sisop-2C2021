@@ -14,6 +14,9 @@
 
 #include <time.h>
 
+/**
+ * @DESC: Posibles estados de planificacion de un carpincho
+ */
 typedef enum state { NEW, READY, BLOCKED, EXEC, SUSP_READY, SUSP_BLOCKED, TERMINATED } t_state;
 
 typedef struct process{
