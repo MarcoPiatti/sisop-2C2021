@@ -44,7 +44,7 @@ void swapFile_clearAtIndex(t_swapFile* sf, int index){
 
 void* swapFile_readAtIndex(t_swapFile* sf, int index){
     void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
-    void* pagePtr = NULL;
+    void* pagePtr = malloc(sizeof(sf->pageSize));
     memcpy(pagePtr, mappedFile + index * sf->pageSize, sf->pageSize);
     munmap(mappedFile, sf->size);
     return pagePtr;
