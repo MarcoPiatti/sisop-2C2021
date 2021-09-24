@@ -1,10 +1,11 @@
 #include "swapInterface.h"
 
-t_swapInterface* swapInterface_create(char* swapIp, char* swapPort, int pageSize){
+t_swapInterface* swapInterface_create(char* swapIp, char* swapPort, int pageSize, swapHeader algorithm){
     t_swapInterface* self = malloc(sizeof(t_swapInterface));
     self->socket = connectToServer(swapIp, swapPort);
     pthread_mutex_init(&self->mutex, NULL);
     self->pageSize = pageSize;
+    socket_sendHeader(self->socket, (uint8_t) algorithm);
     return self;
 }
 

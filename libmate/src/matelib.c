@@ -149,6 +149,7 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     
     t_packet* packet = createPacket(MEMALLOC, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
     streamAdd_INT32(packet->payload, (int32_t)size);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
@@ -163,6 +164,7 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     t_packet* packet = createPacket(MEMFREE, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
     streamAdd_INT32(packet->payload, addr);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
@@ -177,6 +179,7 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     t_packet* packet = createPacket(MEMREAD, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
     streamAdd_INT32(packet->payload, origin);
     streamAdd_INT32(packet->payload, (int32_t)size);
     socket_sendPacket(mateStruct->mateSocket, packet);
@@ -187,7 +190,10 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
         destroyPacket(packet);
         return -1;
     }
-    streamTake(packet->payload, &dest, (size_t)size);
+    void* recvd = NULL;
+    int32_t recvdSize = streamTake_INT32(packet->payload);
+    streamTake(packet->payload, &recvd, (size_t)recvdSize);
+    memcpy(dest, recvd, recvdSize);
     destroyPacket(packet);
     return 0;
 }
@@ -196,6 +202,7 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     t_packet* packet = createPacket(MEMWRITE, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
     streamAdd_INT32(packet->payload, dest);
     streamAdd_INT32(packet->payload, (int32_t)size);
     streamAdd(packet->payload, &origin, (size_t)size);

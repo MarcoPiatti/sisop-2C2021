@@ -17,7 +17,7 @@ typedef enum capiHeader {
     MEMFREE,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 |
     MEMREAD,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | SIZE = INT32 |
     MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
-    CAPI_TERM,         // | HEADER | PAYLOAD_SIZE | PID = UINT32 | UINT32 = PID |
+    CAPI_TERM,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     MAX_PETITIONS,
     /* Respuestas a carpinchos*/ 
@@ -26,7 +26,7 @@ typedef enum capiHeader {
     OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
     ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
     POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
-    MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
+    MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATASIZE = INT32 | DATA = STREAM |
 } capiHeader;
 
 typedef enum swapHeader {

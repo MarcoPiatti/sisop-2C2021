@@ -18,7 +18,7 @@ typedef struct swapInterface {
  * @param pageSize: Tamanio de las paginas a enviar al swap
  * @return t_swapInterface*: La nueva interfaz creada
  */
-t_swapInterface* swapInterface_create(char* swapIp, char* swapPort, int pageSize);
+t_swapInterface* swapInterface_create(char* swapIp, char* swapPort, int pageSize, swapHeader algorithm);
 
 /**
  * @DESC: Envia una pagina de un proceso al swap para guardarla
