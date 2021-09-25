@@ -6,6 +6,8 @@
 #include "memoryConfig.h"
 #include "tlb.h"
 #include <string.h>
+#include <unistd.h>
+#include "logs.h"
 
 t_memoryConfig* memoryConfig;
 

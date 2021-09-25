@@ -67,6 +67,10 @@ bool fija(uint32_t pid, int32_t page, void* pageContent){
     swapFile_writeAtIndex(file, assignedIndex, pageContent);
     swapFile_register(file, pid, page, assignedIndex);
 
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %i en el indice %i", file->path, page, pid, assignedIndex);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -93,11 +97,18 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
     swapFile_writeAtIndex(file, assignedIndex, pageContent);
     swapFile_register(file, pid, page, assignedIndex);
 
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %i en el indice %i", file->path, page, pid, assignedIndex);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
 // Main. inicializa todo, y se pone a escuchar y responder peticiones
 int main(){
+    logger = log_create("./cfg/kernel.log", "Swap", true, LOG_LEVEL_TRACE);
+    pthread_mutex_init(&mutex_log, NULL);
+
     swapConfig = getswapConfig("./cfg/swamp.config");
     swapFiles = list_create();
     for(int i = 0; swapConfig->swapFiles[i]; i++)

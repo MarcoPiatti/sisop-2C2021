@@ -256,7 +256,7 @@ void* thread_deadlockDetectorFunc(void* args){
 
 // Hilo main del kernel, inicializa todo, crea a los otros hilo y hace de server para recibir nuevos procesos y mandarlos a ready
 int main(){
-    logger = log_create("./cfg/kernel.log", "kernel", true, LOG_LEVEL_TRACE);
+    logger = log_create("./cfg/kernel.log", "Kernel", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
 
     kernelConfig = getKernelConfig("./cfg/kernel.config");

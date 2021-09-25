@@ -7,6 +7,7 @@
 #include "networking.h"
 #include "headers.h"
 #include "swapFile.h"
+#include "logs.h"
 
 t_swapConfig* swapConfig;
 

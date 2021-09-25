@@ -34,12 +34,15 @@ void loadPage(t_packet* petition, int memorySocket){
         return;
     }
     void* pageData = swapFile_readAtIndex(file, index);
-
     t_packet* response = createPacket(PAGE_DATA, (size_t)swapConfig->pageSize);
     streamAdd(response->payload, pageData, swapConfig->pageSize);
     socket_sendPacket(memorySocket, response);
     destroyPacket(response);
     free(pageData);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Archivo %s: se recupero la pagina %i del proceso %i en el indice %i", file->path, pageNumber, pid, index);
+    pthread_mutex_unlock(&mutex_log);
 }
 
 // CUando memoria pide borrar un proceso de swap, se ejecuta esto
@@ -61,6 +64,11 @@ void eraseProcess(t_packet* petition, int memorySocket){
     t_packet* response = createPacket(OK_MEM, 0);
     socket_sendPacket(memorySocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Archivo %s: se eliminaron las paginas del proceso %i", file->path, pid);
+    pthread_mutex_unlock(&mutex_log);
+
     return;
 }
 

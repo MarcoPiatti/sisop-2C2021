@@ -3,6 +3,11 @@
 bool initHandler(int clientSocket, t_packet* petition){
     uint32_t pid = streamTake_UINT32(petition->payload);
     //TODO: Crear tabla de paginas para el PID solicitado
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: se da de alta en memoria", pid);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -15,6 +20,11 @@ bool mallocHandler(int clientSocket, t_packet* petition){
     streamAdd_INT32(response->payload, matePtr);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: Se asigno %i bytes en la direccion %i", pid, mallocSize, matePtr);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -25,6 +35,11 @@ bool freeHandler(int clientSocket, t_packet* petition){
     t_packet* response = createPacket(OK, 0);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: hizo free en la direccion %i", pid, matePtr);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -41,6 +56,11 @@ bool memreadHandler(int clientSocket, t_packet* petition){
     streamAdd(response->payload, contents, readSize);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: leyo %i bytes de la direccion %i", pid, readSize, matePtr);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -56,6 +76,11 @@ bool memwriteHandler(int clientSocket, t_packet* petition){
     t_packet* response = createPacket(OK, 0);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: escribio %i bytes en la direccion %i", pid, writeSize, matePtr);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 
@@ -68,6 +93,11 @@ bool terminationHandler(int clientSocket, t_packet* petition){
     t_packet* response = createPacket(OK, 0);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: se da de baja en memoria", pid);
+    pthread_mutex_unlock(&mutex_log);
+
     return true;
 }
 

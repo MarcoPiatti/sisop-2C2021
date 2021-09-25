@@ -7,7 +7,7 @@ void* thread_clientHandlerFunc(void* args){
     bool keepServing = true;
     while(keepServing){
         petition = socket_getPacket(clientSocket);
-        keepServing = petitionHandlers[petition->header](clientSocket);
+        keepServing = petitionHandlers[petition->header](clientSocket, petition);
         destroyPacket(petition);
     }
     
@@ -15,6 +15,9 @@ void* thread_clientHandlerFunc(void* args){
 }
 
 int main(){
+    logger = log_create("./cfg/kernel.log", "Memoria", true, LOG_LEVEL_TRACE);
+    pthread_mutex_init(&mutex_log, NULL);
+
     memoryConfig = getMemoryConfig("./cfg/memory.config");
 
     swapHeader asign;
