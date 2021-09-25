@@ -149,7 +149,7 @@ void TLB_dump(t_TLB* self, char* dumpDir){
 void writeTotalHits(t_list* counts){
     int result = 0;
     void _Hits(void* elem){
-        result += ((t_pidCount*)elem)->counts;
+        result += ((t_pidCount*)elem)->hits;
     };
     list_iterate(counts, _Hits);
     printf("TLB - Hits totales:%i\n", result);
@@ -167,11 +167,12 @@ void writeTotalMisses(t_list* counts){
 }
 
 void writeHitsAndMisses(t_list* counts){
-    void* printBoth(void* elem){
+    void _printBoth(void* elem){
         t_pidCount* entry = (t_pidCount*)elem;
         printf("TLB - Proceso %-10u - Hits:%-10i - Misses:%-10i\n", entry->pid, entry->hits, entry->misses);
         fflush(stdout);
     };
+    list_iterate(counts, _printBoth);
 }
 
 void TLB_printCounts(t_TLB* self){

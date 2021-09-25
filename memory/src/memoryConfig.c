@@ -1,6 +1,9 @@
 #include "memoryConfig.h"
 
-t_memoryConfig* getmemoryConfig(char* path){
+#include <stdlib.h>
+#include <unistd.h>
+
+t_memoryConfig* getMemoryConfig(char* path){
     t_memoryConfig* memoryConfig = malloc(sizeof(t_memoryConfig));
     memoryConfig->config = config_create(path);
     memoryConfig->memoryIp = config_get_string_value(memoryConfig->config, "IP");

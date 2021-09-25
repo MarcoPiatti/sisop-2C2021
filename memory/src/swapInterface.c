@@ -1,4 +1,5 @@
 #include "swapInterface.h"
+#include <unistd.h>
 
 t_swapInterface* swapInterface_create(char* swapIp, char* swapPort, int pageSize, swapHeader algorithm){
     t_swapInterface* self = malloc(sizeof(t_swapInterface));
@@ -27,8 +28,8 @@ bool swapInterface_savePage(t_swapInterface* self, uint32_t pid, int32_t pageNum
     pthread_mutex_unlock(&self->mutex);
 
     bool rc;
-    if (reply->header == OK_MEM) rc == true;
-    else if (reply->header == ERROR_MEM) rc == false;
+    if (reply->header == OK_MEM) rc = true;
+    else if (reply->header == ERROR_MEM) rc = false;
     destroyPacket(request);
     destroyPacket(reply);
     return rc;
@@ -54,7 +55,7 @@ void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNu
     return pageData;
 }
 
-bool swapInterace_eraseProcess(t_swapInterface* self, uint32_t pid){
+bool swapInterface_eraseProcess(t_swapInterface* self, uint32_t pid){
     t_packet* request = createPacket(LOAD_PAGE, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(request->payload, pid);
     
