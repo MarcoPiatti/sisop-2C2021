@@ -32,7 +32,7 @@ typedef enum msgHeader {
     OK,                 // | HEADER | PAYLOAD_SIZE = 0 |
     ERROR,              // | HEADER | PAYLOAD_SIZE = 0 |
     POINTER,            // | HEADER | PAYLOAD_SIZE | POINTER = INT32 |
-    MEM_CHUNK          // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
+    MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATA = STREAM |
 } msgHeader;
 
 /**
