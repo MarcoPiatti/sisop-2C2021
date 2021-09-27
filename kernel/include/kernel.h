@@ -59,4 +59,6 @@ void* executorIO(void* nada);
  */
 void createScheduler();
 
+void *auxHandler(void *vclientSocket);
+
 #endif // !KERNEL_H_

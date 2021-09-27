@@ -1,12 +1,12 @@
-#include "swap.h"
+#include "memory.h"
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
 
-t_log *swapLogger = log_create("./swap.log", "SWAP", 1, LOG_LEVEL_TRACE);
+t_log *memoryLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
 
 void main(void){
-    t_config *config = config_create("./swap.cfg");
+    t_config *config = config_create("./memory.cfg");
     char *port = config_get_string_value(config, "PORT");
     char *ip = config_get_string_value(config, "IP"); 
 
@@ -28,8 +28,8 @@ void *auxHandler(void *vclientSocket){
         packet = socket_getPacket(clientSocket);
         header = packet->header;
         destroyPacket(packet);
-        log_info(swapLogger, "Header de paquete recibido: %i", header);
+        log_info(memoryLogger, "Header de paquete recibido: %i", header);
         socket_sendHeader(clientSocket, OK);
-        log_info(swapLogger, "Enviado OK");
+        log_info(memoryLogger, "Enviado OK");
     } while (header != DISCONNECTED);
 }
