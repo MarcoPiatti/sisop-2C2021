@@ -60,7 +60,7 @@ int mate_sem_wait(mate_instance *lib_ref, mate_sem_name sem){
     return (response == OK) ? 0 : -1;
 }
 
-int mate_sem_post(mate_instance *lib_ref, mate_sem_name sem){
+int (mate_instance *lib_ref, mate_sem_name sem){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
     t_packet* packet = createPacket(SEM_POST, INITIAL_STREAM_SIZE);
@@ -84,7 +84,6 @@ int mate_sem_destroy(mate_instance *lib_ref, mate_sem_name sem){
 
 //--------------------IO Functions------------------------/
 
-//TODO preguntar para que sirve void *msg, ya que los IO supuestamente no toman mensajes
 int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
@@ -98,6 +97,7 @@ int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
 
 //--------------Memory Module Functions-------------------/
 
+// TODO: Preguntarle a Marco sobre el retorno NULL vs. -1
 mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     t_packet* packet = createPacket(MEMALLOC, INITIAL_STREAM_SIZE);
@@ -105,20 +105,69 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
     packet = socket_getPacket(mateStruct->mateSocket);
-    if (packet->header != POINTER) return -1;
+    if (packet->header != POINTER){
+        destroyPacket(packet);
+        return -1;
+    }
     mate_pointer result = streamTake_INT32(packet->payload);
     destroyPacket(packet);
     return result;
 }
 
 int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
-
+    mate_inner_structure *mateStruct = (mate_inner_structure*)lib_ref->group_info;
+    t_packet *packet = createPacket(MEMFREE, INITIAL_STREAM_SIZE);
+    streamAdd_INT32(packet->payload, addr);
+    socket_sendPacket(mateStruct->mateSocket, packet);
+    destroyPacket(packet);
+    packet = socket_getPacket(mateStruct->mateSocket);
+    if (packet->header != OK){
+        destroyPacket(packet);
+        return -1;  
+    }
+    destroyPacket(packet);
+    return 0;
 }
 
+// TODO: Discutir tamanio de los streams.
+// TODO: Preguntar: hay que hacer el streamTake_INT32 para el PAYLOAD SIZE?
 int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int size){
+    mate_inner_structure *mateStruct = (mate_inner_structure*)lib_ref->group_info;
+    
+    t_packet *packet = createPacket(MEMREAD, INITIAL_STREAM_SIZE);
+    streamAdd_INT32(packet->payload, origin);
+    streamAdd_INT32(packet->payload, (int32_t)size);
+    socket_sendPacket(mateStruct->mateSocket, packet);
+    destroyPacket(packet);
 
+    packet = socket_getPacket(mateStruct->mateSocket);
+    if (packet->header != MEM_CHUNK){
+        destroyPacket(packet);
+        return -1;
+    }
+    // streamTake_INT32(packet->payload) ????????????????
+    streamTake(packet->payload, &dest, (int32_t)size);
+    destroyPacket(packet);
+    return 0;
 }
 
 int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int size){
+    mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
+
+    t_packet *packet = createPacket(MEMWRITE, INITIAL_STREAM_SIZE + size);
+    streamAdd_INT32(packet->payload, dest);
+    streamAdd_INT32(packet->payload, (int32_t)size);
+    streamAdd(packet->payload, origin, (int32_t)size);
+
+    socket_sendPacket(mateStruct->mateSocket, packet);
     
+    destroyPacket(packet);
+
+    packet = socket_getPacket(mateStruct->mateSocket);
+    if(packet->header != OK) {
+        destroyPacket(packet);
+        return -1;
+    }
+    destroyPacket(packet);
+    return 0;
 }
