@@ -94,8 +94,8 @@ int32_t TLB_findFrame(t_TLB* self, uint32_t pid, int32_t page){
 
 void TLB_addEntry(t_TLB* self, uint32_t pid, int32_t page, int32_t frame){
     pthread_mutex_lock(&self->mutex);
-    if(queue_size(self->victims) < self->size)
-        for(int i = 0; i < self->size; i++)
+    if(queue_size(self->victims) < self->size){
+        for(int i = 0; i < self->size; i++){
             if(!self->table[i].used){
                 self->table[i].pid = pid;
                 self->table[i].page = page;
@@ -103,6 +103,8 @@ void TLB_addEntry(t_TLB* self, uint32_t pid, int32_t page, int32_t frame){
                 self->table[i].used = true;
                 queue_push(self->victims, self->table + i);
             }
+        }
+    }
     else{
         t_TLBEntry* victim = queue_pop(self->victims);
         victim->frame = frame;
@@ -111,6 +113,15 @@ void TLB_addEntry(t_TLB* self, uint32_t pid, int32_t page, int32_t frame){
         queue_push(self->victims, victim);
     }
     pthread_mutex_unlock(&self->mutex);
+}
+
+void TLB_clearIfExists(t_TLB* self, uint32_t pid, int32_t page, int32_t frame){
+    for(int i = 0; i < self->size; i++){
+        if(self->table[i].pid == pid && self->table[i].page == page && self->table[i].frame == frame){
+            self->table[i].used = false;
+            break;
+        }
+    }
 }
 
 void TLB_clear(t_TLB* self){

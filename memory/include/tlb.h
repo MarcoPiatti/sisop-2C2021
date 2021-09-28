@@ -36,6 +36,8 @@ void fifo(t_TLB* self, t_TLBEntry* entry);
 
 void lru(t_TLB* self, t_TLBEntry* entry);
 
+//TODO: pasarle los delays a la TLB
+
 /**
  * @DESC: Crea una TLB
  * @param size: cantidad de entradas asignadas
@@ -66,6 +68,14 @@ int32_t TLB_findFrame(t_TLB* self, uint32_t pid, int32_t page);
  * @param frame: Frame de la Ram
  */
 void TLB_addEntry(t_TLB* self, uint32_t pid, int32_t page, int32_t frame);
+
+/**
+ * @DESC: Despeja una entrada de la tlb, si es que se encuentra, sino no pasa nada
+ * @param pid: PID de la entrada
+ * @param page: Pagina de la entrada
+ * @param frame: Frame de la entrada
+ */
+void TLB_clearIfExists(t_TLB* self, uint32_t pid, int32_t page, int32_t frame);
 
 /**
  * @DESC: Limpia todas las entradas de una TLB, dejandolas vacias
