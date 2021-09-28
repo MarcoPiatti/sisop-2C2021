@@ -13,6 +13,7 @@ typedef struct memoryConfig{
     int pageSize;
     char* tipoAsignacion;
     char* algoritmoMMU;
+    int maxFramesMMU;
     int TLBSize;
     char* algoritmoTLB;
     int delayTLBHit;

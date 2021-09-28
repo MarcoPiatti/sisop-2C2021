@@ -14,6 +14,7 @@ t_memoryConfig* getMemoryConfig(char* path){
     memoryConfig->pageSize = config_get_int_value(memoryConfig->config, "TAMANIO_PAGINA");
     memoryConfig->tipoAsignacion = config_get_string_value(memoryConfig->config, "TIPO_ASIGNACION");
     memoryConfig->algoritmoMMU = config_get_string_value(memoryConfig->config, "ALGORITMO_REEMPLAZO_MMU");
+    memoryConfig->maxFramesMMU = config_get_int_value(memoryConfig->config, "MARCOS_MAXIMOS");
     memoryConfig->TLBSize = config_get_int_value(memoryConfig->config, "CANTIDAD_ENTRADAS_TLB");
     memoryConfig->algoritmoTLB = config_get_string_value(memoryConfig->config, "ALGORITMO_REEMPLAZO_TLB");
     memoryConfig->delayTLBHit = config_get_int_value(memoryConfig->config, "RETARDO_ACIERTO_TLB");
@@ -24,7 +25,7 @@ t_memoryConfig* getMemoryConfig(char* path){
 
 
 
-void destroymemoryConfig(t_memoryConfig* config){
+void destroyMemoryConfig(t_memoryConfig* config){
     free(config->memoryIp);
     free(config->memoryPort);
     free(config->swapIp);
