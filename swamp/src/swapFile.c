@@ -21,7 +21,7 @@ t_swapFile* swapFile_create(char* path, size_t size, size_t pageSize){
     msync(mappedFile, self->size, MS_SYNC);
     munmap(mappedFile, self->size);
 
-    self->entries = malloc(sizeof(t_pageMetadata) * self->maxPages);
+    self->entries = calloc(1, sizeof(t_pageMetadata) * self->maxPages);
     for(int i = 0; i < self->maxPages; i++)
         self->entries[i].used = false;
 

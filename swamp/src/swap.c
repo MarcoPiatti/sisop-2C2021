@@ -106,7 +106,7 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
 
 // Main. inicializa todo, y se pone a escuchar y responder peticiones
 int main(){
-    logger = log_create("./cfg/kernel.log", "Swap", true, LOG_LEVEL_TRACE);
+    logger = log_create("./cfg/swamp.log", "Swap", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
 
     swapConfig = getswapConfig("./cfg/swamp.config");

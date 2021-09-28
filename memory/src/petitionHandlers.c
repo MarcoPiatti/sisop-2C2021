@@ -93,8 +93,9 @@ int32_t getFrame(uint32_t pid, int32_t page){
     log_info(logger, "Pagina recuperada desde swap y cargada al frame");
     pthread_mutex_unlock(&mutex_log);
 
-    //marcamos la pagina como presente en la tabla de paginas y actualizamos TLB
+    //marcamos la pagina como presente en la tabla de paginas, anotamos el nuevo frame y actualizamos TLB
     pageTable_setPresent(pageTable, pid, page, true);
+    pageTable_setFrame(pageTable, pid, page, frame);
     TLB_addEntry(tlb, pid, page, frame);
 
     pthread_mutex_lock(&mutex_log);
@@ -270,7 +271,7 @@ bool mallocHandler(int clientSocket, t_packet* petition){
 
     //Creo la primer pagina si no tiene niguna
     if(pageTable_countPages(pageTable, pid) == 0){
-        void* firstPage = malloc(memoryConfig->pageSize);
+        void* firstPage = calloc(1, memoryConfig->pageSize);
         t_HeapMetadata* firstAlloc = (t_HeapMetadata*) firstPage;
         firstAlloc->isFree = true;
         firstAlloc->prevAlloc = NULL;
@@ -338,7 +339,7 @@ bool mallocHandler(int clientSocket, t_packet* petition){
             int newPages = 1 + (mallocSize - thisMallocSize + sizeof(t_HeapMetadata) + 1) / memoryConfig->pageSize;
             bool rc;
             for(int i = 0; i < newPages; i++){
-                void* newPage = malloc(memoryConfig->pageSize);
+                void* newPage = calloc(1, memoryConfig->pageSize);
                 rc = createPage(pid, newPage);
                 free(newPage);
             }
@@ -357,7 +358,7 @@ bool mallocHandler(int clientSocket, t_packet* petition){
         }
         matePtr = thisMallocAddr + sizeof(t_HeapMetadata);
         thisMalloc->isFree = false;
-        t_HeapMetadata* newLastAlloc = malloc(sizeof(t_HeapMetadata));
+        t_HeapMetadata* newLastAlloc = calloc(1, sizeof(t_HeapMetadata));
         newLastAlloc->isFree = true;
         newLastAlloc->nextAlloc = thisMalloc->nextAlloc;
         newLastAlloc->prevAlloc = thisMallocAddr;

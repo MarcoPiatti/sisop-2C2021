@@ -20,7 +20,7 @@ void* thread_clientHandlerFunc(void* args){
 
 int main(){
     //Inicializa Logger
-    logger = log_create("./cfg/kernel.log", "Memoria", true, LOG_LEVEL_TRACE);
+    logger = log_create("./cfg/memory.log", "Memoria", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
 
     //Obtiene datos de config

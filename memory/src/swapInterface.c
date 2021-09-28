@@ -56,7 +56,7 @@ void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNu
 }
 
 bool swapInterface_eraseProcess(t_swapInterface* self, uint32_t pid){
-    t_packet* request = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
+    t_packet* request = createPacket(CAPI_ERASE, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(request->payload, pid);
     
     pthread_mutex_lock(&self->mutex);
