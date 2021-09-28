@@ -240,7 +240,7 @@ bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
     t_packet* response = socket_getPacket(memorySocket);
     
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Proceso %i: hace un pedido a memoria");
+    log_info(logger, "Proceso %u: hace un pedido a memoria", process->pid);
     pthread_mutex_unlock(&mutex_log);
     
     socket_relayPacket(process->socket, response);
@@ -276,7 +276,7 @@ bool relayTerminate(t_process* process, t_packet* petition, int memorySocket){
 
     t_packet* finalPacket = socket_getPacket(process->socket);
     terminateProcess(process, finalPacket, memorySocket);
-
+    destroyPacket(finalPacket);
     return false;
 }
 
