@@ -64,6 +64,8 @@ int mate_close(mate_instance *lib_ref){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
+    log_debug(mateStruct->logger, "Avisando terminacion");
+
     packet = socket_getPacket(mateStruct->mateSocket);
     int rc = (packet->header == OK) ? 0 : -1;
     destroyPacket(packet);
@@ -71,6 +73,8 @@ int mate_close(mate_instance *lib_ref){
     packet = createPacket(DISCONNECTED, 0);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
+
+    log_debug(mateStruct->logger, "Avisando desconexion");
 
     packet = socket_getPacket(mateStruct->mateSocket);
     rc = (packet->header == OK) ? 0 : -1;
@@ -82,7 +86,6 @@ int mate_close(mate_instance *lib_ref){
     config_destroy(mateStruct->mateConfig);
     log_destroy(mateStruct->logger);
     free(mateStruct);
-
 
     return rc;
 }
@@ -274,7 +277,7 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
     streamAdd_UINT32(packet->payload, mateStruct->pid);
     streamAdd_INT32(packet->payload, dest);
     streamAdd_INT32(packet->payload, (int32_t)size);
-    streamAdd(packet->payload, &origin, (size_t)size);
+    streamAdd(packet->payload, origin, (size_t)size);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
