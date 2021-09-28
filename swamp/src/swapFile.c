@@ -44,7 +44,7 @@ void swapFile_clearAtIndex(t_swapFile* sf, int index){
 
 void* swapFile_readAtIndex(t_swapFile* sf, int index){
     void* mappedFile = mmap(NULL, sf->size, PROT_READ|PROT_WRITE,MAP_SHARED, sf->fd, 0);
-    void* pagePtr = malloc(sizeof(sf->pageSize));
+    void* pagePtr = malloc(sf->pageSize);
     memcpy(pagePtr, mappedFile + index * sf->pageSize, sf->pageSize);
     munmap(mappedFile, sf->size);
     return pagePtr;
@@ -94,17 +94,20 @@ bool swapFile_isFreeIndex(t_swapFile* sf, int index){
 }
 
 int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber){
-    int i = 0;
-    while(sf->entries[i].pid != pid || sf->entries[i].pageNumber != pageNumber){
-        if(i >= sf->maxPages) return -1;
-        i++;
+    int found = -1;
+    for(int i = 0; i < sf->maxPages; i++){
+        if(sf->entries[i].pid == pid && sf->entries[i].pageNumber == pageNumber){
+            found = i;
+            break;
+        }
     }
-    return i;
+
+    return found;
 }
 
 int swapFile_findFreeIndex(t_swapFile* sf){
     int i = 0;
-    while(!sf->entries[i].used){
+    while(sf->entries[i].used){
         if(i >= sf->maxPages) return -1;
         i++;
     }
