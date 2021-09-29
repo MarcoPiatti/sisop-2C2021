@@ -24,7 +24,7 @@ typedef struct process{
     int socket;
     t_state state;
     double estimate;
-    time_t waitedTime;
+    double waitedTime;
 } t_process;
 
 /**

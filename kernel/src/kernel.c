@@ -18,7 +18,8 @@
 void putToReady(t_process* process){
     pQueue_lock(readyQueue);
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
-        time_t timeSinceLastReschedule = (stop.tv_sec - start.tv_sec);
+        double timeSinceLastReschedule = (double)(start.tv_sec - stop.tv_sec) * 1000 
+                                       + (double)(start.tv_nsec - stop.tv_nsec) / 1000000;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
         void updateMetrics(void* elem){
@@ -41,8 +42,8 @@ bool SJF(void*elem1, void*elem2){
 bool HRRN(void*elem1, void*elem2){
     t_process* process1 = (t_process*)elem1;
     t_process* process2 = (t_process*)elem2;
-    double RR1 = (double)process1->waitedTime / process1->estimate;
-    double RR2 = (double)process2->waitedTime / process2->estimate;
+    double RR1 = process1->waitedTime / process1->estimate;
+    double RR2 = process2->waitedTime / process2->estimate;
     return RR1 > RR2;
 }
 
@@ -100,16 +101,20 @@ void* thread_CPUFunc(void* args){
     intptr_t CPUid = (intptr_t)args;
     t_process *process = NULL;
     t_packet *request = NULL;
+    bool keepServing = true;
+    struct timespec rafagaStart, rafagaStop;
+
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
     socket_ignoreHeader(memorySocket);
-    int rafaga = 0;
-    bool keepServing = true;
+
     while(1){
         process = NULL;
-        rafaga = 0;
         keepServing = true;
         process = pQueue_take(readyQueue);
         process->state = EXEC;
+        
+        clock_gettime(CLOCK_MONOTONIC, &rafagaStart);
+
         pthread_mutex_lock(&mutex_mediumTerm);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
@@ -120,14 +125,15 @@ void* thread_CPUFunc(void* args){
 
         while(keepServing){
             request = socket_getPacket(process->socket);
-            for(int i = 0; i < kernelConfig->CPUDelay; i++){
-                usleep(1000);
-            }
-            rafaga++;
-            if(request->header == SEM_WAIT || request->header == CALL_IO)
-                process->estimate = kernelConfig->alpha * (double)rafaga
-                                    + (1 - kernelConfig->alpha) * process->estimate;
             keepServing = petitionHandlers[request->header](process, request, memorySocket);
+
+            if(request->header == SEM_WAIT || request->header == CALL_IO){
+                clock_gettime(CLOCK_MONOTONIC, &rafagaStop);
+                double rafagaMs = (double)(rafagaStart.tv_sec - rafagaStop.tv_sec) * 1000 
+                                + (double)(rafagaStart.tv_nsec - rafagaStop.tv_nsec) / 1000000;
+                process->estimate = kernelConfig->alpha * rafagaMs + (1 - kernelConfig->alpha) * process->estimate;
+            }
+
             destroyPacket(request);
         }
     }
@@ -236,9 +242,7 @@ void* thread_semFunc(void* args){
     }
 }
 
-// Hilo deadlock detector. Infinitamente lee un mensaje que le envian los otros hilos actualizandolo de la situacion
-// Y luego de leer cada mensaje y actualizar, revisa si no hay un deadlock. Si lo hay termina al proceso de mayor pid y prueba devuelta.
-// TODO: Puede que tenga bastante overhead revisar deadlocks con cada movimiento de cada proceso, habria que ver si mejor se prueba con cada wait.
+// Hilo deadlock detector. 
 void* thread_deadlockDetectorFunc(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 

@@ -25,7 +25,7 @@ typedef struct kernelConfig{
     double alpha;
     char** IODeviceNames;
     char** IODeviceDelays;
-    int CPUDelay;
+    int DeadlockDelay;
     int multiprogram;
     int multiprocess;
 } t_kernelConfig;

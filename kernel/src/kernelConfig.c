@@ -24,7 +24,7 @@ t_kernelConfig* getKernelConfig(char* path){
     kernelConfig->alpha = config_get_double_value(kernelConfig->config, "ALFA");
     kernelConfig->IODeviceNames = config_get_array_value(kernelConfig->config, "DISPOSITIVOS_IO");
     kernelConfig->IODeviceDelays = config_get_array_value(kernelConfig->config, "DURACIONES_IO");
-    kernelConfig->CPUDelay = config_get_int_value(kernelConfig->config, "RETARDO_CPU");
+    kernelConfig->DeadlockDelay = config_get_int_value(kernelConfig->config, "TIEMPO_DEADLOCK");
     kernelConfig->multiprogram = config_get_int_value(kernelConfig->config, "GRADO_MULTIPROGRAMACION");
     kernelConfig->multiprocess = config_get_int_value(kernelConfig->config, "GRADO_MULTIPROCESAMIENTO");
     return kernelConfig;
