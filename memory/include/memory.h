@@ -17,7 +17,6 @@ typedef struct HeapMetadata {
     uint8_t isFree;
 } t_HeapMetadata;
 
-
 t_memoryConfig* memoryConfig;
 
 t_swapInterface* swapInterface;
@@ -33,5 +32,40 @@ t_pageTable* pageTable;
 pthread_mutex_t mutexMemoria;
 
 extern bool (*petitionHandlers[MAX_PETITIONS])(int clientSocket, t_packet* petition);
+
+/**
+ * @DESC: Funcion para ubicar en MP una pagina previamente existente
+ */
+int32_t getFrame(uint32_t pid, int32_t page);
+
+/**
+ * @DESC: Lee "size" bytes del heap de un programa. Abstrayendo de la idea de paginas.
+ * @param pid: PID del programa
+ * @param logicAddress: direccion logica de donde empezar a leer
+ * @param size: cantidad de bytes a leer del heap
+ * @return void*: puntero malloc'd (con size bytes) con los datos solicitados
+ */
+void* heap_read(uint32_t pid, int32_t logicAddress, int size);
+
+/**
+ * @DESC: Idem heap_read, pero para escribir
+ * @param pid: PID del programa
+ * @param logicAddress: direccion logica a escribir
+ * @param size: cantidad de bytes
+ * @param data: puntero con los datosbool createPage(uint32_t pid, void* data)
+ */
+void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data);
+
+/**
+ * @DESC: Crea una pagina nueva para un proceso y la aloja en MP o swap, dependiendo de los cupos libres
+ * @param pid: PID del proceso que necesita una pagina nueva
+ * @param data: puntero a los datos con los que se creara la nueva pagina, normalmente vacia, la primera lleva un alloc inicial
+ * @return true: retorna true si se pudo crear la pagina
+ * @return false: retorna false si no se pudo crear la pagina
+ */
+bool createPage(uint32_t pid, void* data);
+
+//TODO: Revisar que si en un memalloc se deben crear muchas paginas, y solo la ultima fallo
+// Se destruyan las anteriores que si fueron creadas, ya que solas no hacen nada.
 
 #endif // !MEMORY_H_
