@@ -163,6 +163,28 @@ bool freeHandler(int clientSocket, t_packet* petition){
     return true;
 }
 
+bool validAddressRange(uint32_t pid, int32_t matePtr, int32_t readSize){
+    t_HeapMetadata* thisMalloc = NULL;
+    int32_t thisMallocAddr = 0;
+    int32_t thisMallocSize = 0;
+    bool correct = false;
+    thisMalloc = heap_read(pid, 0, sizeof(t_HeapMetadata));
+    while(thisMalloc->nextAlloc != NULL){
+        thisMallocSize = thisMalloc->nextAlloc - thisMallocAddr - sizeof(t_HeapMetadata);
+        if(!thisMalloc->isFree){
+            if(matePtr >= thisMallocAddr + sizeof(t_HeapMetadata) && matePtr + readSize <= thisMallocAddr + sizeof(t_HeapMetadata) + thisMallocSize){
+                correct = true;
+                break;
+            }
+        }
+        thisMallocAddr = thisMalloc->nextAlloc;
+        free(thisMalloc);
+        thisMalloc = heap_read(pid, thisMallocAddr, sizeof(t_HeapMetadata));
+    }
+    free(thisMalloc);
+    return correct;
+}
+
 bool memreadHandler(int clientSocket, t_packet* petition){
     uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t matePtr = streamTake_INT32(petition->payload);
@@ -172,7 +194,17 @@ bool memreadHandler(int clientSocket, t_packet* petition){
     log_info(logger, "Proceso %u: mate_memread (direccion %i, size %i)", pid, matePtr, readSize);
     pthread_mutex_unlock(&mutex_log);
 
-    //TODO: Recorrer todos los allocs revisando si el pedazo a leer corresponde a algo dentro de un alloc valido
+    if(!validAddressRange(pid, matePtr, readSize)){
+        t_packet* response = createPacket(ERROR, 0);
+        socket_sendPacket(clientSocket, response);
+        free(response);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: trato de acceder a una direccion no asignada", pid);
+        pthread_mutex_unlock(&mutex_log);
+
+        return true;
+    }
 
     void* contents = heap_read(pid, matePtr, readSize);
     t_packet* response = createPacket(MEM_CHUNK, INITIAL_STREAM_SIZE);
@@ -195,11 +227,21 @@ bool memwriteHandler(int clientSocket, t_packet* petition){
     void* writeData = NULL; 
     streamTake(petition->payload, &writeData, writeSize);
 
-    //TODO: Recorrer todos los allocs revisando si el pedazo a escribir corresponde a algo dentro de un alloc valido
-
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Proceso %u: mate_memwrite (direccion %i, size %i)", pid, matePtr, writeSize);
     pthread_mutex_unlock(&mutex_log);
+
+    if(!validAddressRange(pid, matePtr, writeSize)){
+        t_packet* response = createPacket(ERROR, 0);
+        socket_sendPacket(clientSocket, response);
+        free(response);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: trato de acceder a una direccion no asignada", pid);
+        pthread_mutex_unlock(&mutex_log);
+
+        return true;
+    }
 
     heap_write(pid, matePtr, writeSize, writeData);
 
