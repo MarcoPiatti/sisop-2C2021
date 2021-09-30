@@ -81,6 +81,11 @@ int swapFile_countPidPages(t_swapFile* sf, uint32_t pid);
 bool swapFile_isFreeIndex(t_swapFile* sf, int index);
 
 /**
+ * @DESC: Retorna la cantidad de indices libres que tiene un archivo en swap
+ */
+int swapFile_countFreeIndexes(t_swapFile* sf);
+
+/**
  * @DESC: A partir de un pid y nro. de pagina, obtiene el indice donde se encuentran los datos de la pagina
  */
 int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber);

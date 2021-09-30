@@ -82,11 +82,13 @@ bool fija(uint32_t pid, int32_t page, void* pageContent){
 bool global(uint32_t pid, int32_t page, void* pageContent){
     t_swapFile* file = pidExists(pid);
     
-    bool _hasRoom(void* elem){
-        return swapFile_hasRoom((t_swapFile*)elem);
+    void* hasMoreFreeIndexes(void* elem1, void* elem2){
+        if(swapFile_countFreeIndexes((t_swapFile*)elem1) <= swapFile_countFreeIndexes((t_swapFile*)elem2))
+            return elem1;
+        else return elem2;
     };
     if (file == NULL)
-        file = list_find(swapFiles, _hasRoom);
+        file = list_get_minimum(swapFiles, hasMoreFreeIndexes);
     if (file == NULL)
         return false;
     int assignedIndex = swapFile_getIndex(file, pid, page);

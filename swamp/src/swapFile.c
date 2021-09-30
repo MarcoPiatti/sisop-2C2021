@@ -93,6 +93,13 @@ bool swapFile_isFreeIndex(t_swapFile* sf, int index){
     return sf->entries[index].used;
 }
 
+int swapFile_countFreeIndexes(t_swapFile* sf){
+    int indices = 0;
+    for(int i = 0; i < sf->maxPages; i++)
+        if(!sf->entries[i].used) indices++;
+    return indices;
+}
+
 int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber){
     int found = -1;
     for(int i = 0; i < sf->maxPages; i++){
