@@ -256,6 +256,28 @@ bool disconnectionHandler(int clientSocket, t_packet* petition){
     return false;
 }
 
+bool suspensionHandler(int clientSocket, t_packet* petition){
+    uint32_t pid = streamTake_UINT32(petition);
+    int32_t maxPages = pageTable_countPages(pageTable, pid);
+    int32_t frame;
+    t_frameMetadata* frameInfo;
+    for(int i = 0; i < maxPages; i++){
+        if(pageTable_isPresent(pageTable, pid, i)){
+            frame = pageTable_getFrame(pageTable, pid, i);
+            frameInfo = ram_getFrameMetadata(ram, frame);
+            if(frameInfo->modified){
+                void* frameData = ram_getFrame(ram, frame);
+                swapInterface_savePage(swapInterface, pid, i, frameData);
+                frameInfo->modified = false;
+            }
+            if(memoryConfig->tipoAsignacion = fixed){
+                frameInfo->isFree = true;
+            }
+        }
+    }
+    return true;
+}
+
 bool (*petitionHandlers[MAX_PETITIONS])(int clientSocket, t_packet* petition) =
 {
     initHandler,
@@ -269,5 +291,6 @@ bool (*petitionHandlers[MAX_PETITIONS])(int clientSocket, t_packet* petition) =
     memreadHandler,
     memwriteHandler,
     terminationHandler,
-    disconnectionHandler
+    disconnectionHandler,
+    suspensionHandler
 };

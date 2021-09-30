@@ -76,17 +76,31 @@ void* thread_longTermFunc(void* args){
 void* thread_mediumTermFunc(void* args){
     t_process *process;
     int availablePrograms;
+
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    socket_ignoreHeader(memorySocket);
+
+    t_packet* suspendRequest;
+
     while(1){
         pthread_mutex_lock(&mutex_mediumTerm);
+            //Espera a que se cumpla la condicion para despertarse
             sem_getvalue(&sem_multiprogram, &availablePrograms);
             while(availablePrograms >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
                 pthread_cond_wait(&cond_mediumTerm, &mutex_mediumTerm);
                 sem_getvalue(&sem_multiprogram, &availablePrograms);
             }
+            //Sacamos al proceso de la cola de blocked y lo metemos a suspended blocked
             process = (t_process*)pQueue_takeLast(blockedQueue);
             process->state = SUSP_BLOCKED;
             pQueue_put(suspendedBlockedQueue, (void*)process);
             sem_post(&sem_multiprogram);
+
+            //Notifica a memoria de la suspension
+            suspendRequest = createPacket(CAPI_SUSP, INITIAL_STREAM_SIZE);
+            streamAdd_UINT32(suspendRequest, process->pid);
+            socket_sendPacket(memorySocket, suspendRequest);
+            destroyPacket(suspendRequest);
         pthread_mutex_unlock(&mutex_mediumTerm);
 
         pthread_mutex_lock(&mutex_log);

@@ -19,6 +19,7 @@ typedef enum capiHeader {
     MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
     CAPI_TERM,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
+    CAPI_SUSP,
     MAX_PETITIONS,
     /* Respuestas a carpinchos*/ 
     ID_KERNEL,          // | HEADER | 
