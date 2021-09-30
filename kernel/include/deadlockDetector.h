@@ -1,12 +1,6 @@
 #include "process.h"
 #include "mateSem.h"
-#include "pQueue.h"
 #include <pthread.h>
-
-/**
- * @DESC: Mensajes enviados al Deadlock detector por los otros hilos del kernel
- */
-typedef enum DDMsg { DD_SEM_INIT, DD_SEM_ALLOC_INST, DD_SEM_ALLOC, DD_SEM_REQ, DD_SEM_REL, DD_SEM_DESTROY, DD_PROC_INIT, DD_PROC_TERM, DD_MAX } DDMsg;
 
 /**
  * @DESC: Informacion que un Deadlock detector necesita
@@ -17,7 +11,7 @@ typedef enum DDMsg { DD_SEM_INIT, DD_SEM_ALLOC_INST, DD_SEM_ALLOC, DD_SEM_REQ, D
  * - available: array con cantidad de recursos disponibles de cada semaforo
  * - allocation: matriz con cantidad de recursos de cada semaforo que tiene cada proceso
  * - request: matriz con cantidad de recursos de cada semaforo que pide cada proceso
- * - queue: cola de mensajes que llegan avisando de cambios en el sistema
+ * - mutex: mutex para acceso exclusivo a las estructuras del detector
  * - thread: hilo que ejecuta haciendo de deadlock detector
  */
 typedef struct deadlockDetector {
@@ -28,7 +22,7 @@ typedef struct deadlockDetector {
     int *available;
     int **allocation;
     int **request;
-    t_pQueue* queue;
+    pthread_mutex_t mutex;
     pthread_t thread;
 } t_deadlockDetector;
 
@@ -41,3 +35,43 @@ t_deadlockDetector* createDeadlockDetector(void*(*threadFunc)(void*));
  * @DESC: Destruye un Deadlock detector
  */
 void destroyDeadlockDetector(t_deadlockDetector* dd);
+
+/**
+ * @DESC: Cuando se crea un semaforo nuevo, el DD lo agrega a sus matrices
+ */
+void DDSemInit(t_deadlockDetector* dd, t_mateSem* newSem, int newSemValue);
+
+/**
+ * @DESC: Cuando un proceso pasa derecho por un sem, el DD actualiza sus matrices
+ */
+void DDSemAllocatedInstant(t_deadlockDetector* dd, t_process* proc, t_mateSem* sem);
+
+/**
+ * @DESC: Cuando un proceso paso por un sem despues de esperar, el DD actualiza sus matrices
+ */
+void DDSemAllocated(t_deadlockDetector* dd, t_process* proc, t_mateSem* sem);
+
+/**
+ * @DESC: Cuando un proceso se freno en espera de un semaforo, el DD actualiza sus matrices
+ */
+void DDSemRequested(t_deadlockDetector* dd, t_process* proc, t_mateSem* sem);
+
+/**
+ * @DESC: Cuando un proceso postea un semaforo, el DD actualiza sus matrices
+ */
+void DDSemRelease(t_deadlockDetector* dd, t_process* proc, t_mateSem* sem);
+
+/**
+ * @DESC: Cuando un semaforo es destruido, el DD reactualiza sus matrices
+ */
+void DDSemDestroy(t_deadlockDetector* dd, t_mateSem* sem);
+
+/**
+ * @DESC: Cuando un proceso es iniciado, el DD actualiza sus matrices
+ */
+void DDProcInit(t_deadlockDetector* dd, t_process* newProc);
+
+/**
+ * @DESC: Cuando un proceso es terminado, el DD reactualiza sus matrices
+ */
+void DDProcTerm(t_deadlockDetector* dd, t_process* proc);

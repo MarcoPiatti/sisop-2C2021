@@ -196,7 +196,6 @@ void* thread_semFunc(void* args){
     t_mateSem* self = (t_mateSem*) args;
     t_process* process = NULL;
     t_packet *response = NULL;
-    t_packet *ddTell = NULL;
     bool matchesPid(void* elem){
         return process->pid == ((t_process*)elem)->pid;
     };
@@ -231,10 +230,7 @@ void* thread_semFunc(void* args){
             sem_post(&sem_newProcess);
         }
 
-        ddTell = createPacket(DD_SEM_ALLOC, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)self);
-        pQueue_put(dd->queue, (void*)ddTell);
+        DDSemAllocated(dd, process, self);
 
         response = createPacket(OK, 0);
         socket_sendPacket(process->socket, response);
@@ -242,19 +238,20 @@ void* thread_semFunc(void* args){
     }
 }
 
-// Hilo deadlock detector. 
+// Hilo deadlock detector. Se despierta cada tanto y revisa si hay deadlocks 
 void* thread_deadlockDetectorFunc(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 
-    t_packet* newInfo = NULL;
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
     socket_ignoreHeader(memorySocket);
+
     while(1){
-        newInfo = (t_packet*)pQueue_take(self->queue);
-        newInfo->payload->offset = 0;
-        deadlockHandlers[newInfo->header](self, newInfo);
-        destroyPacket(newInfo);
+        for(int i = 0; i < kernelConfig->DeadlockDelay; i++){
+            usleep(1000);
+        }
+        pthread_mutex_lock(&dd->mutex);
         while(findDeadlocks(self, memorySocket));
+        pthread_mutex_unlock(&dd->mutex);
     }
 }
 
@@ -325,7 +322,6 @@ int main(){
     int serverSocket = createListenServer(kernelConfig->kernelIP, kernelConfig->kernelPort);
     
     /* El main hace de server, escucha conexiones nuevas y las pone en new */
-    t_packet* ddTell = NULL;
     t_process* process = NULL;
     int memSock = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
     socket_ignoreHeader(memSock);
@@ -347,9 +343,9 @@ int main(){
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
         
-        ddTell = createPacket(DD_PROC_INIT, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
-        pQueue_put(dd->queue, (void*)ddTell);
+        DDProcInit(dd, process);
+
+        destroyPacket(idPacket);
     }
 
     return 0;

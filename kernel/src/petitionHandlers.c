@@ -19,7 +19,6 @@
 bool semInit(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     t_mateSem* sem = NULL;
-    t_packet* ddTell = NULL;
     char* semName = streamTake_STRING(petition->payload);
     int32_t semValue = streamTake_INT32(petition->payload);
     pthread_mutex_lock(&mutex_sem_dict);
@@ -29,10 +28,7 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
         pthread_mutex_unlock(&mutex_sem_dict);
         response = createPacket(OK, 0);
 
-        ddTell = createPacket(DD_SEM_INIT, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload, (uint32_t)sem);
-        streamAdd_INT32(ddTell->payload, semValue);
-        pQueue_put(dd->queue, (void*)ddTell);
+        DDSemInit(dd, sem, semValue);
 
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Proceso %i: crea el semaforo %s", process->pid, semName);
@@ -58,7 +54,6 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
     t_mateSem* sem = NULL;
-    t_packet *ddTell = NULL;
     bool rc;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
@@ -73,7 +68,7 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
             pthread_cond_signal(&cond_mediumTerm);
             pthread_mutex_unlock(&mutex_mediumTerm);
             
-            ddTell = createPacket(DD_SEM_REQ, INITIAL_STREAM_SIZE);
+            DDSemRequested(dd, process, sem);
 
             pthread_mutex_lock(&mutex_log);
             log_warning(logger, "Proceso %i: se frena en el semaforo %s", process->pid, semName);
@@ -82,8 +77,7 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
             rc = false;
         }
         else {
-
-            ddTell = createPacket(DD_SEM_ALLOC_INST, INITIAL_STREAM_SIZE);
+            DDSemAllocatedInstant(dd, process, sem);
 
             pthread_mutex_lock(&mutex_log);
             log_warning(logger, "Proceso %i: descuenta el semaforo %s", process->pid, semName);
@@ -95,10 +89,6 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
 
             rc = true;
         }
-
-        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
-        pQueue_put(dd->queue, (void*)ddTell);
     }
     else{
         pthread_mutex_unlock(&mutex_sem_dict);
@@ -121,7 +111,6 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
     t_mateSem* sem = NULL;
-    t_packet *ddTell = NULL;
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
         sem = (t_mateSem*)dictionary_get(sem_dict, semName);
@@ -133,10 +122,7 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
         
         mateSem_post(sem);
 
-        ddTell = createPacket(DD_SEM_REL, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)process);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
-        pQueue_put(dd->queue, (void*)ddTell);
+        DDSemRelease(dd, process, sem);
 
         response = createPacket(OK, 0);
     }
@@ -159,7 +145,6 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
 // Si un proceso pidio destruir un semaforo, se ejecuta esta
 bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
-    t_packet *ddTell = NULL;
     char* semName = streamTake_STRING(petition->payload);
     pthread_mutex_lock(&mutex_sem_dict);
     if(dictionary_has_key(sem_dict, semName)){
@@ -167,9 +152,8 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
             mateSem_destroy((t_mateSem*)elem);
         };
         t_mateSem* sem = dictionary_get(sem_dict, semName);
-        ddTell = createPacket(DD_SEM_DESTROY, INITIAL_STREAM_SIZE);
-        streamAdd_UINT32(ddTell->payload,(uint32_t)sem);
-        pQueue_put(dd->queue, (void*)ddTell);
+
+        DDSemDestroy(dd, sem);
 
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Proceso %i: destruye el semaforo %s", process->pid, semName);
@@ -253,9 +237,7 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = createPacket(OK, 0);
     socket_sendPacket(process->socket, response);
 
-    t_packet* ddTell = createPacket(DD_PROC_TERM, INITIAL_STREAM_SIZE);
-    streamAdd_UINT32(ddTell->payload, (uint32_t)process);
-    pQueue_put(dd->queue, (void*)ddTell);
+    DDProcTerm(dd, process);
 
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Proceso %i: se desconecta", process->pid);
