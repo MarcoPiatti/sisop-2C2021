@@ -1,12 +1,15 @@
 #ifndef PROCESS_H_
 #define PROCESS_H_
+#include <stdint.h>
 
 typedef enum state { NEW, READY, BLOCKED, EXEC, SUSP_READY, SUSP_BLOCKED, TERMINATED } t_state;
 
 typedef struct process{
-    int pid;
+    uint32_t pid;
     int socket;
     t_state state;
+    double estimator;
+    double waited;
 } t_process;
 
 /**
@@ -15,7 +18,7 @@ typedef struct process{
  * @param socket: socket con el que se conecto el proceso
  * @return t_process*: puntero al Proceso
  */
-t_process* createProcess(int id, int socket);
+t_process* createProcess(uint32_t id, int socket, double estimator);
 
 /**
  * @DESC: Destruye un Proceso de memoria
