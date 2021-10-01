@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <networking.h>
 
+//TODO: Agregar campo PID que sea uint 32
 typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
     t_config* mateConfig;
     char* mateIP;
