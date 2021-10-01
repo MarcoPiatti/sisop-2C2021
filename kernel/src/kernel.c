@@ -26,6 +26,7 @@ void *auxHandler(void *vclientSocket){
     int header = 0;
 
     do{
+        //TODO: Tener respuesta para cada tipo de mensaje
         packet = socket_getPacket(clientSocket);
         header = packet->header;
         destroyPacket(packet);
