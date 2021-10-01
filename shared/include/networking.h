@@ -9,7 +9,8 @@
 #include <pthread.h>
 
 #define MAX_BACKLOG 100
-
+//TODO: Implementar mensaje donde un carpincho presenta su ID
+//TODO: Implementar mensaje donde un carpincho avisa que se quiere dar de baja en memoria
 /**
  * @DESC: Los posibles headers para comunicarse por socket
  */
