@@ -2,14 +2,20 @@
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
-#include "kernelConfig.h"
+
 
 t_log *kernelLogger;
+sem_t cuposDisponibles;
 
 void main(void){
     kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
 
-    t_kernelConfig* config = getKernelConfig("./kernel.cfg");
+    config = getKernelConfig("./kernel.cfg");
+
+    sem_init(&cuposDisponibles, 0, config->multiprogram);
+
+    pthread_create(thread_longTerm, NULL, longTerm_run, NULL);
+    pthread_detach(thread_longTerm);
 
     int serverSocket = createListenServer(config->ip, config->port);
 
@@ -23,15 +29,24 @@ void *auxHandler(void *vclientSocket){
     socket_sendHeader(clientSocket, OK);
     
     t_packet *packet;
-    int header = 0;
+    t_process* proceso;
+    
+    uint32_t idCliente;
 
-    do{
-        //TODO: Tener respuesta para cada tipo de mensaje
-        packet = socket_getPacket(clientSocket);
-        header = packet->header;
-        destroyPacket(packet);
-        log_info(kernelLogger, "Header de paquete recibido: %i", header);
-        socket_sendHeader(clientSocket, OK);
-        log_info(kernelLogger, "Enviado OK");
-    } while (header != DISCONNECTED);
+    socket_sendHeader(clientSocket, ID_KERNEL);
+
+    packet = socket_getPacket(clientSocket);
+    idCliente = streamTake_UINT32(packet->payload);
+    proceso = createProcess(idCliente, clientSocket, config->initialEstimation);
+    pQueue_put(newQueue, proceso);
+    destroyPacket(packet);
+}
+
+void *longTerm_run(void* args) {
+    t_process* proceso;
+    while(1) {
+        sem_wait(&cuposDisponibles);
+        proceso = pQueue_take(newQueue);
+        pQueue_put(readyQueue, proceso);
+    }
 }
