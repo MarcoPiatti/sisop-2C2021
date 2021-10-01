@@ -50,3 +50,5 @@ void *longTerm_run(void* args) {
         pQueue_put(readyQueue, proceso);
     }
 }
+
+//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde.
