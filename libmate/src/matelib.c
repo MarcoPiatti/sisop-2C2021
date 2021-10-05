@@ -9,7 +9,7 @@
 #include <commons/log.h>
 #include <commons/string.h>
 
-typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
+typedef struct mate_inner_structure{
     uint32_t pid;
     t_config* mateConfig;
     char* mateIP;
