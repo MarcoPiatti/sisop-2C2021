@@ -4,13 +4,13 @@
 #include <sys/socket.h>
 #include <networking.h>
 
-//TODO: Agregar campo PID que sea uint 32
-typedef struct mate_inner_structure{ //TODO preguntar para que se necesita un identificador (UUID o PID, etc)
+typedef struct mate_inner_structure{ 
     t_config* mateConfig;
     char* mateIP;
     char* matePort;
     int mateSocket;
     bool isMemory;
+    uint32_t pid;
 } mate_inner_structure;
 
 //------------------General Functions---------------------/
@@ -23,6 +23,8 @@ int mate_init(mate_instance *lib_ref, char *config){
     mateStruct->matePort = config_get_string_value(mateStruct->mateConfig, "PUERTO_MATE");
     mateStruct->mateSocket = connectToServer(mateStruct->mateIP, mateStruct->matePort);
     mateStruct->isMemory = socket_getHeader(mateStruct->mateSocket);
+    mateStruct->pid = 0; //TODO:generar PID enserio
+
     return 0;
 }
 
@@ -98,7 +100,6 @@ int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
 
 //--------------Memory Module Functions-------------------/
 
-// TODO: Preguntarle a Marco sobre el retorno NULL vs. -1
 mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     t_packet* packet = createPacket(MEMALLOC, INITIAL_STREAM_SIZE);
@@ -106,10 +107,6 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
     packet = socket_getPacket(mateStruct->mateSocket);
-    if (packet->header != POINTER){
-        destroyPacket(packet);
-        return -1;
-    }
     mate_pointer result = streamTake_INT32(packet->payload);
     destroyPacket(packet);
     return result;
@@ -130,8 +127,6 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
     return 0;
 }
 
-// TODO: Discutir tamanio de los streams.
-// TODO: Preguntar: hay que hacer el streamTake_INT32 para el PAYLOAD SIZE?
 int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int size){
     mate_inner_structure *mateStruct = (mate_inner_structure*)lib_ref->group_info;
     
@@ -146,7 +141,7 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
         destroyPacket(packet);
         return -1;
     }
-    // streamTake_INT32(packet->payload) ????????????????
+
     streamTake(packet->payload, &dest, (int32_t)size);
     destroyPacket(packet);
     return 0;
