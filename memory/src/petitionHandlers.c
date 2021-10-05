@@ -132,6 +132,26 @@ bool mallocHandler(int clientSocket, t_packet* petition){
     return true;
 }
 
+bool validMallocAddress(uint32_t pid, int32_t matePtr){
+    t_HeapMetadata* thisMalloc = NULL;
+    int32_t thisMallocAddr = 0;
+    bool correct = false;
+    thisMalloc = heap_read(pid, 0, sizeof(t_HeapMetadata));
+    while(thisMalloc->nextAlloc != NULL){
+        if(!thisMalloc->isFree){
+            if(matePtr == thisMallocAddr + sizeof(t_HeapMetadata)){
+                correct = true;
+                break;
+            }
+        }
+        thisMallocAddr = thisMalloc->nextAlloc;
+        free(thisMalloc);
+        thisMalloc = heap_read(pid, thisMallocAddr, sizeof(t_HeapMetadata));
+    }
+    free(thisMalloc);
+    return correct;
+}
+
 bool freeHandler(int clientSocket, t_packet* petition){
     uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t matePtr = streamTake_INT32(petition->payload);
@@ -140,18 +160,67 @@ bool freeHandler(int clientSocket, t_packet* petition){
     log_info(logger, "Proceso %u: mate_memfree (direccion %i)", pid, matePtr);
     pthread_mutex_unlock(&mutex_log);
     
-    //TODO: Recorrer todos los allocs bien hasta dar con el que tiene al matePtr
-    // No solamente tomar los bytes previos asumiendo que es una direccion correcta.
+    //Si la direccion es invalida corta y retorna error al carpincho
+    if(!validMallocAddress(pid, matePtr)){
+        t_packet* response = createPacket(ERROR, 0);
+        socket_sendPacket(clientSocket, response);
+        free(response);
 
-    int32_t thisAllocPtr = matePtr - sizeof(t_HeapMetadata);
-    t_HeapMetadata* thisAlloc = heap_read(pid, thisAllocPtr, sizeof(t_HeapMetadata));
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: trato de hacer free de una direccion invalida", pid);
+        pthread_mutex_unlock(&mutex_log);
+
+        return true;
+    }
+
+    int32_t thisAllocPtr, rightAllocPtr, leftAllocPtr, finalAllocPtr;
+    t_HeapMetadata *thisAlloc, *rightAlloc, *leftAlloc, *finalAlloc;
     
+    thisAllocPtr = matePtr - sizeof(t_HeapMetadata);
+    thisAlloc = heap_read(pid, thisAllocPtr, sizeof(t_HeapMetadata));
+    finalAllocPtr = thisAllocPtr;
+    finalAlloc = thisAlloc;
+
+    //Nuestro alloc absorbe al derecho si el derecho esta libre
+    if(thisAlloc->nextAlloc != NULL){
+        rightAllocPtr = thisAlloc->nextAlloc;
+        rightAlloc = heap_read(pid, rightAllocPtr, sizeof(t_HeapMetadata));
+        if(rightAlloc->isFree){
+            thisAlloc->nextAlloc = rightAlloc->nextAlloc;
+        }
+    }
+
+    //El alloc izquierdo absorbe a nuestro alloc si el izquierdo esta libre
+    leftAllocPtr = thisAlloc->prevAlloc;
+    leftAlloc = heap_read(pid, leftAllocPtr, sizeof(t_HeapMetadata));
+    if(leftAlloc->isFree){
+        leftAlloc->nextAlloc = thisAlloc->nextAlloc;
+        finalAlloc = leftAlloc;
+        finalAllocPtr = leftAllocPtr;
+        heap_write(pid, leftAllocPtr, sizeof(t_HeapMetadata), leftAlloc);
+    }
+
     thisAlloc->isFree = true;
     heap_write(pid, thisAllocPtr, sizeof(t_HeapMetadata), thisAlloc);
-    free(thisAlloc);
 
-    //TODO: Consolidar el free a derecha, luego izquierda y liberar paginas sobrantes si esta al final.
+    //liberar paginas sobrantes si esta al final.
+    if(finalAlloc->nextAlloc == NULL){
+        int32_t firstFreeByte = finalAllocPtr + sizeof(t_HeapMetadata);
+        int32_t pageToDelete = 1 + firstFreeByte / memoryConfig->pageSize;
+        int totalPages = pageTable_countPages(pageTable, pid);
+        for(int i = pageToDelete; i < totalPages; i++){
+            if(pageTable_isPresent(pageTable, pid, pageToDelete)){
+                int frame = pageTable_getFrame(pageTable, pid, pageToDelete);
+                ram_clearFrameMetadata(ram, frame);
+                TLB_clearIfExists(tlb, pid, pageToDelete, frame);
+            }
+            pageTable_removePage(pageTable, pid, pageToDelete);
+        }
+    }
     
+    free(thisAlloc);
+    free(leftAlloc);
+    free(rightAlloc);
     t_packet* response = createPacket(OK, 0);
     socket_sendPacket(clientSocket, response);
     destroyPacket(response);
@@ -200,7 +269,7 @@ bool memreadHandler(int clientSocket, t_packet* petition){
         free(response);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Proceso %u: trato de acceder a una direccion no asignada", pid);
+        log_info(logger, "Proceso %u: trato de acceder a un address space invalido", pid);
         pthread_mutex_unlock(&mutex_log);
 
         return true;
@@ -237,7 +306,7 @@ bool memwriteHandler(int clientSocket, t_packet* petition){
         free(response);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Proceso %u: trato de acceder a una direccion no asignada", pid);
+        log_info(logger, "Proceso %u: trato de acceder a un address space invalido", pid);
         pthread_mutex_unlock(&mutex_log);
 
         return true;
@@ -274,6 +343,7 @@ bool terminationHandler(int clientSocket, t_packet* petition){
         if(pageTable_isPresent(pageTable, pid, i)){
             int frame = pageTable_getFrame(pageTable, pid, i);
             ram_clearFrameMetadata(ram, frame);
+            TLB_clearIfExists(tlb, pid, i, frame);
         }
     }
 
@@ -299,7 +369,7 @@ bool disconnectionHandler(int clientSocket, t_packet* petition){
 }
 
 bool suspensionHandler(int clientSocket, t_packet* petition){
-    uint32_t pid = streamTake_UINT32(petition);
+    uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t maxPages = pageTable_countPages(pageTable, pid);
     int32_t frame;
     t_frameMetadata* frameInfo;
@@ -312,7 +382,7 @@ bool suspensionHandler(int clientSocket, t_packet* petition){
                 swapInterface_savePage(swapInterface, pid, i, frameData);
                 frameInfo->modified = false;
             }
-            if(memoryConfig->tipoAsignacion = fixed){
+            if(ram->assignmentType == fixed){
                 frameInfo->isFree = true;
             }
         }
