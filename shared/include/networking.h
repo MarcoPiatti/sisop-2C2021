@@ -9,8 +9,7 @@
 #include <pthread.h>
 
 #define MAX_BACKLOG 100
-//TODO: Implementar mensaje donde un carpincho presenta su ID
-//TODO: Implementar mensaje donde un carpincho avisa que se quiere dar de baja en memoria
+
 /**
  * @DESC: Los posibles headers para comunicarse por socket
  */
@@ -22,10 +21,10 @@ typedef enum msgHeader {
     SEM_POST,           // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
     SEM_DESTROY,        // | HEADER | PAYLOAD_SIZE | SEM_NAME = STRING |
     CALL_IO,            // | HEADER | PAYLOAD_SIZE | IO_NAME = STRING  |
-    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | SIZE = INT32 |
-    MEMFREE,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 |
-    MEMREAD,            // | HEADER | PAYLOAD_SIZE | PTR = INT32 | SIZE = INT32 |
-    MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
+    MEMALLOC,           // | HEADER | PAYLOAD_SIZE | PID = UINT32 | SIZE = INT32 |
+    MEMFREE,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 |
+    MEMREAD,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | SIZE = INT32 |
+    MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
     CAPI_TERM,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     MAX_PETITIONS,
