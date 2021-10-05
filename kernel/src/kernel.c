@@ -98,7 +98,7 @@ void* thread_mediumTermFunc(void* args){
 
             //Notifica a memoria de la suspension
             suspendRequest = createPacket(CAPI_SUSP, INITIAL_STREAM_SIZE);
-            streamAdd_UINT32(suspendRequest, process->pid);
+            streamAdd_UINT32(suspendRequest->payload, process->pid);
             socket_sendPacket(memorySocket, suspendRequest);
             destroyPacket(suspendRequest);
         pthread_mutex_unlock(&mutex_mediumTerm);
