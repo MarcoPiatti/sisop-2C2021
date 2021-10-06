@@ -1,4 +1,5 @@
 #include "memory.h"
+#include <signal.h>
 
 /**
  * @DESC: Funcion para ubicar en MP una pagina previamente existente
@@ -335,6 +336,19 @@ int main(){
     //Inicializo mutex gigante (DESPUES SACARLO Y HACERLO BIEN)
     pthread_mutex_init(&mutexMemoria, NULL);
 
+    //Define las funciones para handlear las seniales que pide consigna
+    struct sigaction SAUSR1;
+    SAUSR1.sa_handler = handlerUSR1;
+    sigaction(SIGUSR1, &SAUSR1, NULL);
+
+    struct sigaction SAUSR2;
+    SAUSR1.sa_handler = handlerUSR2;
+    sigaction(SIGUSR2, &SAUSR2, NULL);
+
+    struct sigaction SAINT;
+    SAUSR1.sa_handler = handlerINT;
+    sigaction(SIGINT, &SAINT, NULL);
+
     //Inicializa server y empieza a recibir clientes
     int memoryServer = createListenServer(memoryConfig->memoryIp, memoryConfig->memoryPort);
     while(1){
@@ -342,4 +356,16 @@ int main(){
     }
 
     return 0;
+}
+
+void handlerUSR1(int num){
+    TLB_dump(tlb, memoryConfig->dumpPathTLB);
+}
+
+void handlerUSR2(int num){
+    TLB_clear(tlb);
+}
+
+void handlerINT(int num){
+    TLB_printCounts(tlb);
 }

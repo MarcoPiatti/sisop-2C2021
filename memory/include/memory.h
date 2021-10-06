@@ -65,6 +65,11 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data);
  */
 bool createPage(uint32_t pid, void* data);
 
+//Funciones handler para seniales
+void handlerUSR1(int num);
+void handlerUSR2(int num);
+void handlerINT(int num);
+
 //TODO: Revisar que si en un memalloc se deben crear muchas paginas, y solo la ultima fallo
 // Se destruyan las anteriores que si fueron creadas, ya que solas no hacen nada.
 
