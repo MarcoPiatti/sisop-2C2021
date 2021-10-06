@@ -12,12 +12,22 @@ int32_t getFrame(uint32_t pid, int32_t page){
 
     // Se busca en la TLB
     frame = TLB_findFrame(tlb, pid, page);
+
     // Hit! ya retornamos
     if(frame != -1){
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "TLB Hit - PID:%-10u - Page:%-10i - Frame:%-10i", pid, page, frame);
         pthread_mutex_unlock(&mutex_log);
+        
+        for(int i = 0; i < memoryConfig->delayTLBHit; i++){
+            usleep(1000);
+        }
+
         return frame;
+    }
+
+    for(int i = 0; i < memoryConfig->delayTLBMiss; i++){
+            usleep(1000);
     }
 
     pthread_mutex_lock(&mutex_log);
