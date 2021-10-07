@@ -1,6 +1,7 @@
 #ifndef MEMORY_CONFIG_H_
 #define MEMORY_CONFIG_H_
 #include <commons/config.h>
+#include <commons/log.h>
 
 typedef struct memoryConfig{
     t_config *config;
@@ -20,5 +21,7 @@ typedef struct memoryConfig{
 t_memoryConfig *getMemoryConfig(char *path);
 
 void destroyMemoryConfig(t_memoryConfig *config);
+
+void validateConfg(t_memoryConfig *config, t_log *logger);
 
 #endif // !MEMORY_CONFIG_H_

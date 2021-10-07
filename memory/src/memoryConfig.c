@@ -27,3 +27,10 @@ void destroyMemoryConfig(t_memoryConfig *config){
     config_destroy(config);
     free(config);
 }
+
+void validateConfg(t_memoryConfig *config, t_log *logger){
+    if(config->size % config->pageSize != 0) {
+        log_error(logger, "Configuracion incorrecta: el tamanio total no es multiplo del tamanio de pagina.");
+        exit(EXIT_FAILURE);
+    }
+}
