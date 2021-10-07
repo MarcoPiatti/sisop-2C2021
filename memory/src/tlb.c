@@ -136,9 +136,9 @@ void TLB_clear(t_TLB* self){
 
 void TLB_dump(t_TLB* self, char* dumpDir){
     pthread_mutex_lock(&self->mutex);
-    char* time = temporal_get_string_time("%d-%m-%y_%H:%M:%S");
-    char* fileName = string_from_format("Dump_%s.tlb", time);
-    FILE* dumpFile = txt_open_for_append(fileName);
+    char* time = temporal_get_string_time("%d-%m-%y_%H-%M-%S");
+    char* fileName = string_from_format("%sDump_<%s>.tlb", dumpDir, time);
+    FILE* dumpFile = txt_open_for_append("Dump.tlb");
 
     char* text = string_from_format("Dump: %s\n", time);
     txt_write_in_file(dumpFile, text);
@@ -164,7 +164,7 @@ void writeTotalHits(t_list* counts){
         result += ((t_pidCount*)elem)->hits;
     };
     list_iterate(counts, _Hits);
-    printf("TLB - Hits totales:%i\n", result);
+    printf("\nTLB - Hits totales:%i\n", result);
     fflush(stdout);
 }
 
