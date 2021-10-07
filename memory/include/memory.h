@@ -71,6 +71,7 @@ void handlerUSR2(int num);
 void handlerINT(int num);
 
 //TODO: Revisar que si en un memalloc se deben crear muchas paginas, y solo la ultima fallo
-// Se destruyan las anteriores que si fueron creadas, ya que solas no hacen nada.
+// Se destruyan las anteriores que si fueron creadas, ya que no hacen nada.
+// O que se queden ahi como un recurso gastado y listo
 
 #endif // !MEMORY_H_

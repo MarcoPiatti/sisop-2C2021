@@ -337,17 +337,9 @@ int main(){
     pthread_mutex_init(&mutexMemoria, NULL);
 
     //Define las funciones para handlear las seniales que pide consigna
-    struct sigaction SAUSR1;
-    SAUSR1.sa_handler = handlerUSR1;
-    sigaction(SIGUSR1, &SAUSR1, NULL);
-
-    struct sigaction SAUSR2;
-    SAUSR1.sa_handler = handlerUSR2;
-    sigaction(SIGUSR2, &SAUSR2, NULL);
-
-    struct sigaction SAINT;
-    SAUSR1.sa_handler = handlerINT;
-    sigaction(SIGINT, &SAINT, NULL);
+    signal(SIGUSR1, handlerUSR1);
+    signal(SIGUSR2, handlerUSR2);
+    signal(SIGINT, handlerINT);
 
     //Inicializa server y empieza a recibir clientes
     int memoryServer = createListenServer(memoryConfig->memoryIp, memoryConfig->memoryPort);
@@ -360,12 +352,22 @@ int main(){
 
 void handlerUSR1(int num){
     TLB_dump(tlb, memoryConfig->dumpPathTLB);
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "TLB Dumpeada!");
+    pthread_mutex_unlock(&mutex_log);
 }
 
 void handlerUSR2(int num){
     TLB_clear(tlb);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "TLB limpiada!");
+    pthread_mutex_unlock(&mutex_log);
 }
 
 void handlerINT(int num){
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Printeando cuentas TLB!");
+    pthread_mutex_unlock(&mutex_log);
     TLB_printCounts(tlb);
 }
