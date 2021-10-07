@@ -102,6 +102,7 @@ void TLB_addEntry(t_TLB* self, uint32_t pid, int32_t page, int32_t frame){
                 self->table[i].frame = frame;
                 self->table[i].used = true;
                 queue_push(self->victims, self->table + i);
+                break;
             }
         }
     }
