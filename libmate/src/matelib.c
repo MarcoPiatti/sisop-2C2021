@@ -229,10 +229,10 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
     destroyPacket(packet);
 
     packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
+    int rc = (packet->header == OK) ? 0 : MATE_FREE_FAULT;
     destroyPacket(packet);
 
-    if(rc) log_debug(mateStruct->logger, "Fallo al hacer free");
+    if(rc == MATE_FREE_FAULT) log_debug(mateStruct->logger, "Fallo al hacer free");
     else log_debug(mateStruct->logger, "Memoria liberada");
 
     return rc;
@@ -254,7 +254,7 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
     if(packet->header == ERROR){
         log_debug(mateStruct->logger, "Fallo al leer");
         destroyPacket(packet);
-        return -1;
+        return MATE_READ_FAULT;
     }
 
     void* recvd = NULL;
@@ -282,7 +282,7 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
     destroyPacket(packet);
 
     packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
+    int rc = (packet->header == OK) ? 0 : -MATE_WRITE_FAULT;
     destroyPacket(packet);
 
     if(rc) log_debug(mateStruct->logger, "Fallo al escribir");

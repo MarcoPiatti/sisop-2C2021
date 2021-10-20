@@ -15,6 +15,12 @@ typedef char *mate_sem_name;
 
 typedef int32_t mate_pointer;
 
+enum mate_errors {
+    MATE_FREE_FAULT = -5,
+    MATE_READ_FAULT = -6,
+    MATE_WRITE_FAULT = -7
+};
+
 //------------------General Functions---------------------/
 int mate_init(mate_instance *lib_ref, char *config);
 

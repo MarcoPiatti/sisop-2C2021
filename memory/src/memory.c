@@ -210,10 +210,12 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
     }
 }
 
+//TODO: Preguntar aca si realmente tiene que ir a memoria, ya que paginacion bajo demanda implica solo a swap
 bool createPage(uint32_t pid, void* data){
+    //Primero se chequea si hay lugar en memoria principal
     int32_t frame = ram_findFreeFrame(ram, pid);
     if (frame == -2) {
-        
+        //Estamos en asignacion fija y no hay lugar para mas procesos en ram
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "No hay lugar para mas procesos por el momento");
         pthread_mutex_unlock(&mutex_log);
@@ -227,7 +229,7 @@ bool createPage(uint32_t pid, void* data){
     pthread_mutex_unlock(&mutex_log);
 
     if (frame != -1){
-        
+        //Habia algun frame disponible en ram para guardar la nueva pagina
         pthread_mutex_lock(&mutex_log);
         log_info(logger, "Se encontro un frame vacio para la nueva pagina: %-10i", frame);
         pthread_mutex_unlock(&mutex_log);
@@ -243,7 +245,7 @@ bool createPage(uint32_t pid, void* data){
         pageTable_addPage(pageTable, pid, frame, true);
         return true;
     }
-    
+    //No habia frames libres en ram, guardando en swap
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Guardando la nueva pagina en Swap");
     pthread_mutex_unlock(&mutex_log);

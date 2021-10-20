@@ -36,8 +36,6 @@ void fifo(t_TLB* self, t_TLBEntry* entry);
 
 void lru(t_TLB* self, t_TLBEntry* entry);
 
-//TODO: pasarle los delays a la TLB
-
 /**
  * @DESC: Crea una TLB
  * @param size: cantidad de entradas asignadas
