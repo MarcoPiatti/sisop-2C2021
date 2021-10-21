@@ -81,17 +81,20 @@ int ram_countFreeFrames(t_ram* self, uint32_t pid){
 
 void* ram_getFrame(t_ram* self, int index){    
     self->metadata[index].lastUsed = ++self->LRU_clock;
+    self->metadata[index].chance = true;
     return self->data + index * self->pageSize;
 }
 
 void ram_replaceFrame(t_ram* self, int index, void* data){
     memcpy(self->data + index * self->pageSize, data, self->pageSize);
     self->metadata[index].lastUsed = ++self->LRU_clock;
+    self->metadata[index].chance = true;
 }
 
 void ram_editFrame(t_ram* self, int index, int offset, void* data, int size){
     memcpy(self->data + index * self->pageSize + offset, data, size);
     self->metadata[index].lastUsed = ++self->LRU_clock;
+    self->metadata[index].chance = true;
     self->metadata[index].modified = true;
 }
 
