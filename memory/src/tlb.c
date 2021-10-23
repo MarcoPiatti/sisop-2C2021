@@ -136,10 +136,10 @@ void TLB_clear(t_TLB* self){
 
 void TLB_dump(t_TLB* self, char* dumpDir){
     pthread_mutex_lock(&self->mutex);
-    char* time = temporal_get_string_time("%d-%m-%y_%H-%M-%S");
-    char* fileName = string_from_format("%sDump_<%s>.tlb", dumpDir, time);
-    FILE* dumpFile = txt_open_for_append("Dump.tlb");
-
+    char* time = temporal_get_string_time("%H:%M:%S:%MS");
+    char* fileName = string_from_format("%sDump_%s.tlb", dumpDir, time);
+    FILE* dumpFile = txt_open_for_append(fileName);
+    
     char* text = string_from_format("Dump: %s\n", time);
     txt_write_in_file(dumpFile, text);
     free(text);
