@@ -91,6 +91,7 @@ bool mallocHandler(int clientSocket, t_packet* petition){
         if(thisMallocSize <= sizeof(t_HeapMetadata) + 1 || thisMallocSize - sizeof(t_HeapMetadata) - 1 < mallocSize){
             int newPages = 1 + (mallocSize - thisMallocSize + sizeof(t_HeapMetadata) + 1) / memoryConfig->pageSize;
             bool rc;
+            //TODO: Arreglar paginas en caso de error
             for(int i = 0; i < newPages; i++){
                 void* newPage = calloc(1, memoryConfig->pageSize);
                 rc = createPage(pid, newPage);

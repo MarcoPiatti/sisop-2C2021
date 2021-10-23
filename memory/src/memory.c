@@ -210,7 +210,7 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
     }
 }
 
-//TODO: Preguntar aca si realmente tiene que ir a memoria, ya que paginacion bajo demanda implica solo a swap
+//TODO: Hacer que vaya a swap derecho
 bool createPage(uint32_t pid, void* data){
     //Primero se chequea si hay lugar en memoria principal
     int32_t frame = ram_findFreeFrame(ram, pid);
