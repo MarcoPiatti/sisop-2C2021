@@ -64,13 +64,6 @@ bool swapFile_isFull(t_swapFile* sf){
     return list_size(sf->entries) == sf->maxPages;
 }
 
-bool swapFile_hasProcess(t_swapFile* sf){
-    bool samePid(void* elem){
-        pid == ((t_pageMetadata*)elem)->pid;
-    };
-    return list_any_satisfy(sf->entries, samePid);
-}
-
 int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid){
     bool samePid(void* elem){
         pid == ((t_pageMetadata*)elem)->pid;

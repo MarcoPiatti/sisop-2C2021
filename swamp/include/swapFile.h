@@ -27,8 +27,6 @@ void swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr);
 
 bool swapFile_isFull(t_swapFile* sf);
 
-bool swapFile_hasProcess(t_swapFile* sf);
-
 int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid);
 
 #endif // !SWAPFILE_H_
