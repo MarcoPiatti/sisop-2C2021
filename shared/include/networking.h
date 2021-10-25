@@ -37,6 +37,19 @@ typedef enum msgHeader {
     MEM_CHUNK           // | HEADER | PAYLOAD_SIZE | DATASIZE = INT32 | DATA = STREAM |
 } msgHeader;
 
+typedef enum swapHeader {
+    SAVE_PAGE,
+    READ_PAGE,
+    DESTROY_PAGE,
+    MEM_DISCONNECTED,
+    MAX_MEM_PETITIONS,
+    ASIG_FIJA,
+    ASIG_GLOBAL,
+    SWAP_OK,
+    PAGE,
+    SWAP_ERROR
+} swapHeader;
+
 /**
  * @DESC: Contiene:
  *          - el header del mensaje
