@@ -1,35 +1,45 @@
 #include "swap.h"
-#include "networking.h"
-#include "commons/log.h"
-#include "commons/config.h"
 
-t_log *swapLogger = log_create("./swap.log", "SWAP", 1, LOG_LEVEL_TRACE);
 
 void main(void){
-    t_config *config = config_create("./swap.cfg");
-    char *port = config_get_string_value(config, "PORT");
-    char *ip = config_get_string_value(config, "IP"); 
+    swapLogger = log_create("./swap.log", "SWAP", 1, LOG_LEVEL_TRACE);
 
-    int serverSocket = createListenServer(ip, port);
+    t_swapConfig *swapConfig = getswapConfig("./swap.cfg");
 
-    runListenServer(serverSocket, auxHandler);
+    t_list *swapFiles = list_create();
+    for(int i = 0; swapConfig->swapFiles[i]; i++){
+        list_add(swapFiles, swapFile_create(swapConfig->swapFiles[i],
+        swapConfig->fileSize,
+        swapConfig->pageSize));
+    } 
+    
+    int serverSocket = createListenServer(swapConfig->swapIP, swapConfig->swapPort);
+    int clientSocket = getNewClient(serverSocket);
 
-    close(serverSocket);
+    int header = socket_getHeader(clientSocket);
+
+    if (header == ASIG_FIJA){
+        asignacion = fija;
+    }
+    if (header == ASIG_GLOBAL){
+        asignacion = global;
+    }
+
+    t_packet *receivedPetition;
+
+    while (1){
+        receivedPetition = socket_getPacket(clientSocket);
+        milliSleep(swapConfig->delay);
+        petitionHandler[receivedPetition->header](receivedPetition, clientSocket);
+        destroyPacket(receivedPetition);
+    }
+    
 }
 
-void *auxHandler(void *vclientSocket){
-    int clientSocket = (int*) vclientSocket;
-    socket_sendHeader(clientSocket, OK);
-    
-    t_packet *packet;
-    int header = 0;
+int fija(int PID, int PAGE, void *content){
+    return true;
+}
 
-    do{
-        packet = socket_getPacket(clientSocket);
-        header = packet->header;
-        destroyPacket(packet);
-        log_info(swapLogger, "Header de paquete recibido: %i", header);
-        socket_sendHeader(clientSocket, OK);
-        log_info(swapLogger, "Enviado OK");
-    } while (header != DISCONNECTED);
+int global(int PID, int page, void *content){
+    return true;
 }
