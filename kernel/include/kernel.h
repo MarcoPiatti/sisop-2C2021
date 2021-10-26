@@ -12,9 +12,9 @@
 #define MAX_MULTIPROCESSING 10
 
 //Colas de estado compartidas
-t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue, *suspendedBlockedQueue;
+t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue, *suspendedBlockedQueue, *execQueue;
 
-pthread_t thread_longTerm, thread_mediumTerm;
+pthread_t thread_longTerm, thread_mediumTerm, *thread_Cpus;
 //Ver tema implementación shortTerm planner
 
 t_kernelConfig* config;

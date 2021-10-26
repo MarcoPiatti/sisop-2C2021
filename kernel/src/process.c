@@ -13,3 +13,4 @@ t_process* createProcess(uint32_t id, int socket, double estimator){
 void destroyProcess(t_process* process){
     free(process);
 }
+
