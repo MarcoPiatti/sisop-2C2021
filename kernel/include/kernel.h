@@ -1,6 +1,7 @@
 #ifndef  KERNEL_H_
 #define  KERNEL_H_
 
+#include "networking.h"
 #include "pQueue.h"
 #include "process.h"
 #include <stdlib.h>

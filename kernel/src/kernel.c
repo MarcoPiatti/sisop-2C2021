@@ -17,7 +17,7 @@ void main(void){
     
     pthread_create(thread_longTerm, NULL, longTerm_run, NULL);
     pthread_detach(thread_longTerm);
-    thread_Cpus = malloc(sizeof(pthread_t*config->multiprocess));
+    thread_Cpus = calloc(config->multiprocess, sizeof(pthread_t));
     for(int i=0;i<config->multiprocess;i++){
     pthread_create(thread_Cpus[i], NULL, cpu, NULL);
 }
@@ -34,7 +34,7 @@ void *auxHandler(void *vclientSocket){
     socket_sendHeader(clientSocket, OK);
     
     t_packet *packet;
-    t_process* proceso;
+    t_process* process;
     
     uint32_t idCliente;
 
@@ -42,41 +42,44 @@ void *auxHandler(void *vclientSocket){
 
     packet = socket_getPacket(clientSocket);
     idCliente = streamTake_UINT32(packet->payload);
-    proceso = createProcess(idCliente, clientSocket, config->initialEstimation);
-    pQueue_put(newQueue, proceso);
+    process = createProcess(idCliente, clientSocket, config->initialEstimation);
+    pQueue_put(newQueue, process);
     destroyPacket(packet);
 }
 
 void *longTerm_run(void* args) {
-    t_process* proceso;
+    t_process* process;
     while(1) {
         sem_wait(&cuposDisponibles);
-        proceso = pQueue_take(newQueue);
-        proceso->state = READY;
-        pQueue_put(readyQueue, proceso);
+        process = pQueue_take(newQueue);
+        process->state = READY;
+        pQueue_put(readyQueue, process);
     }
 }
 
 void *shortTerm_run(void* args) {
-    t_process* proceso;
+    t_process* process;
     while(1) {
-        pQueue_sort(readyQueue,compararSJF);
+        //TODO: implementar replanificación de forma tal que tanto el estimator como el waited se actualicen
+        if(config->algorithm == "SJF")
+            pQueue_sort(readyQueue, compareSJF);
+        else                                        //Se asume que no hay otro algoritmo
+            pQueue_sort(readyQueue, compareHRRN);   
     }
 }
 
 void *cpu(void* args) {
-    t_process* proceso;
+    t_process* process;
     while(1) {
-        proceso = pQueue_take(readyQueue);//por ahora es fifo para mas palcer
-        proceso->state = EXEC;
+        process = pQueue_take(readyQueue);//por ahora es fifo para mas palcer
+        process->state = EXEC;
 
         int contador = 0;
         int seguirAtendiendo = true;
+        
         while(seguirAtendiendo){
-        contador += contador;
-        for(int i=0;i<2;i++){
-            if
-        }
+            contador += contador;
+        
         
         /*
         if(?){//no se como saber cuando estoy bloquiao
@@ -91,23 +94,16 @@ void *cpu(void* args) {
     }
 }
 
-bool _sem_wait(t_packet *received, int clientSocket){
-    return true;
+bool compareSJF(t_process* p1, t_process* p2){
+    return p1->estimator < p2->estimator;
 }
 
-bool _call_io(t_packet *received, int clientSocket){
-    return true;
+int responseRatio(t_process* process){
+    return (process->estimator + process->waited) / process->estimator;
 }
 
-bool (*petitionProcessHandler[2])(t_packet *received, int clientSocket) = {
-    _sem_wait,
-    _call_io
-};
-
-
-
-bool compararSJF( t_process* p1, t_process* p2){
-    return (p2->estimator>p1->estimator)?true:false;
+bool compareHRRN(t_process* p1, t_process* p2) {
+    return responseRatio(p1) > responseRatio(p2);
 }
 
 
