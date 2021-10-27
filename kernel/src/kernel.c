@@ -57,10 +57,36 @@ void *longTerm_run(void* args) {
     }
 }
 
+void *midTerm_run(void* args) {
+    t_process * process;
+    while(1) {
+        if(!pQueue_isEmpty(newQueue)){
+            if(pQueue_isEmpty(readyQueue)) {
+                if(!pQueue_isEmpty(blockedQueue)) {
+                    // Blocked -> Suspended Blocked
+                    process = pQueue_take(blockedQueue);
+                    process->state = SUSP_BLOCKED;
+                    pQueue_put(suspendedBlockedQueue, process);
+                    sem_post(&cuposDisponibles);
+                }
+            }
+        } else {
+            if(!pQueue_isEmpty(suspendedReadyQueue)){
+                // Suspended Ready -> Ready
+                sem_wait(&cuposDisponibles);                        //ver
+                process = pQueue_take(suspendedReadyQueue);
+                process->state = READY;
+                pQueue_put(readyQueue, process);
+            }
+        }
+    }
+    //TODO: Blocked -> Ready & Suspended Ready -> Ready
+}
+
 void *shortTerm_run(void* args) {
     t_process* process;
     while(1) {
-        //TODO: implementar replanificación de forma tal que tanto el estimator como el waited se actualicen
+        pQueue_iterate(readyQueue, updateWaited);
         if(config->algorithm == "SJF")
             pQueue_sort(readyQueue, compareSJF);
         else                                        //Se asume que no hay otro algoritmo
@@ -68,31 +94,43 @@ void *shortTerm_run(void* args) {
     }
 }
 
+void updateWaited(t_process* process){
+    process->waited += 1; 
+}
+
 void *cpu(void* args) {
     t_process* process;
+    t_packet* packet;
     while(1) {
+        
         process = pQueue_take(readyQueue);//por ahora es fifo para mas palcer
         process->state = EXEC;
 
         int contador = 0;
         int seguirAtendiendo = true;
-        
-        while(seguirAtendiendo){
-            contador += contador;
-        
-        
-        /*
-        if(?){//no se como saber cuando estoy bloquiao
-        proceso->state = BLOCKED;
 
-        proceso->estimator = config->alpha *contador+(1-config->alpha)*proceso->estimator;
-        pQueue_put(blockedQueue,proceso);
-        break;
+        processState state = CONTINUE;
+        bool exited = false;
+
+        int socket = process->socket;
+        
+        while(state == CONTINUE){
+            contador += contador;
+            packet = socket_getPacket(socket);
+            state = petitionProcessHandler[packet->header](packet, socket);
+            //TODO: Verificar exit
+            destroyPacket(packet);
         }
- */
+        if(state==BLOCKED){
+            process->estimator = config->alpha *contador+(1-config->alpha)* process->estimator;
+            process->state = BLOCKED;
+            pQueue_put(blockedQueue, process);
         }
+        //TODO: Implementar exit
     }
 }
+
+
 
 bool compareSJF(t_process* p1, t_process* p2){
     return p1->estimator < p2->estimator;

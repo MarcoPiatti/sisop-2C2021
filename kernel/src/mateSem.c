@@ -31,3 +31,5 @@ void mateSem_wait(t_mateSem* mateSem, t_process* process){
 void mateSem_post(t_mateSem* mateSem){
     sem_post(&mateSem->sem);
 }
+
+//TODO: relevar y cambiar según corresponda
