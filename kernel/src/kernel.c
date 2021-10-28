@@ -5,22 +5,36 @@
 
 
 t_log *kernelLogger;
-sem_t cuposDisponibles, availableCPUS;
+sem_t cuposDisponibles, availableCPUS, runShortTerm;
+
 
 void main(void){
     kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
 
     config = getKernelConfig("./kernel.cfg");
 
+    //Inicializo estructura t_processQueues
+    processQueues.newQueue = newQueue;
+    processQueues.readyQueue = readyQueue;
+    processQueues.blockedQueue = blockedQueue;
+    processQueues.suspendedReadyQueue = suspendedReadyQueue;
+    processQueues.suspendedBlockedQueue = suspendedBlockedQueue;
+    processQueues.execQueue = execQueue;
+
+    //Inicializo diccionario de mateSems
+    mateSems = dictionary_create();
+
+    //Inicializacion semáforos
     sem_init(&cuposDisponibles, 0, config->multiprogram);
     sem_init(&availableCPUS, 0, config->multiprocess);
+    sem_init(&runShortTerm, 0, 0);     //Semáforo para correr el short term scheduler solo cuando un proceso llega a ready
     
     pthread_create(thread_longTerm, NULL, longTerm_run, NULL);
     pthread_detach(thread_longTerm);
     thread_Cpus = calloc(config->multiprocess, sizeof(pthread_t));
     for(int i=0;i<config->multiprocess;i++){
-    pthread_create(thread_Cpus[i], NULL, cpu, NULL);
-}
+        pthread_create(thread_Cpus[i], NULL, cpu, NULL);
+    }
 
     int serverSocket = createListenServer(config->ip, config->port);
 
@@ -54,6 +68,7 @@ void *longTerm_run(void* args) {
         process = pQueue_take(newQueue);
         process->state = READY;
         pQueue_put(readyQueue, process);
+        sem_post(&runShortTerm);
     }
 }
 
@@ -80,12 +95,15 @@ void *midTerm_run(void* args) {
             }
         }
     }
-    //TODO: Blocked -> Ready & Suspended Ready -> Ready
 }
+
+
+//TODO: Implementar Call io
 
 void *shortTerm_run(void* args) {
     t_process* process;
     while(1) {
+        sem_wait(&runShortTerm);
         pQueue_iterate(readyQueue, updateWaited);
         if(config->algorithm == "SJF")
             pQueue_sort(readyQueue, compareSJF);
@@ -123,12 +141,11 @@ void *cpu(void* args) {
         }
         if(state==BLOCKED){
             process->estimator = config->alpha *contador+(1-config->alpha)* process->estimator;
-            process->state = BLOCKED;
-            pQueue_put(blockedQueue, process);
         }
         //TODO: Implementar exit
     }
 }
+
 
 
 

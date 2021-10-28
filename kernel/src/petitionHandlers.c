@@ -7,21 +7,30 @@ processState _capi_id(t_packet *received, int clientSocket){
 processState _sem_init(t_packet *received, int clientSocket){
     char* semName = streamTake_STRING(received->payload);
     uint32_t semCount = streamTake_UINT32(received->payload);
-    //t_mateSem* newSem = mateSem_create(semName, semCount, /**/ );
-
+    t_mateSem* newSem = mateSem_create(semName, semCount);
+    dictionary_put(mateSems, semName, newSem);
+    
     return CONTINUE;
 }
 
 processState _sem_wait(t_packet *received, int clientSocket){
-    
-    return BLOCK;    //todo: retornar solo si es menor a 0
+    char* nombreSem = streamTake_STRING(received->payload);
+    t_mateSem* semaforo = dictionary_get(mateSems, nombreSem); //fetch semaphore from dictionary
+    //return mateSem_wait(semaforo, );    //todo: aca necesitamos recibir al proceso por argumento
 }
 
 processState _sem_post(t_packet *received, int clientSocket){
+    char* nombreSem = streamTake_STRING(received->payload);
+    t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
+    mateSem_post(semaforo, processQueues);
     return CONTINUE;
 }
 
 processState _sem_destroy(t_packet *received, int clientSocket){
+    char* nombreSem = streamTake_STRING(received->payload);
+    t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
+    mateSem_destroy(semaforo);
+    dictionary_remove(mateSems, nombreSem);
     return CONTINUE;
 }
 

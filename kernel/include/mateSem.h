@@ -5,6 +5,8 @@
 #include "pQueue.h"
 #include "process.h"
 
+//Todo: actualizar comentarios de documentacion
+
 /**
  * @DESC: Semaforo para carpinchos.
  *        tiene un nombre, y un semaforo interno con el cual gestiona su contador.
@@ -13,9 +15,8 @@
  */
 typedef struct mateSem {
     char* nombre;
-    sem_t sem;
+    int semaforo;
     t_pQueue* waitingProcesses;
-    pthread_t thread_mateSem;
 } t_mateSem;
 
 /**
@@ -28,7 +29,7 @@ typedef struct mateSem {
  *                     Y luego meterlo a una cola de ready, o similar.
  * @return t_mateSem*: puntero al struct del mateSem creado
  */
-t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial, void* (* mateSemFunc)(void*));
+t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial);
 
 /**
  * @DESC: Destruye un mateSem, su thread, su cola de espera, y su semaforo.
@@ -42,12 +43,24 @@ void mateSem_destroy(t_mateSem* mateSem);
  * @param mateSem: el mateSem usado
  * @param process: proceso (carpincho) que espera
  */
-void mateSem_wait(t_mateSem* mateSem, t_process* process);
+processState mateSem_wait(t_mateSem* mateSem, t_process* process, t_processQueues direcciones);
 
 /**
  * @DESC: Incrementa el contador del mateSem en 1
  * @param mateSem: mateSem en cuestion
  */
-void mateSem_post(t_mateSem* mateSem);
+void mateSem_post(t_mateSem* mateSem, t_processQueues direcciones);
+
+typedef enum processState {CONTINUE, BLOCK, EXIT} processState; 
+
+typedef struct t_processQueues {
+    t_pQueue *newQueue;
+    t_pQueue *readyQueue;
+    t_pQueue *blockedQueue;
+    t_pQueue *suspendedReadyQueue;
+    t_pQueue *suspendedBlockedQueue;
+    t_pQueue *execQueue;
+} t_processQueues;
+
 
 #endif // !MATESEM_H_

@@ -7,29 +7,56 @@ t_mateSem hola;
 int hola;
 
 
-t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial, void* (* mateSemFunc)(void*)){
+t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial){
     t_mateSem* mateSem = malloc(sizeof(t_mateSem));
     mateSem->nombre = string_duplicate(nombre);
-    sem_init(&mateSem->sem, 0, contadorInicial);
+    mateSem->semaforo = contadorInicial;
     mateSem->waitingProcesses = pQueue_create();
-    pthread_create(&mateSem->thread_mateSem, 0, mateSemFunc, (void*)mateSem);
-    pthread_detach(mateSem->thread_mateSem);
     return mateSem;
 }
 
 void mateSem_destroy(t_mateSem* mateSem){
-    pthread_cancel(mateSem->thread_mateSem);
     pQueue_destroy(mateSem->waitingProcesses, destroyProcess);
     free(mateSem->nombre);
     free(mateSem);
 }
 
-void mateSem_wait(t_mateSem* mateSem, t_process* process){
-    pQueue_put(mateSem->waitingProcesses, (void*)process);
+processState mateSem_wait(t_mateSem* mateSem, t_process* process, t_processQueues direcciones){
+    mateSem->semaforo = mateSem->semaforo - 1;
+    if(mateSem->semaforo < 0){
+        pQueue_put(mateSem->waitingProcesses, (void*)process);
+        pQueue_put(direcciones.blockedQueue, process);
+        return BLOCKED;
+    } else {
+        return CONTINUE;
+    }
 }
 
-void mateSem_post(t_mateSem* mateSem){
-    sem_post(&mateSem->sem);
+void mateSem_post(t_mateSem* mateSem, t_processQueues direcciones){
+    //Incremento semáforo
+    mateSem->semaforo = mateSem->semaforo + 1;
+    
+    //Si hay proceso esperando...
+    if(mateSem->semaforo <= 0){
+        t_process* process = pQueue_take(mateSem->waitingProcesses);
+
+        bool getProcessById(void* elem) {
+            elem = (*t_process) elem;
+            return elem->id == process->id;
+        }
+
+        //Blocked -> Ready
+        if(process->state==BLOCKED){
+            pQueue_removeBy(direcciones.blockedQueue, getProcessById);
+            pQueue_put(direcciones.readyQueue, process);
+        } 
+        //Suspended Blocked -> Ready
+        else {
+            pQueue_removeBy(direcciones.suspendedBlockedQueue, getProcessById);
+            pQueue_put(direcciones.suspendedReadyQueue, process);
+        }
+    }
 }
+
 
 //TODO: relevar y cambiar según corresponda
