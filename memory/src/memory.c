@@ -2,19 +2,13 @@
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
-
-t_log *memoryLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
+#include <commons/string.h>
 
 void main(void){
-    t_config *config = config_create("./memory.cfg");
-    char *port = config_get_string_value(config, "PORT");
-    char *ip = config_get_string_value(config, "IP"); 
-
-    int serverSocket = createListenServer(ip, port);
-
-    runListenServer(serverSocket, auxHandler);
-
-    close(serverSocket);
+    memoryLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
+    memory = initializeMemory("./memory.cfg");
+    pageTables = dictionary_create()
+    validateConfg(memory->config, memoryLogger);
 }
 
 void *auxHandler(void *vclientSocket){
@@ -63,4 +57,32 @@ void pageTableAddEntry(t_pageTable *table, uint32_t newFrame, bool isPresent){
     (table->entries)[table->pageQuantity]->frame = newFrame;
     (table->entries)[table->pageQuantity]->present = isPresent;
     (table->pageQuantity)++;
+}
+
+t_memory *initializeMemory(char *path){
+    t_memory *newMemory = malloc(sizeof(t_memory));
+
+    newMemory->config = getMemoryConfig(path);
+
+    newMemory->metadata = initializeMemoryMetadata(newMemory->config);
+
+    newMemory->memory = calloc(1, newMemory->config->size);
+}
+
+void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
+    
+    // t_pageTable *pt = dictionary_get(string_from_format("%i", PID));
+    // int offset = address % memory->config->pageSize;
+    // int physical = toPhysical(PID, adress);
+    // void *real = memory->memory + physical;
+
+    // int toRead = min(bytes, memory->config->pageSize - (address % memory->config->pageSize));
+    // memcpy(destination, real, toRead);
+
+    // if (bytes != 0 ) memread(bytes - toRead, address + toRead, PID, destination + toRead);
+
+}
+
+void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
+    ;
 }
