@@ -4,55 +4,50 @@
 #include <stdbool.h>
 #include <commons/collections/dictionary.h>
 #include "memoryConfig.h"
+#include "networking.h"
 
-void *auxHandler(void *vclientSocket);
+void* auxHandler(void *vclientSocket);
 
 typedef​ ​struct​ ​heapMetadata​ { 
-    uint32_t prevAlloc,
-    uint32_t nextAlloc,
-    uint8_t isFree,
+    uint32_t prevAlloc;
+    uint32_t nextAlloc;
+    uint8_t isFree;
 } t_heapMetadata;
-
-typedef struct pageTableEntry{
-    bool present;
-    uint32_t frame;
-}t_pageTableEntry;
 
 typedef struct mem {
     void *memory;
-    t_memoryConfig *config;
-    t_memoryMetadata *metadata;
 } t_memory;
 
-typedef struct pageTable{
-    int pageQuantity;
-    t_pageTableEntry **entries;
-}t_pageTable;
-
 typedef struct memoryMetadata{
-    // Bitmap que contiene el estado de los frames (libre/ocupado).
-    bool **entries;
-}t_memoryMetadata;
+    uint32_t entryQty;
+    t_frameMetadata **entries;
+} t_memoryMetadata;
 
-t_log *memoryLogger;
+typedef struct frameMetadata {
+    bool isFree;
+    uint32_t PID;
+    uint32_t page;
+} t_frameMetadata;
+
+extern bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket);
+
+t_log *logger;
 t_memory *memory;
 t_dictionary *pageTables;
+t_memoryConfig *config;
+t_memoryMetadata *metadata;
 
-t_memory *initializeMemory(char *path);
+t_memory *initializeMemory(t_memoryConfig *config);
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config);
 
 void destroyMemoryMetadata(t_memoryMetadata *metadata);
 
-t_pageTable *initializePageTable(t_memoryConfig *config);
-
-void destroyPageTable(t_pageTable *table);
-
-void pageTableAddEntry(t_pageTable *table, uint32_t newFrame);
-
 void memread(uint32_t bytes, uint32_t address, int PID, void *destination);
 
 void memwrite(uint32_t bytes, uint32_t address, int PID, void *from);
+
+int32_t getFreeFrame(t_memoryMetadata *memMetadata);
 
 
 #endif // !MEMORY_H_

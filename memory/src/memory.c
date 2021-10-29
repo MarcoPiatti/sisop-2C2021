@@ -4,47 +4,48 @@
 #include "commons/config.h"
 #include <commons/string.h>
 
-void main(void){
-    memoryLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
-    memory = initializeMemory("./memory.cfg");
-    pageTables = dictionary_create()
-    validateConfg(memory->config, memoryLogger);
+int main(){
+    logger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
+    
+    config = getMemoryConfig("./memory.cfg");
+    validateConfg(config, logger);
+    
+    memory = initializeMemory(config);
+    metadata = initializeMemoryMetadata(config);
+    pageTables = dictionary_create();
+    
+
+    int serverSocket = createListenServer(config->ip, config->port);
+    while(1){
+        runListenServer(serverSocket, auxHandler);
+    }
+
+    return 0;
 }
 
 void *auxHandler(void *vclientSocket){
     int clientSocket = (int*) vclientSocket;
-    socket_sendHeader(clientSocket, OK);
+    socket_sendHeader(clientSocket, ID_MEMORIA);
     
     t_packet *packet;
     int header = 0;
 
     do{
         packet = socket_getPacket(clientSocket);
-        header = packet->header;
-        destroyPacket(packet);
-        log_info(memoryLogger, "Header de paquete recibido: %i", header);
-        socket_sendHeader(clientSocket, OK);
-        log_info(memoryLogger, "Enviado OK");
+
     } while (header != DISCONNECTED);
-}
-
-t_pageTable *initializePageTable(t_memoryConfig *config){
-    t_pageTable *newTable = malloc(sizeof(t_pageTable));
-    newTable->pageQuantity = 0;
-    return newTable;
-}
-
-void destroyPageTable(t_pageTable *table){
-    free(table->entries);
-    free(table);
 }
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
     t_memoryMetadata *newMetadata = malloc(sizeof(t_memoryMetadata));
-    int pageQty = config->size / config->pageSize;
-    newMetadata->entries = calloc(sizeof(bool), pageQty);
-    memset(newMetadata->entries, 0, sizeof(bool) * pageQty);
-    return newMetadata;
+    newMetadata->entryQty = config->size / config->pageSize;
+    newMetadata->entries = calloc(newMetadata->entryQty, sizeof(t_frameMetadata));
+
+    for (int i = 0; i < newMetadata->entryQty; i++){
+        ((newMetadata->entries)[i])->isFree = 1;
+    }
+
+    return newMetadata; 
 }
 
 void destroyMemoryMetadata(t_memoryMetadata *metadata){
@@ -52,21 +53,11 @@ void destroyMemoryMetadata(t_memoryMetadata *metadata){
     free(metadata);
 }
 
-void pageTableAddEntry(t_pageTable *table, uint32_t newFrame, bool isPresent){
-    table->entries = realloc(table->entries, sizeof(t_pageTableEntry)*(table->pageQuantity + 1));
-    (table->entries)[table->pageQuantity]->frame = newFrame;
-    (table->entries)[table->pageQuantity]->present = isPresent;
-    (table->pageQuantity)++;
-}
-
-t_memory *initializeMemory(char *path){
+t_memory *initializeMemory(t_memoryConfig *config){
     t_memory *newMemory = malloc(sizeof(t_memory));
+    newMemory->memory = calloc(1,config->size);
 
-    newMemory->config = getMemoryConfig(path);
-
-    newMemory->metadata = initializeMemoryMetadata(newMemory->config);
-
-    newMemory->memory = calloc(1, newMemory->config->size);
+    return newMemory;
 }
 
 void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
@@ -85,4 +76,12 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
 
 void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
     ;
+}
+
+int32_t getFreeFrame(t_memoryMetadata *memMetadata){
+    for (int i = 0; i < memMetadata->entryQty; i++){
+        if (((memMetadata->entries)[i])->isFree == 1) return i;
+    }
+
+    return -1;
 }
