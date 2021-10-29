@@ -38,7 +38,9 @@ void main(void){
 
     int serverSocket = createListenServer(config->ip, config->port);
 
-    runListenServer(serverSocket, auxHandler);
+    while(1){   //TODO: Chequear
+        runListenServer(serverSocket, auxHandler);
+    }
 
     close(serverSocket);
 }
@@ -164,4 +166,4 @@ bool compareHRRN(t_process* p1, t_process* p2) {
 
 
 
-//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde.
+//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde. //Ojo quizas este todo ya esta obsoleto

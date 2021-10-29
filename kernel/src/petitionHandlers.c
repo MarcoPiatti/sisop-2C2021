@@ -1,10 +1,10 @@
 #include <kernel.h>
 
-processState _capi_id(t_packet *received, int clientSocket){
+processState _capi_id(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _sem_init(t_packet *received, int clientSocket){
+processState _sem_init(t_packet *received, t_process* process){
     char* semName = streamTake_STRING(received->payload);
     uint32_t semCount = streamTake_UINT32(received->payload);
     t_mateSem* newSem = mateSem_create(semName, semCount);
@@ -13,20 +13,20 @@ processState _sem_init(t_packet *received, int clientSocket){
     return CONTINUE;
 }
 
-processState _sem_wait(t_packet *received, int clientSocket){
+processState _sem_wait(t_packet *received, t_process* process){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem); //fetch semaphore from dictionary
-    //return mateSem_wait(semaforo, );    //todo: aca necesitamos recibir al proceso por argumento
+    return mateSem_wait(semaforo, process, mateSems);
 }
 
-processState _sem_post(t_packet *received, int clientSocket){
+processState _sem_post(t_packet *received, t_process* process){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
     mateSem_post(semaforo, processQueues);
     return CONTINUE;
 }
 
-processState _sem_destroy(t_packet *received, int clientSocket){
+processState _sem_destroy(t_packet *received, t_process* process){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
     mateSem_destroy(semaforo);
@@ -34,35 +34,35 @@ processState _sem_destroy(t_packet *received, int clientSocket){
     return CONTINUE;
 }
 
-processState _call_io(t_packet *received, int clientSocket){
+processState _call_io(t_packet *received, t_process* process){
     return BLOCK;    //todo: ver
 }
 
-processState _memalloc(t_packet *received, int clientSocket){
+processState _memalloc(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _memfree(t_packet *received, int clientSocket){
+processState _memfree(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _memread(t_packet *received, int clientSocket){
+processState _memread(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _memwrite(t_packet *received, int clientSocket){
+processState _memwrite(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _capi_term(t_packet *received, int clientSocket){
+processState _capi_term(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _disconnected(t_packet *received, int clientSocket){
+processState _disconnected(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, int clientSocket) = {
+processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process) = {
     _capi_id,
     _sem_init,
     _sem_wait,
