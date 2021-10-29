@@ -7,6 +7,8 @@ t_process* createProcess(uint32_t id, int socket, double estimator){
     process->state = NEW;
     process->estimator = estimator;
     process->waited = 0;
+    clock_getTime(CLOCK_MONOTONIC, &process->startTime);
+    
     return process;
 }
 

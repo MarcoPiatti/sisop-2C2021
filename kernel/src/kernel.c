@@ -123,7 +123,7 @@ void *cpu(void* args) {
     t_packet* packet;
     while(1) {
         
-        process = pQueue_take(readyQueue);//por ahora es fifo para mas palcer
+        process = pQueue_take(readyQueue);
         process->state = EXEC;
 
         int contador = 0;
@@ -155,7 +155,14 @@ bool compareSJF(t_process* p1, t_process* p2){
     return p1->estimator < p2->estimator;
 }
 
+void updateWaited(t_process* process) {
+    struct timespec start = process->startTime, end;
+    clock_getTime(CLOCK_MONOTONIC, &end);
+    process->waited = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+}
+
 int responseRatio(t_process* process){
+    updateWaited(process);
     return (process->estimator + process->waited) / process->estimator;
 }
 
@@ -166,4 +173,4 @@ bool compareHRRN(t_process* p1, t_process* p2) {
 
 
 
-//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde. //Ojo quizas este todo ya esta obsoleto
+//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde. //Ojo quizas este "//TODO:" ya esta obsoleto

@@ -1,6 +1,7 @@
 #ifndef PROCESS_H_
 #define PROCESS_H_
 #include <stdint.h>
+#include <time.h>
 
 typedef enum state { NEW, READY, BLOCKED, EXEC, SUSP_READY, SUSP_BLOCKED, TERMINATED } t_state;
 
@@ -9,7 +10,8 @@ typedef struct process{
     int socket;
     t_state state;
     double estimator;
-    double waited;
+    int waited;
+    struct timespec startTime;
 } t_process;
 
 /**

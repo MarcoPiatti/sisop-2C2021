@@ -11,6 +11,8 @@
 #include "kernelConfig.h"
 #include "mateSem.h"
 #include "commons/collections/dictionary.h"
+#include <time.h>
+
 
 #define MAX_MULTIPROCESSING 10
 
