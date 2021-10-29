@@ -41,13 +41,13 @@ bool swapInterface_savePage(t_swapInterface* self, uint32_t pid, int32_t pageNum
 void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNumber);
 
 /**
- * @DESC: Le pide al swap que borre todos los datos de un proceso dado
+ * @DESC: Le pide al swap que borre una pagina de un proceso dado
  * @param self: Interfaz usada
  * @param pid: ID del proceso a eliminar de swap
- * @return true: Retorna true si el proceso se borro sin problemas :)
- * @return false: Retorna false si hubo algun problema (no deberia)
+ * @return true: Retorna true si la pagina se borro sin problemas :)
+ * @return false: Retorna false si la pagina no se pudo borrar o no existia
  */
-bool swapInterface_eraseProcess(t_swapInterface* self, uint32_t pid);
+bool swapInterface_erasePage(t_swapInterface* self, uint32_t pid, int32_t page);
 
 /**
  * @DESC: Destruye una interfaz a un swap

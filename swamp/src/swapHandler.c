@@ -46,27 +46,33 @@ void loadPage(t_packet* petition, int memorySocket){
 }
 
 // CUando memoria pide borrar un proceso de swap, se ejecuta esto
-void eraseProcess(t_packet* petition, int memorySocket){
+void erasePage(t_packet* petition, int memorySocket){
     uint32_t pid = streamTake_UINT32(petition->payload);
+    uint32_t page = streamTake_INT32(petition->payload);
     t_swapFile* file = pidExists(pid);
+
     if(file == NULL){
-        t_packet* response = createPacket(OK_MEM, 0);
+        t_packet* response = createPacket(ERROR_MEM, 0);
         socket_sendPacket(memorySocket, response);
         destroyPacket(response);
         return;
     }
-    for(int i = 0; i < file->maxPages; i++){
-        if(file->entries[i].pid == pid){
-            swapFile_clearAtIndex(file, i);
-            file->entries[i].used = false;
-        }
+    int index = swapFile_getIndex(file, pid, page);
+    if(index == -1){
+        t_packet* response = createPacket(ERROR_MEM, 0);
+        socket_sendPacket(memorySocket, response);
+        destroyPacket(response);
+        return;
     }
+    swapFile_clearAtIndex(file, index);
+    file->entries[index].used = false;
+
     t_packet* response = createPacket(OK_MEM, 0);
     socket_sendPacket(memorySocket, response);
     destroyPacket(response);
 
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Archivo %s: se eliminaron las paginas del proceso %i", file->path, pid);
+    log_info(logger, "Archivo %s: se elimino la pagina %i del proceso %u", file->path, page, pid);
     pthread_mutex_unlock(&mutex_log);
 
     return;
@@ -84,6 +90,6 @@ void (*swapHandler[MAX_MEM_MSGS])(t_packet* petition, int memorySocket) =
 {
     savePage,
     loadPage,
-    eraseProcess,
+    erasePage,
     sayGoodbye
 };

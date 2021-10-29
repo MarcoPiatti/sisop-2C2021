@@ -57,13 +57,12 @@ void* heap_read(uint32_t pid, int32_t logicAddress, int size);
 void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data);
 
 /**
- * @DESC: Crea una pagina nueva para un proceso y la aloja en MP o swap, dependiendo de los cupos libres
+ * @DESC: Crea una pagina nueva para un proceso y la aloja en swap
  * @param pid: PID del proceso que necesita una pagina nueva
- * @param data: puntero a los datos con los que se creara la nueva pagina, normalmente vacia, la primera lleva un alloc inicial
  * @return true: retorna true si se pudo crear la pagina
  * @return false: retorna false si no se pudo crear la pagina
  */
-bool createPage(uint32_t pid, void* data);
+int32_t createPage(uint32_t pid);
 
 //Funciones handler para seniales
 void handlerUSR1(int num);

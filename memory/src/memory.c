@@ -210,54 +210,29 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
     }
 }
 
-//TODO: Hacer que vaya a swap derecho
-bool createPage(uint32_t pid, void* data){
-    //Primero se chequea si hay lugar en memoria principal
-    int32_t frame = ram_findFreeFrame(ram, pid);
-    if (frame == -2) {
-        //Estamos en asignacion fija y no hay lugar para mas procesos en ram
-        pthread_mutex_lock(&mutex_log);
-        log_info(logger, "No hay lugar para mas procesos por el momento");
-        pthread_mutex_unlock(&mutex_log);
-
-        return false;
-    }
+int32_t createPage(uint32_t pid){
     int32_t pageNumber = pageTable_countPages(pageTable, pid);
-    
+    void* data = calloc(1, memoryConfig->pageSize);
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Nueva pagina creada - PID:%-10u - Page:%-10i", pid, pageNumber);
-    pthread_mutex_unlock(&mutex_log);
-
-    if (frame != -1){
-        //Habia algun frame disponible en ram para guardar la nueva pagina
-        pthread_mutex_lock(&mutex_log);
-        log_info(logger, "Se encontro un frame vacio para la nueva pagina: %-10i", frame);
-        pthread_mutex_unlock(&mutex_log);
-
-        ram_replaceFrame(ram, frame, data);
-        t_frameMetadata* frameInfo = ram_getFrameMetadata(ram, frame);
-        frameInfo->modified = true;
-        frameInfo->page = pageNumber;
-        frameInfo->pid = pid;
-        frameInfo->chance = true;
-        frameInfo->isFree = false;
-        frameInfo->lastUsed = ++ram->LRU_clock;
-        pageTable_addPage(pageTable, pid, frame, true);
-        return true;
-    }
-    //No habia frames libres en ram, guardando en swap
-    pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Guardando la nueva pagina en Swap");
+    log_info(logger, "Creando nueva pagina - PID:%-10u - Page:%-10i", pid, pageNumber);
     pthread_mutex_unlock(&mutex_log);
 
     bool rc = swapInterface_savePage(swapInterface, pid, pageNumber, data);
-    if(rc) pageTable_addPage(pageTable, pid, frame, false);
-    else{
+    if(rc){
+        pageTable_addPage(pageTable, pid, -1, false);
+
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "No hay lugar para esa pagina en swap");
+        log_info(logger, "Pagina guardada en swap");
         pthread_mutex_unlock(&mutex_log);
     }
-    return rc;
+    else{
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Error al guardar la nueva pagina en swap");
+        pthread_mutex_unlock(&mutex_log);
+        pageNumber = -1;
+    }
+    free(data);
+    return pageNumber;
 }
 
 void* thread_clientHandlerFunc(void* args){

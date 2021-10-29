@@ -24,14 +24,8 @@ bool mallocHandler(int clientSocket, t_packet* petition){
 
     //Creo la primer pagina si no tiene niguna
     if(pageTable_countPages(pageTable, pid) == 0){
-        void* firstPage = calloc(1, memoryConfig->pageSize);
-        t_HeapMetadata* firstAlloc = (t_HeapMetadata*) firstPage;
-        firstAlloc->isFree = true;
-        firstAlloc->prevAlloc = NULL;
-        firstAlloc->nextAlloc = NULL;
-        bool ok = createPage(pid, firstPage);
-        free(firstPage);
-        if(!ok){
+        int32_t rc = createPage(pid);
+        if(rc == -1){
             streamAdd_INT32(response->payload, matePtr);
             socket_sendPacket(clientSocket, response);
             destroyPacket(response);
@@ -42,6 +36,12 @@ bool mallocHandler(int clientSocket, t_packet* petition){
 
             return true;
         }
+        t_HeapMetadata* firstAlloc = malloc(sizeof(t_HeapMetadata));
+        firstAlloc->isFree = true;
+        firstAlloc->prevAlloc = NULL;
+        firstAlloc->nextAlloc = NULL;
+        heap_write(pid, 0, sizeof(t_HeapMetadata), firstAlloc);
+        free(firstAlloc);
     }
 
     t_HeapMetadata* thisMalloc = NULL;
@@ -90,14 +90,20 @@ bool mallocHandler(int clientSocket, t_packet* petition){
         //Si no alcanza el lugar para crear otro malloc en la misma pagina, creamos mas paginas
         if(thisMallocSize <= sizeof(t_HeapMetadata) + 1 || thisMallocSize - sizeof(t_HeapMetadata) - 1 < mallocSize){
             int newPages = 1 + (mallocSize - thisMallocSize + sizeof(t_HeapMetadata) + 1) / memoryConfig->pageSize;
-            bool rc;
-            //TODO: Arreglar paginas en caso de error
-            for(int i = 0; i < newPages; i++){
-                void* newPage = calloc(1, memoryConfig->pageSize);
-                rc = createPage(pid, newPage);
-                free(newPage);
+            //Crea todas las paginas necesarias, y si alguna falla, borra todas las anteriores retroactivamente
+            int32_t firstPage = createPage(pid);
+            int32_t lastPage;
+            if(firstPage != -1){
+                for(int i = 1; i < newPages; i++){
+                    lastPage = createPage(pid);
+                    if(lastPage == -1){
+                        for(int j = firstPage; j < lastPage; j++){
+                            swapInterface_erasePage(swapInterface, pid, j);
+                        }
+                    }
+                }
             }
-            if(rc == false){
+            if(firstPage == -1 || lastPage == -1){
                 streamAdd_INT32(response->payload, matePtr);
                 socket_sendPacket(clientSocket, response);
                 destroyPacket(response);
@@ -204,18 +210,19 @@ bool freeHandler(int clientSocket, t_packet* petition){
     thisAlloc->isFree = true;
     heap_write(pid, thisAllocPtr, sizeof(t_HeapMetadata), thisAlloc);
 
-    //liberar paginas sobrantes si esta al final.
+    //Se liberan paginas sobrantes si esta al final.
     if(finalAlloc->nextAlloc == NULL){
         int32_t firstFreeByte = finalAllocPtr + sizeof(t_HeapMetadata);
         int32_t pageToDelete = 1 + firstFreeByte / memoryConfig->pageSize;
         int totalPages = pageTable_countPages(pageTable, pid);
         for(int i = pageToDelete; i < totalPages; i++){
-            if(pageTable_isPresent(pageTable, pid, pageToDelete)){
-                int frame = pageTable_getFrame(pageTable, pid, pageToDelete);
+            if(pageTable_isPresent(pageTable, pid, i)){
+                int frame = pageTable_getFrame(pageTable, pid, i);
                 ram_clearFrameMetadata(ram, frame);
-                TLB_clearIfExists(tlb, pid, pageToDelete, frame);
+                TLB_clearIfExists(tlb, pid, i, frame);
             }
-            pageTable_removePage(pageTable, pid, pageToDelete);
+            pageTable_removePage(pageTable, pid, i);
+            swapInterface_erasePage(swapInterface, pid, i);
         }
     }
     
@@ -334,13 +341,16 @@ bool terminationHandler(int clientSocket, t_packet* petition){
     log_info(logger, "Proceso %u: se da de baja en memoria, liberando sus paginas de Swap", pid);
     pthread_mutex_unlock(&mutex_log);
 
-    swapInterface_eraseProcess(swapInterface, pid);
+    int32_t maxPages = pageTable_countPages(pageTable, pid);
+    for(int i = 0; i < maxPages; i++){
+        swapInterface_erasePage(swapInterface, pid, i);
+    }
 
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Proceso %u: se da de baja en memoria, liberando sus paginas de MP", pid);
     pthread_mutex_unlock(&mutex_log);
 
-    for(int i = 0; i < pageTable_countPages(pageTable, pid); i++){
+    for(int i = 0; i < maxPages; i++){
         if(pageTable_isPresent(pageTable, pid, i)){
             int frame = pageTable_getFrame(pageTable, pid, i);
             ram_clearFrameMetadata(ram, frame);

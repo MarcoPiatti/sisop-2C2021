@@ -55,10 +55,11 @@ void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNu
     return pageData;
 }
 
-bool swapInterface_eraseProcess(t_swapInterface* self, uint32_t pid){
-    t_packet* request = createPacket(CAPI_ERASE, INITIAL_STREAM_SIZE);
+bool swapInterface_erasePage(t_swapInterface* self, uint32_t pid, int32_t page){
+    t_packet* request = createPacket(ERASE_PAGE, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(request->payload, pid);
-    
+    streamAdd_INT32(request->payload, page);
+
     pthread_mutex_lock(&self->mutex);
     socket_sendPacket(self->socket, request);
     t_packet* reply = socket_getPacket(self->socket);

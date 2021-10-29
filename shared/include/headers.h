@@ -33,13 +33,13 @@ typedef enum capiHeader {
 typedef enum swapHeader {
     SAVE_PAGE,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PAGE_N = INT32 | PAGE_DATA = PAGE_SIZE |
     LOAD_PAGE,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PAGE_N = INT32 |
-    CAPI_ERASE,         // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
-    MEM_DISCONNECT,       // | HEADER | PAYLOAD_SIZE = 0 |
+    ERASE_PAGE,         // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PAGE_N = INT32 |
+    MEM_DISCONNECT,     // | HEADER | PAYLOAD_SIZE = 0 |
     MAX_MEM_MSGS,
     ASIGN_FIJO,
     ASIGN_GLOBAL,
-    OK_MEM,                 // | HEADER | PAYLOAD_SIZE = 0 |
-    ERROR_MEM,              // | HEADER | PAYLOAD_SIZE = 0 |
+    OK_MEM,             // | HEADER | PAYLOAD_SIZE = 0 |
+    ERROR_MEM,          // | HEADER | PAYLOAD_SIZE = 0 |
     PAGE_DATA           // | HEADER | PAYLOAD_SIZE | PAGE_DATA = PAGE_SIZE |
 } swapHeader;
 
