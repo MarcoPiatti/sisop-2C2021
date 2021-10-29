@@ -27,6 +27,9 @@ void destroyRam(t_ram* self){
     free(self);
 }
 
+//TODO: Posible bug en fixed, si un proceso tiene paginas en un rango de frames, pero el primero esta libre, rompe.
+// Implementar estructura auxiliar para dejar anotado que proceso tiene cada chunk.
+// En swap esto servia porque la primera pagina creada es la ultima en borrarse con memfrees.
 void fixed(t_ram* self, uint32_t pid, int* lowerBound, int* upperBound){
     *lowerBound = -2;
     *upperBound = -2;
