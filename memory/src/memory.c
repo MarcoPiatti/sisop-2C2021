@@ -80,8 +80,8 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
     toRead = config->pageSize;
     size_t i;
     for (i = 1; i < fullPages; i++){
-        readFrame(memory, getFrame(PID, firstPage + i), aux)
-        aux += toRead
+        readFrame(memory, getFrame(PID, firstPage + i), aux);
+        aux += toRead;
     }
 
     // Leer "pedacito" al inicio de ultima pagina.
@@ -91,7 +91,30 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
 }
 
 void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
-    ;
+    uint32_t firstPage = getPage(address, config);
+    uint32_t offset = getOffset(address, config);
+
+    uint32_t toWrite = min(bytes, config->pageSize - offset);
+    uint32_t fullPages = (bytes - toWrite) / config->pageSize;
+
+    uint32_t firstFrame = getFrame(PID, firstPage);
+    void *aux = from;
+
+    // Escribir "pedacito" de memoria en el final de una pag.
+    memcpy(getFrameAddress(memory, firstFrame), aux, toWrite);
+    aux += toWrite;
+
+    // Escribir frames del medio completos.
+    toWrite = config->pageSize;
+    size_t i;
+    for (i = 1; i < fullPages; i++){
+        writeFrame(memory, getFrame(PID, firstPage + 1), aux);
+        aux += toWrite;
+    }
+
+    // Escribir "pedacito" al inicio de ultima pagina.
+    toWrite = bytes - toWrite;
+    memcpy(getFrameAddress(memory, getFrame(PID, firstPage + i)), aux, toWrite);
 }
 
 int32_t getFreeFrame(t_memoryMetadata *memMetadata){
@@ -129,7 +152,8 @@ int32_t getFrame(uint32_t PID, uint32_t page){
     return 0;
 }
 
-int32_t min(int32_t a, int32_t b) {
+// Esto deberia ir an algun archivo de utils en shared.
+int32_t min(int32_t a, int32_t b){
     if (a < b) return a;
     return b;
 }
