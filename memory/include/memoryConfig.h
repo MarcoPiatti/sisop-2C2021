@@ -16,6 +16,7 @@ typedef struct memoryConfig{
     char *TLBReplacementAlgorithm;
     int TLBHitDelay;
     int TLBMissDelay;
+    uint32_t frameQty;
 } t_memoryConfig;
 
 t_memoryConfig *getMemoryConfig(char *path);

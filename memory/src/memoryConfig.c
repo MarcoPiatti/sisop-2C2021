@@ -15,6 +15,7 @@ t_memoryConfig *getMemoryConfig(char *path){
     memConfig -> TLBReplacementAlgorithm = config_get_string_value(memConfig-> config, "ALGORIMO_REEMPLAZO_TLB");
     memConfig -> TLBHitDelay = config_get_int_value(memConfig-> config, "RETARDO_ACIERTO_TLB");
     memConfig -> TLBMissDelay = config_get_int_value(memConfig-> config, "RETARDO_FALLO_TLB");
+    memConfig -> frameQty = memConfig->size / memConfig->pageSize;
 
     return memConfig;
 }

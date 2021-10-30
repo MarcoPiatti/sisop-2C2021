@@ -16,6 +16,7 @@ typedef​ ​struct​ ​heapMetadata​ {
 
 typedef struct mem {
     void *memory;
+    t_memoryConfig *config;
 } t_memory;
 
 typedef struct memoryMetadata{
