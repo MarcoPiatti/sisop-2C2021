@@ -152,6 +152,20 @@ int32_t getFrame(uint32_t PID, uint32_t page){
     return 0;
 }
 
+void fijo(int32_t *start, int32_t *end, uint32_t PID){
+    *start = getFrame(PID, 0);
+    *end = *start + config->framesPerProcess;
+}
+
+void global(int32_t *start, int32_t *end, uint32_t PID){
+    *start = 0;
+    *end = config->frameQty;
+}
+
+
+
+
+
 // Esto deberia ir an algun archivo de utils en shared.
 int32_t min(int32_t a, int32_t b){
     if (a < b) return a;

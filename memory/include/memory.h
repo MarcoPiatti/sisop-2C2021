@@ -69,5 +69,9 @@ int32_t getFrame(uint32_t PID, uint32_t page);
 // Esto deberia ir an algun archivo de utils en shared.
 int32_t min(int32_t a, int32_t b);
 
+void fijo(int32_t *start, int32_t *end, uint32_t PID);
+
+void global(int32_t *start, int32_t *end, uint32_t PID);
+
 #endif // !MEMORY_H_
 
