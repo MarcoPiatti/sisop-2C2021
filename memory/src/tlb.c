@@ -30,7 +30,7 @@ t_TLB* createTLB(int size, void (*algorithm)(t_TLB* self, t_TLBEntry* entry)){
     self->algorithm = algorithm;
     self->counts = list_create();
     self->victims = queue_create();
-    self->table = malloc(sizeof(t_TLBEntry) * size);
+    self->table = calloc(1, sizeof(t_TLBEntry) * size);
     for(int i = 0; i < self->size; i++){
         self->table[i].used = false;
     }

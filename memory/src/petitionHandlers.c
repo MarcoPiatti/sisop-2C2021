@@ -92,14 +92,16 @@ bool mallocHandler(int clientSocket, t_packet* petition){
             int newPages = 1 + (mallocSize - thisMallocSize + sizeof(t_HeapMetadata) + 1) / memoryConfig->pageSize;
             //Crea todas las paginas necesarias, y si alguna falla, borra todas las anteriores retroactivamente
             int32_t firstPage = createPage(pid);
-            int32_t lastPage;
+            int32_t lastPage = 0;
             if(firstPage != -1){
                 for(int i = 1; i < newPages; i++){
                     lastPage = createPage(pid);
                     if(lastPage == -1){
-                        for(int j = firstPage; j < lastPage; j++){
+                        for(int j = lastPage-1; j >= firstPage; j--){
                             swapInterface_erasePage(swapInterface, pid, j);
+                            pageTable_removePage(pageTable, pid, j);
                         }
+                        break;
                     }
                 }
             }
@@ -140,6 +142,7 @@ bool mallocHandler(int clientSocket, t_packet* petition){
 }
 
 bool validMallocAddress(uint32_t pid, int32_t matePtr){
+    if (matePtr / memoryConfig->pageSize >= pageTable_countPages(pageTable, pid)) return false;
     t_HeapMetadata* thisMalloc = NULL;
     int32_t thisMallocAddr = 0;
     bool correct = false;
@@ -212,10 +215,15 @@ bool freeHandler(int clientSocket, t_packet* petition){
 
     //Se liberan paginas sobrantes si esta al final.
     if(finalAlloc->nextAlloc == NULL){
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: Se borran paginas libres en el free", pid, matePtr);
+        pthread_mutex_unlock(&mutex_log);
+
         int32_t firstFreeByte = finalAllocPtr + sizeof(t_HeapMetadata);
         int32_t pageToDelete = 1 + firstFreeByte / memoryConfig->pageSize;
         int totalPages = pageTable_countPages(pageTable, pid);
-        for(int i = pageToDelete; i < totalPages; i++){
+        for(int i = totalPages-1; i >= pageToDelete; i--){
             if(pageTable_isPresent(pageTable, pid, i)){
                 int frame = pageTable_getFrame(pageTable, pid, i);
                 ram_clearFrameMetadata(ram, frame);
