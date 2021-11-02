@@ -136,7 +136,7 @@ void TLB_clear(t_TLB* self){
 
 void TLB_dump(t_TLB* self, char* dumpDir){
     pthread_mutex_lock(&self->mutex);
-    char* time = temporal_get_string_time("%H:%M:%S:%MS");
+    char* time = temporal_get_string_time("%H_%M_%S_%MS");
     char* fileName = string_from_format("%sDump_%s.tlb", dumpDir, time);
     FILE* dumpFile = txt_open_for_append(fileName);
     
