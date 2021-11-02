@@ -80,6 +80,7 @@ int createListenServer(char* serverIP, char* serverPort){
     hints.ai_flags = AI_PASSIVE;
     getaddrinfo(serverIP, serverPort, &hints, &serverInfo);
 	guard_syscall(serverSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol));
+    guard_syscall(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)));
 	guard_syscall(bind(serverSocket, serverInfo->ai_addr, serverInfo->ai_addrlen));
 	guard_syscall(listen(serverSocket, MAX_BACKLOG));
     freeaddrinfo(serverInfo);
