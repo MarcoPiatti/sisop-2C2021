@@ -55,4 +55,5 @@ dkms.conf
 *.log
 *.config
 
+# Dumps de tlb
 *.tlb
