@@ -2,7 +2,6 @@
 #define SWAPINTERFACE_H_
 
 #include "networking.h"
-#include "headers.h"
 #include <pthread.h>
 
 typedef struct swapInterface {
