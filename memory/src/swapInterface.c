@@ -28,15 +28,15 @@ bool swapInterface_savePage(t_swapInterface* self, uint32_t pid, int32_t pageNum
     pthread_mutex_unlock(&self->mutex);
 
     bool rc;
-    if (reply->header == OK_MEM) rc = true;
-    else if (reply->header == ERROR_MEM) rc = false;
+    if (reply->header == SWAP_OK) rc = true;
+    else if (reply->header == SWAP_ERROR) rc = false;
     destroyPacket(request);
     destroyPacket(reply);
     return rc;
 }
 
 void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNumber){
-    t_packet* request = createPacket(LOAD_PAGE, INITIAL_STREAM_SIZE);
+    t_packet* request = createPacket(READ_PAGE, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(request->payload, pid);
     streamAdd_INT32(request->payload, pageNumber);
     
@@ -46,8 +46,8 @@ void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNu
     pthread_mutex_unlock(&self->mutex);
 
     void* pageData = NULL;
-    if (reply->header == ERROR_MEM) pageData = NULL;
-    else if (reply->header == PAGE_DATA){
+    if (reply->header == SWAP_ERROR) pageData = NULL;
+    else if (reply->header == PAGE){
         streamTake(reply->payload, &pageData, self->pageSize);
     }
     destroyPacket(request);
@@ -56,7 +56,7 @@ void* swapInterface_loadPage(t_swapInterface* self, uint32_t pid, int32_t pageNu
 }
 
 bool swapInterface_erasePage(t_swapInterface* self, uint32_t pid, int32_t page){
-    t_packet* request = createPacket(ERASE_PAGE, INITIAL_STREAM_SIZE);
+    t_packet* request = createPacket(DESTROY_PAGE, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(request->payload, pid);
     streamAdd_INT32(request->payload, page);
 
@@ -66,7 +66,7 @@ bool swapInterface_erasePage(t_swapInterface* self, uint32_t pid, int32_t page){
     pthread_mutex_unlock(&self->mutex);
 
     bool rc;
-    if (reply->header == OK_MEM) rc = true;
+    if (reply->header == SWAP_OK) rc = true;
     else rc = false;
     destroyPacket(request);
     destroyPacket(reply);
