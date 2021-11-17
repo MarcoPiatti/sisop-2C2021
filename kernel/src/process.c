@@ -1,5 +1,6 @@
 #include "process.h"
 
+
 t_process* createProcess(uint32_t id, int socket, double estimator){
     t_process* process = malloc(sizeof(t_process));
     process->pid = id;
@@ -7,8 +8,8 @@ t_process* createProcess(uint32_t id, int socket, double estimator){
     process->state = NEW;
     process->estimator = estimator;
     process->waited = 0;
-    clock_getTime(CLOCK_MONOTONIC, &process->startTime);
-    
+    clock_gettime(CLOCK_MONOTONIC, &process->startTime);
+
     return process;
 }
 

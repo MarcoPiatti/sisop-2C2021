@@ -7,6 +7,17 @@
 
 //Todo: actualizar comentarios de documentacion
 
+typedef enum processState {CONTINUE, BLOCK, EXIT} processState;
+
+typedef struct t_processQueues {
+    t_pQueue *newQueue;
+    t_pQueue *readyQueue;
+    t_pQueue *blockedQueue;
+    t_pQueue *suspendedReadyQueue;
+    t_pQueue *suspendedBlockedQueue;
+    t_pQueue *execQueue;
+} t_processQueues;
+
 /**
  * @DESC: Semaforo para carpinchos.
  *        tiene un nombre, y un semaforo interno con el cual gestiona su contador.
@@ -50,17 +61,6 @@ processState mateSem_wait(t_mateSem* mateSem, t_process* process, t_processQueue
  * @param mateSem: mateSem en cuestion
  */
 void mateSem_post(t_mateSem* mateSem, t_processQueues direcciones);
-
-typedef enum processState {CONTINUE, BLOCK, EXIT} processState; 
-
-typedef struct t_processQueues {
-    t_pQueue *newQueue;
-    t_pQueue *readyQueue;
-    t_pQueue *blockedQueue;
-    t_pQueue *suspendedReadyQueue;
-    t_pQueue *suspendedBlockedQueue;
-    t_pQueue *execQueue;
-} t_processQueues;
 
 
 #endif // !MATESEM_H_

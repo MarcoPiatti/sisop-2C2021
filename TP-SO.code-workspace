@@ -30,7 +30,8 @@
 			"limits": "cpp",
 			"server.h": "c",
 			"networking.h": "c",
-			"socket.h": "c"
+			"socket.h": "c",
+			"process.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

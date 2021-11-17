@@ -3,10 +3,6 @@
 #include "commons/string.h"
 #include <stdlib.h>
 
-t_mateSem hola;
-int hola;
-
-
 t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial){
     t_mateSem* mateSem = malloc(sizeof(t_mateSem));
     mateSem->nombre = string_duplicate(nombre);
@@ -16,7 +12,10 @@ t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial){
 }
 
 void mateSem_destroy(t_mateSem* mateSem){
-    pQueue_destroy(mateSem->waitingProcesses, destroyProcess);
+    void _destroyProcess(void *process){
+        destroyProcess((t_process*) process);
+    }
+    pQueue_destroy(mateSem->waitingProcesses, _destroyProcess);
     free(mateSem->nombre);
     free(mateSem);
 }
@@ -41,8 +40,7 @@ void mateSem_post(t_mateSem* mateSem, t_processQueues direcciones){
         t_process* process = pQueue_take(mateSem->waitingProcesses);
 
         bool getProcessById(void* elem) {
-            elem = (*t_process) elem;
-            return elem->id == process->id;
+            return ((t_process*)elem)->pid == process->pid;
         }
 
         //Blocked -> Ready

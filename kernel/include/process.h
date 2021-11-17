@@ -2,6 +2,7 @@
 #define PROCESS_H_
 #include <stdint.h>
 #include <time.h>
+#include <stdlib.h>
 
 typedef enum state { NEW, READY, BLOCKED, EXEC, SUSP_READY, SUSP_BLOCKED, TERMINATED } t_state;
 

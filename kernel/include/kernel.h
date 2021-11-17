@@ -12,21 +12,13 @@
 #include "mateSem.h"
 #include "commons/collections/dictionary.h"
 #include <time.h>
+#include <string.h>
 
 
 #define MAX_MULTIPROCESSING 10
 
 //Colas de estado compartidas
 t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue, *suspendedBlockedQueue, *execQueue;
-
-typedef struct t_processQueues {
-    t_pQueue *newQueue;
-    t_pQueue *readyQueue;
-    t_pQueue *blockedQueue;
-    t_pQueue *suspendedReadyQueue;
-    t_pQueue *suspendedBlockedQueue;
-    t_pQueue *execQueue;
-} t_processQueues;
 
 t_processQueues processQueues;
 
@@ -53,8 +45,6 @@ int responseRatio(t_process* process);
 
 bool compareHRRN(t_process* p1, t_process* p2);
 
-typedef enum processState {CONTINUE, BLOCK, EXIT} processState; 
-
-processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, int clientSocket);
+processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process);
 
 #endif // !KERNEL_H_

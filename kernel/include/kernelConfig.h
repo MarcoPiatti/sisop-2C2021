@@ -6,7 +6,7 @@
 typedef struct kernelConfig {
     t_config* config;
     char* ip;
-    int port;
+    char* port;
     char* memoryIP;
     int memoryPort;
     char* algorithm;

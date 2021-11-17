@@ -16,7 +16,7 @@ processState _sem_init(t_packet *received, t_process* process){
 processState _sem_wait(t_packet *received, t_process* process){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem); //fetch semaphore from dictionary
-    return mateSem_wait(semaforo, process, mateSems);
+    return mateSem_wait(semaforo, process, processQueues);
 }
 
 processState _sem_post(t_packet *received, t_process* process){
