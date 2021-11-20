@@ -5,33 +5,25 @@
 #include <commons/collections/dictionary.h>
 #include "memoryConfig.h"
 #include "networking.h"
+#include "swapInterface.h"
 
+t_swapInterface* swapInterface;
 void* auxHandler(void *vclientSocket);
 
-
-
 /* TO-DO:
-    * Mover min() a un archivo de utils generales en shared.
-    * Unificar criterio de uso de globales vs pasar como parametro a funciones.
-    * getFrame()
     * Chequear que la logica de memwrite sea correcta.
 */
 
-typedef​ ​struct​ ​heapMetadata​ { 
+typedef struct heapMetadata { 
     uint32_t prevAlloc;
     uint32_t nextAlloc;
     uint8_t isFree;
-} t_heapMetadata;
+ } t_heapMetadata;
 
 typedef struct mem {
     void *memory;
     t_memoryConfig *config;
 } t_memory;
-
-typedef struct memoryMetadata{
-    uint32_t entryQty;
-    t_frameMetadata **entries;
-} t_memoryMetadata;
 
 typedef struct frameMetadata {
     bool isFree;
@@ -39,17 +31,25 @@ typedef struct frameMetadata {
     uint32_t page;
 } t_frameMetadata;
 
+typedef struct memoryMetadata{
+    uint32_t entryQty;
+    t_frameMetadata **entries;
+} t_memoryMetadata;
+
 extern bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket);
 
 t_log *logger;
-t_memory *memory;
+t_memory *ram;
 t_dictionary *pageTables;
 t_memoryConfig *config;
 t_memoryMetadata *metadata;
 
+
 t_memory *initializeMemory(t_memoryConfig *config);
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config);
+
+void *petitionHandler(void *_clientSocket);
 
 void destroyMemoryMetadata(t_memoryMetadata *metadata);
 
@@ -66,12 +66,11 @@ int32_t getOffset(uint32_t address, t_memoryConfig *cfg);
 // Esto no existe.
 int32_t getFrame(uint32_t PID, uint32_t page);
 
-// Esto deberia ir an algun archivo de utils en shared.
-int32_t min(int32_t a, int32_t b);
-
 void fijo(int32_t *start, int32_t *end, uint32_t PID);
 
 void global(int32_t *start, int32_t *end, uint32_t PID);
+
+void *ram_getFrame(t_memory* ram, uint32_t frameN);
 
 #endif // !MEMORY_H_
 
