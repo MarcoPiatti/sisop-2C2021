@@ -2,6 +2,7 @@
 #define MEMORY_CONFIG_H_
 #include <commons/config.h>
 #include <commons/log.h>
+#include <stdint.h>
 
 typedef struct memoryConfig{
     t_config *config;
