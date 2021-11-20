@@ -2,39 +2,40 @@
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
+#include "utils.h"
+#include "swapInterface.h"
 #include <stdint.h>
 #include <commons/string.h>
 
 int main(){
+
+    // Initialize logger.
     logger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
     
+    // Load and validate config
     config = getMemoryConfig("./memory.cfg");
     validateConfg(config, logger);
     
-    memory = initializeMemory(config);
+    ram = initializeMemory(config);
     metadata = initializeMemoryMetadata(config);
     pageTables = dictionary_create();
     
+    // De donde saca la memoria el puerto e IP del swap??
+    // swapInterface = swapInterface_create(/*Swap IP */, /*swap port */, config->pageSize, /*swapheader algorithm */);
 
     int serverSocket = createListenServer(config->ip, config->port);
+    
     while(1){
-        runListenServer(serverSocket, auxHandler);
+        runListenServer(serverSocket, petitionHandler);
     }
 
     return 0;
 }
 
-void *auxHandler(void *vclientSocket){
-    int clientSocket = (int*) vclientSocket;
-    socket_sendHeader(clientSocket, ID_MEMORIA);
-    
-    t_packet *packet;
-    int header = 0;
-
-    do{
-        packet = socket_getPacket(clientSocket);
-
-    } while (header != DISCONNECTED);
+void *petitionHandler(void *_clientSocket){
+    uint32_t clientSocket = (int*) _clientSocket;
+    t_packet *petition = socket_getPacket(clientSocket);
+    petitionHandlers[petition->header](petition, clientSocket);
 }
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
@@ -73,20 +74,20 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
     void *aux = destination;
 
     // Leer "pedacito" de memoria en el final de una pag.
-    memcpy(aux, getFrameAddress(memory, firstFrame), toRead);
+    memcpy(aux, getFrameAddress(ram, firstFrame), toRead);
     aux += toRead;
 
     // Leer frames del medio completos.
     toRead = config->pageSize;
     size_t i;
     for (i = 1; i < fullPages; i++){
-        readFrame(memory, getFrame(PID, firstPage + i), aux);
+        readFrame(ram, getFrame(PID, firstPage + i), aux);
         aux += toRead;
     }
 
     // Leer "pedacito" al inicio de ultima pagina.
     toRead = bytes - toRead;
-    memcpy(aux, getFrameAddress(memory, getFrame(PID, firstPage + i)), toRead);
+    memcpy(aux, getFrameAddress(ram, getFrame(PID, firstPage + i)), toRead);
     
 }
 
@@ -101,20 +102,20 @@ void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
     void *aux = from;
 
     // Escribir "pedacito" de memoria en el final de una pag.
-    memcpy(getFrameAddress(memory, firstFrame), aux, toWrite);
+    memcpy(getFrameAddress(ram, firstFrame), aux, toWrite);
     aux += toWrite;
 
     // Escribir frames del medio completos.
     toWrite = config->pageSize;
     size_t i;
     for (i = 1; i < fullPages; i++){
-        writeFrame(memory, getFrame(PID, firstPage + 1), aux);
+        writeFrame(ram, getFrame(PID, firstPage + 1), aux);
         aux += toWrite;
     }
 
     // Escribir "pedacito" al inicio de ultima pagina.
     toWrite = bytes - toWrite;
-    memcpy(getFrameAddress(memory, getFrame(PID, firstPage + i)), aux, toWrite);
+    memcpy(getFrameAddress(ram, getFrame(PID, firstPage + i)), aux, toWrite);
 }
 
 int32_t getFreeFrame(t_memoryMetadata *memMetadata){
@@ -160,14 +161,4 @@ void fijo(int32_t *start, int32_t *end, uint32_t PID){
 void global(int32_t *start, int32_t *end, uint32_t PID){
     *start = 0;
     *end = config->frameQty;
-}
-
-
-
-
-
-// Esto deberia ir an algun archivo de utils en shared.
-int32_t min(int32_t a, int32_t b){
-    if (a < b) return a;
-    return b;
 }
