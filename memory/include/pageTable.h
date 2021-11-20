@@ -1,15 +1,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef struct pageTableEntry{
+typedef struct pageTableEntry {
     bool present;
     uint32_t frame;
-}t_pageTableEntry;
+} t_pageTableEntry;
 
-typedef struct pageTable{
+typedef struct pageTable {
     int pageQuantity;
     t_pageTableEntry *entries;
-}t_pageTable;
+} t_pageTable;
 
 t_pageTable *initializePageTable();
 

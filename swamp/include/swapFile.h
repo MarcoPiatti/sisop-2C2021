@@ -63,9 +63,6 @@ void swapFile_writeAtIndex(t_swapFile* sf, int index, void* pagePtr);
 
 bool swapFile_isFull(t_swapFile* sf);
 
-<<<<<<< HEAD
-int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid);
-=======
 bool swapFile_hasRoom(t_swapFile* sf);
 
 /**
@@ -106,6 +103,5 @@ int swapFile_findFreeIndex(t_swapFile* sf);
  * @param index: Indice a reescribir metadata
  */
 void swapFile_register(t_swapFile* sf, uint32_t pid, int32_t pageNumber, int index);
->>>>>>> MiVersion
 
 #endif // !SWAPFILE_H_
