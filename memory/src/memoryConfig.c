@@ -25,7 +25,7 @@ void destroyMemoryConfig(t_memoryConfig *config){
     free(config->MMUreplacementAlgorithm);
     free(config->assignmentType);
     free(config->TLBReplacementAlgorithm);
-    config_destroy(config);
+    config_destroy(config->config);
     free(config);
 }
 
