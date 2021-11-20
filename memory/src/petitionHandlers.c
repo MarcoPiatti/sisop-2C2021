@@ -1,10 +1,14 @@
+#include <commons/string.h>
 #include "memory.h"
+#include "stdint.h"
+#include "pageTable.h"
+#include "swapInterface.h"
 
 int32_t createPage(uint32_t pid){
-    t_pageTable* table = dictionary_get(pageTables, /* PID COMO STRING */);
+    t_pageTable* table = dictionary_get(pageTables, string_from_format("%i", pid));
     int32_t pageNumber = pageTableAddEntry(table, 0);
     void* newPageContents = calloc(1, config->pageSize);
-    if(swapInterface_savePage(pid, pageNumber, newPageContents)){
+    if(swapInterface_savePage(swapInterface, pid, pageNumber, newPageContents)){
         return pageNumber;
     }
     return -1;
@@ -172,18 +176,18 @@ bool memallocHandler(t_packet* petition, int socket){
     bool found = false;
     int32_t thisAllocAddress = 0;
     t_heapMetadata* thisAlloc = heap_read(pid, thisAllocAddress, sizeof(t_heapMetadata));
-    int32_t thisAllocSize = thisAlloc->next - thisAllocAddress - sizeof(t_heapMetadata);
-    while(thisAlloc->next != NULL){
+    int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - sizeof(t_heapMetadata);
+    while(thisAlloc->nextAlloc != NULL){
         if(thisAlloc->isFree){
             if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + sizoef(t_heapMetadata)){
                 thisAlloc->isFree = false;
                 if(thisAllocSize > mallocSize){
                     t_heapMetadata* newMiddleMalloc = malloc(sizeof(t_heapMetadata));
                     int32_t newMiddleMallocAddress = thisAllocAddress + sizeof(t_heapMetadata) + mallocSize;
-                    newMiddleMalloc->prev = thisAllocAddress;
-                    newMiddleMalloc->next = thisAlloc->next;
+                    newMiddleMalloc->prevAlloc = thisAllocAddress;
+                    newMiddleMalloc->nextAlloc = thisAlloc->nextAlloc;
                     newMiddleMalloc->isFree = true;
-                    thisAlloc->next = newMiddleMallocAddress;
+                    thisAlloc->nextAlloc = newMiddleMallocAddress;
                     heap_write(pid, newMiddleMallocAddress, sizeof(t_heapMetadata), newMiddleMalloc);
                     free(newMiddleMalloc);
                 }
@@ -195,7 +199,7 @@ bool memallocHandler(t_packet* petition, int socket){
                 return true;
             }
         }
-        thisAllocAddress = thisAlloc->next;
+        thisAllocAddress = thisAlloc->nextAlloc;
         free(thisAlloc);
         thisAlloc = heap_read(pid, thisAllocAddress, sizeof(t_heapMetadata));
     }
@@ -236,10 +240,10 @@ bool memallocHandler(t_packet* petition, int socket){
     thisAlloc->isFree = false;
     t_heapMetadata* newLastAlloc = malloc(sizeof(t_heapMetadata));
     int32_t newLastAllocAddress = thisAllocAddress + sizeof(t_heapMetadata) + mallocSize;
-    newLastAlloc->prev = thisAllocAddress;
-    newLastAlloc->next = thisAlloc->next;
+    newLastAlloc->prevAlloc = thisAllocAddress;
+    newLastAlloc->nextAlloc = thisAlloc->nextAlloc;
     newLastAlloc->isFree = true;
-    thisAlloc->next = newLastAllocAddress;
+    thisAlloc->nextAlloc = newLastAllocAddress;
     heap_write(pid, newLastAllocAddress, sizeof(t_heapMetadata), newLastAlloc);
     free(newLastAlloc);
     heap_write(pid, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
