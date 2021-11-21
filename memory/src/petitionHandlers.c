@@ -148,7 +148,7 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
 }
 
 bool memallocHandler(t_packet* petition, int socket){
-    uint32_t pid = streamTakeU_INT32(petition->payload);
+    uint32_t pid = streamTake_UINT32(petition->payload);
     int32_t mallocSize = streamTake_INT32(petition->payload);
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
 
@@ -169,7 +169,7 @@ bool memallocHandler(t_packet* petition, int socket){
         t_heapMetadata firstAlloc = { .prevAlloc = NULL, .nextAlloc = NULL, .isFree = true };
         memcpy(newPageContents, &firstAlloc, sizeof(t_heapMetadata));
         
-        int32_t newPageFrame = getFrameForPage(pid, page);
+        int32_t newPageFrame = getFrameForPage(pid, page); // Page no declarado.
         ramReplaceFrame(memory, newPageFrame, newPageContents);
     }
 
@@ -293,4 +293,4 @@ bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) =
     memwriteHandler,
     capiTermHandler,
     disconnectedHandler
-}
+};

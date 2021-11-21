@@ -3,10 +3,8 @@
 #include "commons/log.h"
 #include "commons/config.h"
 
-
 t_log *kernelLogger;
 sem_t cuposDisponibles, availableCPUS, runShortTerm;
-
 
 int main(void){
     kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
@@ -165,9 +163,6 @@ void *cpu(void* args) {
         //TODO: Implementar exit
     }
 }
-
-
-
 
 bool compareSJF(t_process* p1, t_process* p2){
     return p1->estimator < p2->estimator;

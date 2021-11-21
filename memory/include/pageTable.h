@@ -16,3 +16,6 @@ t_pageTable *initializePageTable();
 void destroyPageTable(t_pageTable *table);
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame);
+
+// A implementar.
+bool pageTable_isEmpty(uint32_t pid);
