@@ -21,7 +21,7 @@ int main(){
     metadata = initializeMemoryMetadata(config);
     pageTables = dictionary_create();
 
-    swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, /*ALGO*/);  // TODO Add algoritmo
+    // swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, /*ALGO*/);  // TODO Add algoritmo
 
     int serverSocket = createListenServer(config->ip, config->port);
     
@@ -33,6 +33,7 @@ int main(){
 }
 
 void *petitionHandler(void *_clientSocket){
+    // TODO: Chequear logica petitionHandler. 
     uint32_t clientSocket = (int*) _clientSocket;
     t_packet *petition = socket_getPacket(clientSocket);
     petitionHandlers[petition->header](petition, clientSocket);
@@ -161,6 +162,8 @@ void global(int32_t *start, int32_t *end, uint32_t PID){
 int32_t getFrame(uint32_t PID, uint32_t pageN){
     t_pageTable* pt = getPageTable(PID, pageTables);
     
+    // TODO: Integrar con TLB.
+
     // Si tiene menos paginas de las que se piden, hay que crear el resto.
     if (pageN > pt->pageQuantity - 1) {
         createPages(PID, pageN - pt->pageQuantity + 1);
@@ -168,25 +171,43 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
     }
 
     // Si esta presente retorna el numero de frame.
-    if (((pt->entries)[pageN])->present) return ((pt->entries)[pageN])->frame;
+    if (((pt->entries)[pageN]).present) return ((pt->entries)[pageN]).frame;
 
     // Si no esta presente hay que traerla de swap.
-    return swapPage(PID, page)
+    return swapPage(PID, pageN);
 
 }
 
 bool isPresent(uint32_t PID, uint32_t page) {
     t_pageTable* pt = getPageTable(PID, pageTables);
-    return (pt->entries)[page]->present;
+    return (pt->entries)[page].present;
 }
 
 void createPages(uint32_t PID, uint32_t qty) {
     t_pageTable* pt = getPageTable(PID, pageTables);
     
+    // TODO: Crear pag vacia en swap.
+
     for (uint32_t i = 0; i < qty; i++){
         uint32_t pageN = pageTableAddEntry(pt, -1);
-        if (! swapInterface_loadPage(swapInterface, PID, pageN)) {
+        if (! swapInterface_createEmptyPage(swapInterface, PID, pageN)) {
             log_error(logger, "No se pudo crear pagina Nro. %i en swap para PID: %i", pageN, PID);
         }
     }
+}
+
+uint32_t swapPage(uint32_t PID, uint32_t page) {
+
+    uint32_t start, end;
+    assignacion(&start, &end, PID);
+
+    uint32_t victima = algoritmo(start, end);
+
+    return replace(victima, PID, page);
+
+}
+
+uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
+    void *pageFromSwap = NULL;
+    swapinterface
 }

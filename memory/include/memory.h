@@ -10,9 +10,13 @@
 t_swapInterface* swapInterface;
 void* auxHandler(void *vclientSocket);
 
-/* TO-DO:
-    * Chequear que la logica de memwrite sea correcta.
-*/
+// Algoritmo (clock-m o LRU) toma un frame de inicio y un frame final y eligen la victima dentro del rango.
+uint32_t (*algoritmo)(uint32_t start, uint32_t end);
+
+// Asignacion fija o global, devuelven en los parametros un rango de frames entre los cuales se puede elegir una victima.
+void (*assignacion)(uint32_t *start, uint32_t *end, uint32_t PID);
+
+// TODO: Chequear que la logica de memwrite sea correcta.
 
 typedef struct heapMetadata { 
     uint32_t prevAlloc;
@@ -66,8 +70,9 @@ int32_t getOffset(uint32_t address, t_memoryConfig *cfg);
 // Esto no existe.
 int32_t getFrame(uint32_t PID, uint32_t page);
 
-void fijo(int32_t *start, int32_t *end, uint32_t PID);
 
+// Asignacion:
+void fijo(int32_t *start, int32_t *end, uint32_t PID);
 void global(int32_t *start, int32_t *end, uint32_t PID);
 
 /**
@@ -86,6 +91,10 @@ void *ram_getFrame(t_memory* ram, uint32_t frameN);
  * @return uint32_t: numero de frame en el que quedo la pagina.
  */
 uint32_t swapPage(uint32_t PID, uint32_t pageN);
+
+// TODO: Implementar algorimos clock-m y LRU:
+uint32_t clock_m(uint32_t start, uint32_t end);
+uint32_t LRU(uint32_t start, uint32_t end);
 
 
 
