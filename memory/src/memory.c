@@ -161,7 +161,7 @@ void global(int32_t *start, int32_t *end, uint32_t PID){
 
 int32_t getFrame(uint32_t PID, uint32_t pageN){
     t_pageTable* pt = getPageTable(PID, pageTables);
-    
+
     // TODO: Integrar con TLB.
 
     // Si tiene menos paginas de las que se piden, hay que crear el resto.
@@ -210,7 +210,7 @@ uint32_t swapPage(uint32_t PID, uint32_t page) {
 uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Traer pagina pedida de swap.
     void *pageFromSwap = swapInterface_loadPage(swapInterface, PID, page);
-    
+
     // Chequear que se haya podido traer.
     if (!pageFromSwap){
         log_error(logger, "No se pudeo cargar pagina #%i del PID #%i", page, PID);
@@ -227,10 +227,9 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
         t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
         (ptReemplazado->entries)[victimPage].present = false;
-        (ptReemplazado->entries)[victimPage].frame = -1; // TODO: Preguntar si es necesario
+        (ptReemplazado->entries)[victimPage].frame = -1;
     }
 
-    
     // Escribir pagina traida de swap a memoria.
     writeFrame(ram, victim, pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
