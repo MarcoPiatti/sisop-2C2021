@@ -18,8 +18,8 @@ void destroyPageTable(t_pageTable *table){
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
     table->entries = realloc(table->entries, sizeof(t_pageTableEntry)*(table->pageQuantity + 1));
-    (table->entries)[table->pageQuantity]->frame = newFrame;
-    (table->entries)[table->pageQuantity]->present = false;
+    (table->entries)[table->pageQuantity].frame = newFrame;
+    (table->entries)[table->pageQuantity].present = false;
     (table->pageQuantity)++;
     return table->pageQuantity -1;
 }

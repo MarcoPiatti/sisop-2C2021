@@ -6,6 +6,7 @@
 #include "memoryConfig.h"
 #include "networking.h"
 #include "swapInterface.h"
+#include "pageTable.h"
 
 t_swapInterface* swapInterface;
 void* auxHandler(void *vclientSocket);

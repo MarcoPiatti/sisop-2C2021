@@ -1,12 +1,12 @@
+#include <stdint.h>
+#include <commons/string.h>
 #include "memory.h"
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
-#include "utils.h"
 #include "swapInterface.h"
-#include "pageTable.h"
-#include <stdint.h>
-#include <commons/string.h>
+#include "utils.h"
+
 
 int main(){
 
@@ -208,6 +208,44 @@ uint32_t swapPage(uint32_t PID, uint32_t page) {
 }
 
 uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
-    void *pageFromSwap = NULL;
-    swapinterface
+    // Traer pagina pedida de swap.
+    void *pageFromSwap = swapInterface_loadPage(swapInterface, PID, page);
+    
+    // Chequear que se haya podido traer.
+    if (!pageFromSwap){
+        log_error(logger, "No se pudeo cargar pagina #%i del PID #%i", page, PID);
+        return -1;
+    }
+
+    // Si el frame no esta libre se envia a swap la pagina que lo ocupa. 
+    // Esto es para que replace() se pueda utilizar tanto para cargar paginas a frames libres como para reemplazar.
+    if (! isFree(victim)) {
+        // Enviar pagina reemplazada a swap.
+        uint32_t victimPID  = (metadata->entries)[victim]->PID;
+        uint32_t victimPage = (metadata->entries)[victim]->page;
+        swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
+        // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
+        t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
+        (ptReemplazado->entries)[victimPage].present = false;
+        (ptReemplazado->entries)[victimPage].frame = -1; // TODO: Preguntar si es necesario
+    }
+
+    
+    // Escribir pagina traida de swap a memoria.
+    writeFrame(ram, victim, pageFromSwap);
+    // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
+    t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
+    (ptReemplaza->entries)[page].present = true;
+    (ptReemplaza->entries)[page].frame = victim;
+
+    // Modificar frame metadata.
+    (metadata->entries)[victim]->page = page;
+    (metadata->entries)[victim]->PID = PID;
+    (metadata->entries)[victim]->isFree = false;
+
+    return victim;
+}
+
+bool isFree(uint32_t frame) {
+    return (metadata->entries)[frame]->isFree;
 }

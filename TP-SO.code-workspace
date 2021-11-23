@@ -31,7 +31,11 @@
 			"server.h": "c",
 			"networking.h": "c",
 			"socket.h": "c",
-			"process.h": "c"
+			"process.h": "c",
+			"swapinterface.h": "c",
+			"memory.h": "c",
+			"log.h": "c",
+			"utils.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

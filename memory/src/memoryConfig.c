@@ -1,5 +1,4 @@
 #include "memoryConfig.h"
-#include "swapInterface.h"
 #include <stdlib.h>
 
 t_memoryConfig *getMemoryConfig(char *path){
