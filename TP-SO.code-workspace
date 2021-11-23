@@ -48,6 +48,7 @@
 		],
 		"doxdocgen.generic.authorName": "pepinOS",
 		"doxdocgen.generic.authorTag": "@author {author} {email}",
-		"doxdocgen.generic.authorEmail": ""
+		"doxdocgen.generic.authorEmail": "",
+		"todo-tree.tree.showBadges": true
 	}
 }

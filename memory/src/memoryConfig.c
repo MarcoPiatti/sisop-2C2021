@@ -4,6 +4,8 @@
 t_memoryConfig *getMemoryConfig(char *path){
     t_memoryConfig *memConfig = malloc(sizeof(t_memoryConfig));
     memConfig-> config = config_create(path);
+    memConfig -> swapIP = config_get_string_value(memConfig->config, "IPSWAP")
+    memConfig -> swapPort = config_get_int_value(memConfig->config, "PUERTOSWAP")
     memConfig -> ip = config_get_string_value(memConfig-> config, "IP");
     memConfig -> port = config_get_int_value(memConfig-> config, "PUERTO");
     memConfig -> size = config_get_int_value(memConfig-> config, "TAMANIO");

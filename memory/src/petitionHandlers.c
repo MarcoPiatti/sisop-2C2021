@@ -14,8 +14,8 @@ int32_t createPage(uint32_t pid){
     return -1;
 }
 
+/*
 int32_t getFrameForPage(uint32_t pid, int32_t page){
-    /*
     --Buscar en TLB
     if(TLB_isPresent){
         return TLB_getFrame(pid, page);
@@ -50,8 +50,8 @@ int32_t getFrameForPage(uint32_t pid, int32_t page){
     table->entries[page].frame = newFrame;
     table->entries[page].present = true;
     return newFrame;    
-    */
 }
+*/
 
 /**
  * @DESC: Lee "size" bytes del heap de un programa. Abstrayendo de la idea de paginas.
@@ -173,7 +173,7 @@ bool memallocHandler(t_packet* petition, int socket){
         ramReplaceFrame(memory, newPageFrame, newPageContents);
     }
 
-    bool found = false;
+    // bool found = false;      Unused
     int32_t thisAllocAddress = 0;
     t_heapMetadata* thisAlloc = heap_read(pid, thisAllocAddress, sizeof(t_heapMetadata));
     int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - sizeof(t_heapMetadata);
@@ -211,7 +211,7 @@ bool memallocHandler(t_packet* petition, int socket){
     //Si no alcanza el lugar para crear otro malloc en la misma pagina, creamos mas paginas
     if(thisAllocSize <= sizeof(t_HeapMetadata) + 1 || thisAllocSize - sizeof(t_HeapMetadata) - 1 < mallocSize){
         int newPages = 1 + (mallocSize - thisAllocSize + sizeof(t_HeapMetadata) + 1) / config->pageSize;
-        bool rc;
+        // bool rc;         Unused
         for(int i = 0; i < newPages; i++){
             int32_t firstPage = 0;
             int32_t lastPage = 0;
@@ -255,27 +255,27 @@ bool memallocHandler(t_packet* petition, int socket){
 }
 
 bool memfreeHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 bool memreadHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 bool memwriteHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 bool capiTermHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 bool disconnectedHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 bool capiIDHandler(t_packet* petition, int socket){
-    ;
+    return true;    // placeholder
 }
 
 

@@ -4,6 +4,7 @@
 #include "commons/config.h"
 #include "utils.h"
 #include "swapInterface.h"
+#include "pageTable.h"
 #include <stdint.h>
 #include <commons/string.h>
 
@@ -19,9 +20,8 @@ int main(){
     ram = initializeMemory(config);
     metadata = initializeMemoryMetadata(config);
     pageTables = dictionary_create();
-    
-    // De donde saca la memoria el puerto e IP del swap??
-    // swapInterface = swapInterface_create(/*Swap IP */, /*swap port */, config->pageSize, /*swapheader algorithm */);
+
+    swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, /*ALGO*/);  // TODO Add algoritmo
 
     int serverSocket = createListenServer(config->ip, config->port);
     
@@ -74,7 +74,7 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
     void *aux = destination;
 
     // Leer "pedacito" de memoria en el final de una pag.
-    memcpy(aux, getFrameAddress(ram, firstFrame), toRead);
+    memcpy(aux, ram_getFrame(ram, firstFrame), toRead);
     aux += toRead;
 
     // Leer frames del medio completos.
@@ -87,7 +87,7 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
 
     // Leer "pedacito" al inicio de ultima pagina.
     toRead = bytes - toRead;
-    memcpy(aux, getFrameAddress(ram, getFrame(PID, firstPage + i)), toRead);
+    memcpy(aux, ram_getFrame(ram, getFrame(PID, firstPage + i)), toRead);
     
 }
 
@@ -102,7 +102,7 @@ void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
     void *aux = from;
 
     // Escribir "pedacito" de memoria en el final de una pag.
-    memcpy(getFrameAddress(ram, firstFrame), aux, toWrite);
+    memcpy(ram_getFrame(ram, firstFrame), aux, toWrite);
     aux += toWrite;
 
     // Escribir frames del medio completos.
@@ -115,7 +115,7 @@ void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
 
     // Escribir "pedacito" al inicio de ultima pagina.
     toWrite = bytes - toWrite;
-    memcpy(getFrameAddress(ram, getFrame(PID, firstPage + i)), aux, toWrite);
+    memcpy(ram_getFrame(ram, getFrame(PID, firstPage + i)), aux, toWrite);
 }
 
 int32_t getFreeFrame(t_memoryMetadata *memMetadata){
@@ -127,16 +127,16 @@ int32_t getFreeFrame(t_memoryMetadata *memMetadata){
 }
 
 void readFrame(t_memory *mem, uint32_t frame, void *dest){
-    void *frameAddress = getFrameAddress(mem, frame);
+    void *frameAddress = ram_getFrame(mem, frame);
     memcpy(dest, frameAddress, mem->config->pageSize);
 }
 
 void writeFrame(t_memory *mem, uint32_t frame, void *from){
-    void *frameAddress = getFrameAddress(mem, frame);
+    void *frameAddress = ram_getFrame(mem, frame);
     memcpy(frameAddress, from, mem->config->pageSize);
 }
 
-void *getFrameAddress(t_memory *mem, uint32_t frame){
+void *ram_getFrame(t_memory *mem, uint32_t frame){
     return mem->memory + frame * config->pageSize;
 }
 
@@ -148,11 +148,6 @@ int32_t getOffset(uint32_t address, t_memoryConfig *cfg){
     return address % cfg->pageSize;
 }
 
-// Asumo la existencia de una funcion que, a partir del PID y el N de pag, devuelve el N de frame.
-int32_t getFrame(uint32_t PID, uint32_t page){
-    return 0;
-}
-
 void fijo(int32_t *start, int32_t *end, uint32_t PID){
     *start = getFrame(PID, 0);
     *end = *start + config->framesPerProcess;
@@ -161,4 +156,37 @@ void fijo(int32_t *start, int32_t *end, uint32_t PID){
 void global(int32_t *start, int32_t *end, uint32_t PID){
     *start = 0;
     *end = config->frameQty;
+}
+
+int32_t getFrame(uint32_t PID, uint32_t pageN){
+    t_pageTable* pt = getPageTable(PID, pageTables);
+    
+    // Si tiene menos paginas de las que se piden, hay que crear el resto.
+    if (pageN > pt->pageQuantity - 1) {
+        createPages(PID, pageN - pt->pageQuantity + 1);
+        return getFrame(PID, pageN);
+    }
+
+    // Si esta presente retorna el numero de frame.
+    if (((pt->entries)[pageN])->present) return ((pt->entries)[pageN])->frame;
+
+    // Si no esta presente hay que traerla de swap.
+    return swapPage(PID, page)
+
+}
+
+bool isPresent(uint32_t PID, uint32_t page) {
+    t_pageTable* pt = getPageTable(PID, pageTables);
+    return (pt->entries)[page]->present;
+}
+
+void createPages(uint32_t PID, uint32_t qty) {
+    t_pageTable* pt = getPageTable(PID, pageTables);
+    
+    for (uint32_t i = 0; i < qty; i++){
+        uint32_t pageN = pageTableAddEntry(pt, -1);
+        if (! swapInterface_loadPage(swapInterface, PID, pageN)) {
+            log_error(logger, "No se pudo crear pagina Nro. %i en swap para PID: %i", pageN, PID);
+        }
+    }
 }

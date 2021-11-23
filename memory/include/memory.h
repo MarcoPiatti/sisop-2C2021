@@ -70,7 +70,24 @@ void fijo(int32_t *start, int32_t *end, uint32_t PID);
 
 void global(int32_t *start, int32_t *end, uint32_t PID);
 
+/**
+ * @DESC: Devuelve un puntero al frame pedido.
+ * @param ram: memoria.
+ * @param frameN: numero de frame requerido.
+ * @return void*: puntero al frame requerido.
+ */
 void *ram_getFrame(t_memory* ram, uint32_t frameN);
+
+
+/**
+ * @DESC: trae una pagina de swap realizando los reemplazos correspondientes. A IMPLEMENTAR.
+ * @param PID: PID del procesos solicitante.
+ * @param pageN: pagina solicitada.
+ * @return uint32_t: numero de frame en el que quedo la pagina.
+ */
+uint32_t swapPage(uint32_t PID, uint32_t pageN);
+
+
 
 #endif // !MEMORY_H_
 
