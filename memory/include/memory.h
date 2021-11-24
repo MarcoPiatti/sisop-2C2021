@@ -34,6 +34,7 @@ typedef struct frameMetadata {
     bool isFree;
     uint32_t PID;
     uint32_t page;
+    uint32_t timeStamp;     // TODO: Cuando actualizar timestamp;
 } t_frameMetadata;
 
 typedef struct memoryMetadata{
@@ -62,15 +63,13 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination);
 
 void memwrite(uint32_t bytes, uint32_t address, int PID, void *from);
 
-int32_t getFreeFrame(t_memoryMetadata *memMetadata);
+int32_t getFreeFrame(uint32_t start, uint32_t end);
 
 int32_t getPage(uint32_t address, t_memoryConfig *cfg);
 
 int32_t getOffset(uint32_t address, t_memoryConfig *cfg);
 
-// Esto no existe.
 int32_t getFrame(uint32_t PID, uint32_t page);
-
 
 // Asignacion:
 void fijo(int32_t *start, int32_t *end, uint32_t PID);
@@ -93,7 +92,7 @@ void *ram_getFrame(t_memory* ram, uint32_t frameN);
  */
 uint32_t swapPage(uint32_t PID, uint32_t pageN);
 
-// TODO: Implementar algorimos clock-m y LRU:
+// TODO: Implementar algorimos clock-m:
 uint32_t clock_m(uint32_t start, uint32_t end);
 uint32_t LRU(uint32_t start, uint32_t end);
 

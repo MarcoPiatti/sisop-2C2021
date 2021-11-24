@@ -119,11 +119,10 @@ void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
     memcpy(ram_getFrame(ram, getFrame(PID, firstPage + i)), aux, toWrite);
 }
 
-int32_t getFreeFrame(t_memoryMetadata *memMetadata){
-    for (int i = 0; i < memMetadata->entryQty; i++){
-        if (((memMetadata->entries)[i])->isFree == 1) return i;
+int32_t getFreeFrame(uint32_t start, uint32_t end){
+    for(uint32_t i = start; i < end; i++){
+        if(isFree(i)) return i;
     }
-
     return -1;
 }
 
@@ -162,7 +161,10 @@ void global(int32_t *start, int32_t *end, uint32_t PID){
 int32_t getFrame(uint32_t PID, uint32_t pageN){
     t_pageTable* pt = getPageTable(PID, pageTables);
 
-    // TODO: Integrar con TLB.
+    /* TODO: Integrar con TLB:
+        * Buscar en TLB antes de tabla de paginas.
+        * Actualizar TLB cuando se swapean paginas.
+     */
 
     // Si tiene menos paginas de las que se piden, hay que crear el resto.
     if (pageN > pt->pageQuantity - 1) {
@@ -248,3 +250,26 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 bool isFree(uint32_t frame) {
     return (metadata->entries)[frame]->isFree;
 }
+uint32_t getFrameTimestamp(uint32_t frame){
+    return (metadata->entries)[frame]->timeStamp;
+}
+
+uint32_t LRU(uint32_t start, uint32_t end) {
+    
+    int32_t frame = getFreeFrame(start, end);
+    if(frame != -1) return frame;
+
+    int32_t min;
+    bool firstIter = 0;
+
+    for(uint32_t i = start; i < end; i++){
+        if (firstIter || getFrameTimestamp(i) < min) {
+            frame = i;
+            min = getFrameTimestamp(i);
+            firstIter = false;
+        }
+    }
+
+    return frame;
+}
+
