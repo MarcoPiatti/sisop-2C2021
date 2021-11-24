@@ -83,6 +83,14 @@ void global(int32_t *start, int32_t *end, uint32_t PID);
  */
 void *ram_getFrame(t_memory* ram, uint32_t frameN);
 
+uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page);
+
+bool isFree(uint32_t frame)
+uint32_t getFrameTimestamp(uint32_t frame);
+
+uint32_t LRU(uint32_t start, uint32_t end);
+
+void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, uint32_t size);
 
 /**
  * @DESC: trae una pagina de swap realizando los reemplazos correspondientes. A IMPLEMENTAR.
