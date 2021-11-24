@@ -7,6 +7,9 @@
 #include "swapInterface.h"
 #include "utils.h"
 
+// TODO: Preguntar sobre coordinacion de estructuras compartidas:
+// ram, metaData, pageTables.
+
 
 int main(){
 
@@ -64,6 +67,7 @@ t_memory *initializeMemory(t_memoryConfig *config){
     return newMemory;
 }
 
+// Unused, reemplazado por heapRead()
 void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
     uint32_t firstPage = getPage(address, config);
     uint32_t offset = getOffset(address, config);
@@ -91,7 +95,7 @@ void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
     memcpy(aux, ram_getFrame(ram, getFrame(PID, firstPage + i)), toRead);
     
 }
-
+// Unused, reemplazado por heapWrite()
 void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
     uint32_t firstPage = getPage(address, config);
     uint32_t offset = getOffset(address, config);
@@ -167,7 +171,7 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
      */
 
     // Si tiene menos paginas de las que se piden, hay que crear el resto.
-    if (pageN > pt->pageQuantity - 1) {
+    if (pageN > pt->pageQuantity - 1){
         createPages(PID, pageN - pt->pageQuantity + 1);
         return getFrame(PID, pageN);
     }
@@ -180,25 +184,27 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
 
 }
 
-bool isPresent(uint32_t PID, uint32_t page) {
+bool isPresent(uint32_t PID, uint32_t page){
     t_pageTable* pt = getPageTable(PID, pageTables);
     return (pt->entries)[page].present;
 }
 
-void createPages(uint32_t PID, uint32_t qty) {
+void createPages(uint32_t PID, uint32_t qty){
     t_pageTable* pt = getPageTable(PID, pageTables);
     
     // TODO: Crear pag vacia en swap.
 
     for (uint32_t i = 0; i < qty; i++){
         uint32_t pageN = pageTableAddEntry(pt, -1);
-        if (! swapInterface_createEmptyPage(swapInterface, PID, pageN)) {
+        if (! swapInterface_createEmptyPage(swapInterface, PID, pageN)){
+            pthread_mutex_lock(&mutex_log);
             log_error(logger, "No se pudo crear pagina Nro. %i en swap para PID: %i", pageN, PID);
+            pthread_mutex_unlock(&mutex_log);
         }
     }
 }
 
-uint32_t swapPage(uint32_t PID, uint32_t page) {
+uint32_t swapPage(uint32_t PID, uint32_t page){
 
     uint32_t start, end;
     assignacion(&start, &end, PID);
@@ -215,13 +221,15 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
     // Chequear que se haya podido traer.
     if (!pageFromSwap){
+        pthread_mutex_lock(&mutex_log);
         log_error(logger, "No se pudeo cargar pagina #%i del PID #%i", page, PID);
+        pthread_mutex_unlock(&mutex_log);        
         return -1;
     }
 
     // Si el frame no esta libre se envia a swap la pagina que lo ocupa. 
     // Esto es para que replace() se pueda utilizar tanto para cargar paginas a frames libres como para reemplazar.
-    if (! isFree(victim)) {
+    if (! isFree(victim)){
         // Enviar pagina reemplazada a swap.
         uint32_t victimPID  = (metadata->entries)[victim]->PID;
         uint32_t victimPage = (metadata->entries)[victim]->page;
@@ -247,14 +255,14 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     return victim;
 }
 
-bool isFree(uint32_t frame) {
+bool isFree(uint32_t frame){
     return (metadata->entries)[frame]->isFree;
 }
 uint32_t getFrameTimestamp(uint32_t frame){
     return (metadata->entries)[frame]->timeStamp;
 }
 
-uint32_t LRU(uint32_t start, uint32_t end) {
+uint32_t LRU(uint32_t start, uint32_t end){
     
     int32_t frame = getFreeFrame(start, end);
     if(frame != -1) return frame;
@@ -263,7 +271,7 @@ uint32_t LRU(uint32_t start, uint32_t end) {
     bool firstIter = 0;
 
     for(uint32_t i = start; i < end; i++){
-        if (firstIter || getFrameTimestamp(i) < min) {
+        if (firstIter || getFrameTimestamp(i) < min){
             frame = i;
             min = getFrameTimestamp(i);
             firstIter = false;
@@ -273,3 +281,9 @@ uint32_t LRU(uint32_t start, uint32_t end) {
     return frame;
 }
 
+void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, uint32_t size){
+    void *frameAddress = ram_getFrame(mem, frame);
+    void *dest = frameAddress + offset;
+
+    memcpy(dest, from, size);
+}
