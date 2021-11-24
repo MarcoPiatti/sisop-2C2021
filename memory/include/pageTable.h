@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <commons/collections/dictionary.h>
+#include <pthread.h>
+
+pthread_mutex_t pageTablesMut;
 
 typedef struct pageTableEntry {
     bool present;

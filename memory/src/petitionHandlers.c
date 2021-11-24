@@ -152,7 +152,7 @@ bool memallocHandler(t_packet* petition, int socket){
     int32_t mallocSize = streamTake_INT32(petition->payload);
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
 
-    if (pageTable_isEmpty(pid)){        // TODO: Preguntar creacion de estructuras en inicializacion??
+    if (pageTable_isEmpty(pid)){
         //Reserva de primera página si no tiene
         bool rc = createPage(pid);
         if(!rc){

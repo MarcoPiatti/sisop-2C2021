@@ -35,7 +35,11 @@
 			"swapinterface.h": "c",
 			"memory.h": "c",
 			"log.h": "c",
-			"utils.h": "c"
+			"utils.h": "c",
+			"pthread.h": "c",
+			"stdlib.h": "c",
+			"pagetable.h": "c",
+			"dictionary.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

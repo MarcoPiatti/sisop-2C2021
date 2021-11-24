@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <commons/string.h>
 #include <commons/collections/dictionary.h>
+#include <pthread.h>
 
 t_pageTable *initializePageTable(){
     t_pageTable *newTable = malloc(sizeof(t_pageTable));
@@ -17,11 +18,15 @@ void destroyPageTable(t_pageTable *table){
 }
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
-    table->entries = realloc(table->entries, sizeof(t_pageTableEntry)*(table->pageQuantity + 1));
-    (table->entries)[table->pageQuantity].frame = newFrame;
-    (table->entries)[table->pageQuantity].present = false;
-    (table->pageQuantity)++;
-    return table->pageQuantity -1;
+    pthread_mutex_lock(&pageTablesMut);
+        table->entries = realloc(table->entries, sizeof(t_pageTableEntry)*(table->pageQuantity + 1));
+        (table->entries)[table->pageQuantity].frame = newFrame;
+        (table->entries)[table->pageQuantity].present = false;
+        (table->pageQuantity)++;
+        int32_t pgQty = table->pageQuantity -1;
+    pthread_mutex_lock(&pageTablesMut);
+    return pgQty
+
 }
 
 t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pageTables) {

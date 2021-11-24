@@ -3,10 +3,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <commons/collections/dictionary.h>
+#include <commons/log.h>
 #include "memoryConfig.h"
 #include "networking.h"
 #include "swapInterface.h"
 #include "pageTable.h"
+#include <pthread.h>
+
+pthread_mutex_t logMut;
+pthread_mutex_t ramMut;
+pthread_mutex_t metadataMut;
+
+void initalizeMemMutex();
+void destroyMemMutex();
 
 t_swapInterface* swapInterface;
 void* auxHandler(void *vclientSocket);
@@ -16,8 +25,6 @@ uint32_t (*algoritmo)(uint32_t start, uint32_t end);
 
 // Asignacion fija o global, devuelven en los parametros un rango de frames entre los cuales se puede elegir una victima.
 void (*assignacion)(uint32_t *start, uint32_t *end, uint32_t PID);
-
-// TODO: Chequear que la logica de memwrite sea correcta.
 
 typedef struct heapMetadata { 
     uint32_t prevAlloc;
@@ -39,6 +46,7 @@ typedef struct frameMetadata {
 
 typedef struct memoryMetadata{
     uint32_t entryQty;
+    uint32_t counter;
     t_frameMetadata **entries;
 } t_memoryMetadata;
 
@@ -85,7 +93,7 @@ void *ram_getFrame(t_memory* ram, uint32_t frameN);
 
 uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page);
 
-bool isFree(uint32_t frame)
+bool isFree(uint32_t frame);
 uint32_t getFrameTimestamp(uint32_t frame);
 
 uint32_t LRU(uint32_t start, uint32_t end);
