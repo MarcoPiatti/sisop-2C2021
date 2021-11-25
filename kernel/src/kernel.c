@@ -23,10 +23,11 @@ int main(void){
     mateSems = dictionary_create();
 
     //Inicializacion semáforos
-    sem_init(&cuposDisponibles, 0, config->multiprogram);
-    sem_init(&availableCPUS, 0, config->multiprocess);
-    sem_init(&runShortTerm, 0, 0);     //Semáforo para correr el short term scheduler solo cuando un proceso llega a ready
+    sem_init(&cuposDisponibles, 0, config->multiprogram);       //Cantidad de carpinchos que pueden estar en memoria
+    sem_init(&availableCPUS, 0, config->multiprocess);          //Cantidad de CPUs disponibles
+    sem_init(&runShortTerm, 0, 0);     //Semáforo "notifier" para correr el short term scheduler solo cuando un proceso llega a ready
     
+    //Inicio hilo sobre el cual corre el long term scheduler
     pthread_create(&thread_longTerm, NULL, longTerm_run, NULL);
     pthread_detach(thread_longTerm);
     thread_Cpus = calloc(config->multiprocess, sizeof(pthread_t));
@@ -36,8 +37,8 @@ int main(void){
 
     int serverSocket = createListenServer(config->ip, config->port);
 
-    while(1){   //TODO: Chequear
-        runListenServer(serverSocket, auxHandler);
+    while(1){   
+        runListenServer(serverSocket, auxHandler);  //TODO: Acá tira segfault
     }
 
     close(serverSocket);
