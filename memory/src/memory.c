@@ -46,10 +46,14 @@ int main(){
 }
 
 void *petitionHandler(void *_clientSocket){
-    // TODO: Chequear logica petitionHandler. 
-    uint32_t clientSocket = (int*) _clientSocket;
-    t_packet *petition = socket_getPacket(clientSocket);
-    petitionHandlers[petition->header](petition, clientSocket);
+    int clientSocket = (int) _clientSocket;
+    bool keepServing = true;
+    socket_sendHeader(clientSocket, ID_MEMORIA);
+    while(keepServing){
+        t_packet *petition = socket_getPacket(clientSocket);
+        keepServing = petitionHandlers[petition->header](petition, clientSocket);
+        destroyPacket(petition);
+    }
 }
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
