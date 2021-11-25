@@ -39,7 +39,8 @@
 			"pthread.h": "c",
 			"stdlib.h": "c",
 			"pagetable.h": "c",
-			"dictionary.h": "c"
+			"dictionary.h": "c",
+			"stdbool.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

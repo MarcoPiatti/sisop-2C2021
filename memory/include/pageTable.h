@@ -18,6 +18,7 @@ typedef struct pageTable {
 t_pageTable *initializePageTable();
 
 void destroyPageTable(t_pageTable *table);
+void _destroyPageTable(void *table);
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame);
 

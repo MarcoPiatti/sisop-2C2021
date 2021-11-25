@@ -1,47 +1,46 @@
 #include <commons/string.h>
 #include "memory.h"
 #include "stdint.h"
-#include "pageTable.h"
 #include "swapInterface.h"
 
-int32_t createPage(uint32_t pid){
-    t_pageTable* table = dictionary_get(pageTables, string_from_format("%i", pid));
+int32_t createPage(uint32_t PID){
+    t_pageTable* table = getPageTable(PID, pageTables);
     int32_t pageNumber = pageTableAddEntry(table, 0);
     void* newPageContents = calloc(1, config->pageSize);
-    if(swapInterface_savePage(swapInterface, pid, pageNumber, newPageContents)){
+    if(swapInterface_savePage(swapInterface, PID, pageNumber, newPageContents)){
         return pageNumber;
     }
     return -1;
 }
 
 /*
-int32_t getFrameForPage(uint32_t pid, int32_t page){
+int32_t getFrameForPage(uint32_t PID, int32_t page){
     --Buscar en TLB
     if(TLB_isPresent){
-        return TLB_getFrame(pid, page);
+        return TLB_getFrame(PID, page);
     }
 
     --Buscar en Tabla de Paginas
-    t_pageTable* table = dictionary_get(pageTables, pidAsString);
+    t_pageTable* table = dictionary_get(pageTables, PIDAsString);
     if(table->entries[page].present){
         return table->entries[page].frame;
     }
 
     --Buscar en Swap
-    void* pageContents = swapInterface_loadPage(pid, page);
+    void* pageContents = swapInterface_loadPage(PID, page);
     int32_t newFrame = ramGetFreeFrame(memory);
     if(newFrame == -1){
         -- No hay frame libre
         int32_t victimFrame = ramGetVictim(memory);
-        uint32_t victimPid = memory->metadata[victimFrame]->pid;
+        uint32_t victimPID = memory->metadata[victimFrame]->PID;
         uint32_t victimPage = memory->metadata[victimFrame]->page;
         
         if(memory->metadata[victimFrame]->modified){
             void* victimContents = ramGetFrameContents(victimFrame);
-            swapInterface_savePage(victimPid, victimPage, victimContents); 
+            swapInterface_savePage(victimPID, victimPage, victimContents); 
         }
 
-        t_pageTable* victimTable = dictionary_get(pageTables, victimPidAsString);
+        t_pageTable* victimTable = dictionary_get(pageTables, victimPIDAsString);
         victimTable->entries[victimPage].present = false;
 
         newFrame = victimFrame;
@@ -55,12 +54,12 @@ int32_t getFrameForPage(uint32_t pid, int32_t page){
 
 /**
  * @DESC: Lee "size" bytes del heap de un programa. Abstrayendo de la idea de paginas.
- * @param pid: PID del programa
+ * @param PID: PID del programa
  * @param logicAddress: direccion logica de donde empezar a leer
  * @param size: cantidad de bytes a leer del heap
  * @return void*: puntero malloc'd (con size bytes) con los datos solicitados
  */
-void* heap_read(uint32_t pid, int32_t logicAddress, int size){
+void* heap_read(uint32_t PID, int32_t logicAddress, int size){
     void* content = malloc(size);
     int contentOffset = 0;
     int32_t startPage = logicAddress / config->pageSize;
@@ -73,7 +72,7 @@ void* heap_read(uint32_t pid, int32_t logicAddress, int size){
 
     // Si la data esta toda en una sola pagina, hacemos esto una sola vez
     if(startPage == finishPage){
-        frame = getFrame(pid, startPage);
+        frame = getFrame(PID, startPage);
         frameContent = ram_getFrame(ram, frame);
         memcpy(content, frameContent + startOffset, size);
         return content;
@@ -81,7 +80,7 @@ void* heap_read(uint32_t pid, int32_t logicAddress, int size){
 
     //Si la data esta entre varias paginas, las recorremos
     for(int i = startPage; i <= finishPage; i++){
-        frame = getFrame(pid, i);
+        frame = getFrame(PID, i);
         frameContent = ram_getFrame(ram, frame);
 
         // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
@@ -106,7 +105,7 @@ void* heap_read(uint32_t pid, int32_t logicAddress, int size){
     return content;
 }
 
-void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
+void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
     int32_t startPage = logicAddress / config->pageSize;
     int32_t startOffset = logicAddress % config->pageSize;
     int32_t finishPage = (logicAddress + size - 1) / config->pageSize;
@@ -118,14 +117,14 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
 
     // Si la data a reescribir esta toda en una sola pagina, hacemos esto una sola vez
     if(startPage == finishPage){
-        frame = getFrame(pid, startPage);
+        frame = getFrame(PID, startPage);
         ram_editFrame(ram, frame, startOffset, data, size);
         return;
     }
 
     //Si la data debe ser escrita entre varias paginas, las recorremos
     for(int i = startPage; i <= finishPage; i++){
-        frame = getFrame(pid, i);
+        frame = getFrame(PID, i);
 
         // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
         if(i == startPage){ 
@@ -148,19 +147,19 @@ void heap_write(uint32_t pid, int32_t logicAddress, int size, void* data){
 }
 
 bool memallocHandler(t_packet* petition, int socket){
-    uint32_t pid = streamTake_UINT32(petition->payload);
+    uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t mallocSize = streamTake_INT32(petition->payload);
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
 
-    if (pageTable_isEmpty(pid)){
+    if (pageTable_isEmpty(PID)){
         //Reserva de primera página si no tiene
-        bool rc = createPage(pid);
+        bool rc = createPage(PID);
         if(!rc){
             streamAdd_INT32(response->payload, 0);
             socket_sendPacket(socket, response);
             destroyPacket(response);
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", pid, mallocSize);
+            log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
             pthread_mutex_unlock(&mutex_log);
             return true;
         }
@@ -169,17 +168,17 @@ bool memallocHandler(t_packet* petition, int socket){
         t_heapMetadata firstAlloc = { .prevAlloc = NULL, .nextAlloc = NULL, .isFree = true };
         memcpy(newPageContents, &firstAlloc, sizeof(t_heapMetadata));
         
-        int32_t newPageFrame = getFrameForPage(pid, page); // Page no declarado.
-        ramReplaceFrame(memory, newPageFrame, newPageContents);
+        int32_t newPageFrame = getFrameForPage(PID, page); // Page no declarado.
+        ramReplaceFrame(ram, newPageFrame, newPageContents);
     }
 
     // bool found = false;      Unused
     int32_t thisAllocAddress = 0;
-    t_heapMetadata* thisAlloc = heap_read(pid, thisAllocAddress, sizeof(t_heapMetadata));
+    t_heapMetadata* thisAlloc = heap_read(PID, thisAllocAddress, sizeof(t_heapMetadata));
     int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - sizeof(t_heapMetadata);
     while(thisAlloc->nextAlloc != NULL){
         if(thisAlloc->isFree){
-            if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + sizoef(t_heapMetadata)){
+            if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + sizeof(t_heapMetadata)){
                 thisAlloc->isFree = false;
                 if(thisAllocSize > mallocSize){
                     t_heapMetadata* newMiddleMalloc = malloc(sizeof(t_heapMetadata));
@@ -188,10 +187,10 @@ bool memallocHandler(t_packet* petition, int socket){
                     newMiddleMalloc->nextAlloc = thisAlloc->nextAlloc;
                     newMiddleMalloc->isFree = true;
                     thisAlloc->nextAlloc = newMiddleMallocAddress;
-                    heap_write(pid, newMiddleMallocAddress, sizeof(t_heapMetadata), newMiddleMalloc);
+                    heap_write(PID, newMiddleMallocAddress, sizeof(t_heapMetadata), newMiddleMalloc);
                     free(newMiddleMalloc);
                 }
-                heap_write(pid, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
+                heap_write(PID, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
                 streamAdd_INT32(response->payload, thisAllocAddress + sizeof(t_heapMetadata));
                 socket_sendPacket(socket, response);
                 destroyPacket(response);
@@ -201,35 +200,35 @@ bool memallocHandler(t_packet* petition, int socket){
         }
         thisAllocAddress = thisAlloc->nextAlloc;
         free(thisAlloc);
-        thisAlloc = heap_read(pid, thisAllocAddress, sizeof(t_heapMetadata));
+        thisAlloc = heap_read(PID, thisAllocAddress, sizeof(t_heapMetadata));
     }
 
     //Llegamos hasta aca, el alloc final en la ultima pagina
-    int32_t thisAllocOffset = thisAllocAddr % config->pageSize;
-    thisAllocSize = config->pageSize - thisAllocOffset - sizeof(t_HeapMetadata);
+    int32_t thisAllocOffset = thisAllocAddress % config->pageSize;
+    thisAllocSize = config->pageSize - thisAllocOffset - sizeof(t_heapMetadata);
 
     //Si no alcanza el lugar para crear otro malloc en la misma pagina, creamos mas paginas
-    if(thisAllocSize <= sizeof(t_HeapMetadata) + 1 || thisAllocSize - sizeof(t_HeapMetadata) - 1 < mallocSize){
-        int newPages = 1 + (mallocSize - thisAllocSize + sizeof(t_HeapMetadata) + 1) / config->pageSize;
+    if(thisAllocSize <= sizeof(t_heapMetadata) + 1 || thisAllocSize - sizeof(t_heapMetadata) - 1 < mallocSize){
+        int newPages = 1 + (mallocSize - thisAllocSize + sizeof(t_heapMetadata) + 1) / config->pageSize;
         // bool rc;         Unused
         for(int i = 0; i < newPages; i++){
             int32_t firstPage = 0;
             int32_t lastPage = 0;
 
-            if(i == 0) { firstPage = createPage(pid); }
-            else { int32_t lastPage = createPage(pid); }
+            if(i == 0) { firstPage = createPage(PID); }
+            // else { int32_t lastPage = createPage(PID); } UNUSED
 
             if(lastPage == -1 || firstPage == -1){
                 if(lastPage == -1 && firstPage != -1){
                     for(int j = firstPage; j < lastPage; j++){
-                        swapInterface_erasePage(pid, j);
+                        swapInterface_erasePage(swapInterface, PID, j);
                     }
                 }
                 streamAdd_INT32(response->payload, 0);
                 socket_sendPacket(socket, response);
                 destroyPacket(response);
                 pthread_mutex_lock(&mutex_log);
-                log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", pid, mallocSize);
+                log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
                 pthread_mutex_unlock(&mutex_log);
                 free(thisAlloc);
                 return true;
@@ -244,9 +243,9 @@ bool memallocHandler(t_packet* petition, int socket){
     newLastAlloc->nextAlloc = thisAlloc->nextAlloc;
     newLastAlloc->isFree = true;
     thisAlloc->nextAlloc = newLastAllocAddress;
-    heap_write(pid, newLastAllocAddress, sizeof(t_heapMetadata), newLastAlloc);
+    heap_write(PID, newLastAllocAddress, sizeof(t_heapMetadata), newLastAlloc);
     free(newLastAlloc);
-    heap_write(pid, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
+    heap_write(PID, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
     streamAdd_INT32(response->payload, thisAllocAddress + sizeof(t_heapMetadata));
     socket_sendPacket(socket, response);
     destroyPacket(response);
