@@ -12,12 +12,12 @@ int main(void){
     config = getKernelConfig("./kernel.cfg");
 
     //Inicializo estructura t_processQueues
-    processQueues.newQueue = newQueue;
-    processQueues.readyQueue = readyQueue;
-    processQueues.blockedQueue = blockedQueue;
-    processQueues.suspendedReadyQueue = suspendedReadyQueue;
-    processQueues.suspendedBlockedQueue = suspendedBlockedQueue;
-    processQueues.execQueue = execQueue;
+    processQueues.newQueue = newQueue = pQueue_create();
+    processQueues.readyQueue = readyQueue = pQueue_create();
+    processQueues.blockedQueue = blockedQueue = pQueue_create();
+    processQueues.suspendedReadyQueue = suspendedReadyQueue = pQueue_create();
+    processQueues.suspendedBlockedQueue = suspendedBlockedQueue = pQueue_create();
+    processQueues.execQueue = execQueue = pQueue_create();
 
     //Inicializo diccionario de mateSems
     mateSems = dictionary_create();
@@ -38,7 +38,7 @@ int main(void){
     int serverSocket = createListenServer(config->ip, config->port);
 
     while(1){   
-        runListenServer(serverSocket, auxHandler);  //TODO: Acá tira segfault
+        runListenServer(serverSocket, auxHandler);
     }
 
     close(serverSocket);
@@ -47,7 +47,7 @@ int main(void){
 }
 
 void *auxHandler(void *vclientSocket){
-    int clientSocket = *((int*) vclientSocket);
+    int clientSocket = (int) vclientSocket;
     socket_sendHeader(clientSocket, OK);
     
     t_packet *packet;
