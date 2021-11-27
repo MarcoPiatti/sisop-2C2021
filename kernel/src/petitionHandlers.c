@@ -38,6 +38,7 @@ processState _call_io(t_packet *received, t_process* process){
     return BLOCK;    //todo: ver
 }
 
+//Pasar al petition handler de memory
 processState _memalloc(t_packet *received, t_process* process){
     return CONTINUE;
 }
@@ -55,10 +56,12 @@ processState _memwrite(t_packet *received, t_process* process){
 }
 
 processState _capi_term(t_packet *received, t_process* process){
+    //Avisar a memoria. Implica recibir un disconnected inmediatamente despues
     return CONTINUE;
 }
 
 processState _disconnected(t_packet *received, t_process* process){
+    //Pasar a exit
     return CONTINUE;
 }
 
