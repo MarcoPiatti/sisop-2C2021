@@ -1,4 +1,4 @@
-PROCESS_NAME=libmate.so
+PROCESS_NAME=libmatelib.so
 TEST_NAME=test.out
 
 IDIR =./include
