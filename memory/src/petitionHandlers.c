@@ -146,6 +146,7 @@ void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
     }
 }
 
+//TODO: chequear comentarios que comienzan con "C:"
 bool memallocHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t mallocSize = streamTake_INT32(petition->payload);
@@ -164,10 +165,12 @@ bool memallocHandler(t_packet* petition, int socket){
             return true;
         }
 
+        //C: Creación de primer alloc, ocupa toda la primer página
         void* newPageContents = calloc(1, config->pageSize);
         t_heapMetadata firstAlloc = { .prevAlloc = NULL, .nextAlloc = NULL, .isFree = true };
         memcpy(newPageContents, &firstAlloc, sizeof(t_heapMetadata));
         
+        //C: Carga de la página generada en memoria principal
         int32_t newPageFrame = getFrameForPage(PID, page); // Page no declarado.
         ramReplaceFrame(ram, newPageFrame, newPageContents);
     }
@@ -176,10 +179,14 @@ bool memallocHandler(t_packet* petition, int socket){
     int32_t thisAllocAddress = 0;
     t_heapMetadata* thisAlloc = heap_read(PID, thisAllocAddress, sizeof(t_heapMetadata));
     int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - sizeof(t_heapMetadata);
+
+    //C: Búsqueda de alloc existente, libre, donde pueda entrar el nuevo
     while(thisAlloc->nextAlloc != NULL){
         if(thisAlloc->isFree){
             if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + sizeof(t_heapMetadata)){
                 thisAlloc->isFree = false;
+
+                //C: Si sobra espacio, generar nuevo alloc libre nuevo en el espacio restante
                 if(thisAllocSize > mallocSize){
                     t_heapMetadata* newMiddleMalloc = malloc(sizeof(t_heapMetadata));
                     int32_t newMiddleMallocAddress = thisAllocAddress + sizeof(t_heapMetadata) + mallocSize;
@@ -190,6 +197,8 @@ bool memallocHandler(t_packet* petition, int socket){
                     heap_write(PID, newMiddleMallocAddress, sizeof(t_heapMetadata), newMiddleMalloc);
                     free(newMiddleMalloc);
                 }
+
+                //C: Asignación del alloc existente al nuevo y retorno de la dirección lógica
                 heap_write(PID, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
                 streamAdd_INT32(response->payload, thisAllocAddress + sizeof(t_heapMetadata));
                 socket_sendPacket(socket, response);
