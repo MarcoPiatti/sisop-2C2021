@@ -56,6 +56,7 @@ int mate_init(mate_instance *lib_ref, char *config){
 }
 
 int mate_close(mate_instance *lib_ref){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     
     t_packet* packet = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
@@ -92,6 +93,7 @@ int mate_close(mate_instance *lib_ref){
 //-----------------Semaphore Functions---------------------/
 
 int mate_sem_init(mate_instance *lib_ref, mate_sem_name sem, unsigned int value){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
 
@@ -112,6 +114,7 @@ int mate_sem_init(mate_instance *lib_ref, mate_sem_name sem, unsigned int value)
 }
 
 int mate_sem_wait(mate_instance *lib_ref, mate_sem_name sem){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
 
@@ -126,13 +129,21 @@ int mate_sem_wait(mate_instance *lib_ref, mate_sem_name sem){
     int rc = (packet->header == OK) ? 0 : -1;
     destroyPacket(packet);
     
-    if(rc) log_debug(mateStruct->logger, "Error al esperar al semaforo %s", sem);
+    if(rc) {
+        log_debug(mateStruct->logger, "Error de deadlock al esperar al semaforo, el mate se ha cerrado %s", sem);
+        close(mateStruct->mateSocket);
+        config_destroy(mateStruct->mateConfig);
+        log_destroy(mateStruct->logger);
+        free(mateStruct);
+        lib_ref->group_info = NULL;
+    }
     else log_debug(mateStruct->logger, "Termino la espera en semaforo %s", sem);
 
     return rc;
 }
 
 int mate_sem_post(mate_instance *lib_ref, mate_sem_name sem){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
 
@@ -152,6 +163,7 @@ int mate_sem_post(mate_instance *lib_ref, mate_sem_name sem){
 }
 
 int mate_sem_destroy(mate_instance *lib_ref, mate_sem_name sem){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
 
@@ -173,6 +185,7 @@ int mate_sem_destroy(mate_instance *lib_ref, mate_sem_name sem){
 //--------------------IO Functions------------------------/
 
 int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     if (mateStruct->isMemory) return 1;
 
@@ -196,6 +209,7 @@ int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
 //--------------Memory Module Functions-------------------/
 
 mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
+    if(lib_ref->group_info == NULL) return 0;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     
     log_debug(mateStruct->logger, "Por pedir %i bytes de memoria", size);
@@ -217,6 +231,7 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
 }
 
 int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     log_debug(mateStruct->logger, "Por pedir hacer free de la direccion %i", addr);
@@ -238,6 +253,7 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
 }
 
 int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int size){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     log_debug(mateStruct->logger, "Por leer %i bytes de la direccion logica %i", size, origin);
@@ -268,6 +284,7 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
 }
 
 int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int size){
+    if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
     log_debug(mateStruct->logger, "Por escribir %i bytes en la direccion logica %i", size, dest);
