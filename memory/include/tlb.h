@@ -4,6 +4,7 @@
 #include<pthread.h>
 #include<time.h>
 #include<stdbool.h>
+#include<stdio.h>
 
 
 typedef struct tlbEntry {
@@ -14,12 +15,12 @@ typedef struct tlbEntry {
     struct timespec* lastAccess;       //LRU
 } t_tlbEntry;
 
-
+typedef void (*TLBAlgorithm)(t_tlbEntry* newEntry);
 typedef struct tlb {
     //Funcionamiento tlb
     t_tlbEntry* entries;
     unsigned int size;
-    void (*replaceAlgorithm)(t_tlb* tlb, t_tlbEntry* newEntry);
+    TLBAlgorithm replaceAlgorithm;
     t_queue* fifoEntries;
     pthread_mutex_t mutex;
 
@@ -40,10 +41,11 @@ void destroyTLB(t_tlb* tlb);
 
 //Metricas
 void addToMetrics(t_dictionary* dic, uint32_t pid);
-void sigIntHandlerTLB(tlb);
+void sigIntHandlerTLB();
 void printTlbHits(t_dictionary* hits);
 void printTlbMisses(t_dictionary* misses);
 void sigUsr1HandlerTLB();
+void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry);
 void sigUsr2HandlerTLB();
 
 //Algoritmos de reemplazo

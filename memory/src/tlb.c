@@ -64,7 +64,7 @@ uint32_t addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
 
     //Reemplazo/Agrego segun algoritmo
     pthread_mutex_lock(&tlb->mutex);
-    tlb->replaceAlgorithm(tlb, newEntry);
+    tlb->replaceAlgorithm(newEntry);
     pthread_mutex_unlock(&tlb->mutex);
 
 
@@ -211,9 +211,40 @@ void printTlbMisses(t_dictionary* misses) {
 // --------------- SIGUSRs -----------------
 
 void sigUsr1HandlerTLB() {
+    char* dirPath = config->TLBPathDump;
+    char* filePath = (char*) calloc(strlen(dirPath) + 35, sizeof(char));
+
+    //Get time
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    char* timestamp = (char*) calloc(35, sizeof(char));
+    sprintf(timestamp, "%d_%d_%d__%d_%d_%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    sprintf(filePath, "%s/Dump_%s.tlb", dirPath, timestamp);
+
+    FILE* f = fopen(config->TLBPathDump, "w");
+    printf("-----------------------------------------\n");
+    pthread_mutex_lock(&tlb->mutex);
+
+    fprintf(f, "%d/%d/%d %d:%d:%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    for(int i = 0; i<tlb->size; i++) {
+        printTLBEntry(f, &tlb->entries[i], i);
+    }
+
+    pthread_mutex_unlock(&tlb->mutex);
+    printf("-----------------------------------------\n");
+
+    free(filePath);
+    free(timestamp);
     //TODO
 }
 
+void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
+    char status[10] = entry->isFree ? "Libre" : "Ocupado";
+    fprintf(f, "Entrada: %d\t Estado: %s\t Carpincho: %u\t Pagina: %u\t Marco: %d\n", nEntry, status, entry->pid, entry->page, entry->frame);
+}
+
 void sigUsr2HandlerTLB() {
-    //TODO
+    cleanTLB();
 }
