@@ -4,5 +4,7 @@
 
 int32_t min(int32_t a, int32_t b);
 
+int32_t div_roundUp(int32_t a, int32_t b);
+
 
 #endif // !SHARED_UTILS_H

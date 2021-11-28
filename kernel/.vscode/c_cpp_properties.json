@@ -13,7 +13,8 @@
                 "/usr/include/i386-linux-gnu",
                 "/usr/include",
                 "${workspaceFolder}/include",
-                "../shared/include"
+                "../shared/include",
+                "/home/utnso/shared/REPOS/tp-2021-2c-pepinOS/memory/include"
             ],
             "defines": [
                 "_GNU_SOURCE"

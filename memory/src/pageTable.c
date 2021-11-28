@@ -35,7 +35,9 @@ int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
 t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pageTables) {
     char *PID = string_itoa(_PID);
 
-    t_pageTable* pt = (t_pageTable*) dictionary_get(pageTables, PID);
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable* pt = (t_pageTable*) dictionary_get(pageTables, PID);
+    pthread_mutex_unlock(&pageTablesMut);
 
     return pt;
 }

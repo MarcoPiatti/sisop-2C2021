@@ -157,8 +157,8 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
     */
 
     // Si esta presente retorna el numero de frame.
-    pthread_mutex_lock(&pageTablesMut);
     t_pageTable* pt = getPageTable(PID, pageTables);
+    pthread_mutex_lock(&pageTablesMut);
     if (((pt->entries)[pageN]).present) {
         uint32_t frame = ((pt->entries)[pageN]).frame;
         
@@ -166,7 +166,6 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
         return frame;
     }
     pthread_mutex_unlock(&pageTablesMut);
-
 
     // Si no esta presente hay que traerla de swap.
     return swapPage(PID, pageN);
@@ -226,8 +225,8 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Escribir pagina traida de swap a memoria.
     writeFrame(ram, victim, pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
+    t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
-        t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
         (ptReemplaza->entries)[page].present = true;
         (ptReemplaza->entries)[page].frame = victim;
     pthread_mutex_unlock(&pageTablesMut);
@@ -269,7 +268,6 @@ uint32_t LRU(uint32_t start, uint32_t end){
             min = getFrameTimestamp(i);
         }
     }
-
     return frame;
 }
 
@@ -284,8 +282,8 @@ void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, u
 
 void updateTimestamp(uint32_t frame) {
     pthread_mutex_lock(&metadataMut);
-    metadata->counter += 1;
-    (metadata->entries)[frame]->timeStamp = metadata->counter;
+        metadata->counter += 1;
+        (metadata->entries)[frame]->timeStamp = metadata->counter;
     pthread_mutex_unlock(&metadataMut);
 }
 
@@ -325,7 +323,7 @@ void destroyMemMutex(){
 
 
 
-
+/*
 
 // Unused, reemplazado por heapRead()
 void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
@@ -397,3 +395,4 @@ void createPages(uint32_t PID, uint32_t qty){
         }
     }
 }
+*/

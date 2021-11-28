@@ -2,6 +2,7 @@
 #include "memory.h"
 #include "stdint.h"
 #include "swapInterface.h"
+#include "utils.h"
 
 int32_t createPage(uint32_t PID){
     t_pageTable* table = getPageTable(PID, pageTables);
@@ -14,6 +15,8 @@ int32_t createPage(uint32_t PID){
 }
 
 /*
+
+// UNUSED
 int32_t getFrameForPage(uint32_t PID, int32_t page){
     --Buscar en TLB
     if(TLB_isPresent){
@@ -50,103 +53,9 @@ int32_t getFrameForPage(uint32_t PID, int32_t page){
     table->entries[page].present = true;
     return newFrame;    
 }
-*/
 
-/**
- * @DESC: Lee "size" bytes del heap de un programa. Abstrayendo de la idea de paginas.
- * @param PID: PID del programa
- * @param logicAddress: direccion logica de donde empezar a leer
- * @param size: cantidad de bytes a leer del heap
- * @return void*: puntero malloc'd (con size bytes) con los datos solicitados
- */
-void* heap_read(uint32_t PID, int32_t logicAddress, int size){
-    void* content = malloc(size);
-    int contentOffset = 0;
-    int32_t startPage = logicAddress / config->pageSize;
-    int32_t startOffset = logicAddress % config->pageSize;
-    int32_t finishPage = (logicAddress + size - 1) / config->pageSize;
-    int32_t finishOffset = (logicAddress + size - 1) % config->pageSize;
-    
-    int32_t frame = -1;
-    void* frameContent = NULL;
 
-    // Si la data esta toda en una sola pagina, hacemos esto una sola vez
-    if(startPage == finishPage){
-        frame = getFrame(PID, startPage);
-        frameContent = ram_getFrame(ram, frame);
-        memcpy(content, frameContent + startOffset, size);
-        return content;
-    }
-
-    //Si la data esta entre varias paginas, las recorremos
-    for(int i = startPage; i <= finishPage; i++){
-        frame = getFrame(PID, i);
-        frameContent = ram_getFrame(ram, frame);
-
-        // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
-        if(i == startPage){ 
-            memcpy(content+contentOffset, frameContent+startOffset, config->pageSize - startOffset);
-            contentOffset += config->pageSize - startOffset;
-        }
-
-        // Si estamos en la ultima pagina de la data, seguimos copiando desde el inicio de la pagina hasta el offset final
-        else if (i == finishPage) {
-            memcpy(content+contentOffset, frameContent, finishOffset + 1);
-            contentOffset += finishOffset + 1;
-        }
-
-        // Si estamos en una pagina que no es la primera o la ultima (una del medio) copiamos toda la pagina
-        else{
-            memcpy(content+contentOffset, frameContent, config->pageSize);
-            contentOffset += config->pageSize;
-        }    
-    }
-
-    return content;
-}
-
-void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
-    int32_t startPage = logicAddress / config->pageSize;
-    int32_t startOffset = logicAddress % config->pageSize;
-    int32_t finishPage = (logicAddress + size - 1) / config->pageSize;
-    int32_t finishOffset = (logicAddress + size - 1) % config->pageSize;
-
-    int dataOffset = 0;
-
-    int32_t frame = -1;
-
-    // Si la data a reescribir esta toda en una sola pagina, hacemos esto una sola vez
-    if(startPage == finishPage){
-        frame = getFrame(PID, startPage);
-        ram_editFrame(ram, frame, startOffset, data, size);
-        return;
-    }
-
-    //Si la data debe ser escrita entre varias paginas, las recorremos
-    for(int i = startPage; i <= finishPage; i++){
-        frame = getFrame(PID, i);
-
-        // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
-        if(i == startPage){ 
-            ram_editFrame(ram, frame, startOffset, data + dataOffset, config->pageSize - startOffset);
-            dataOffset += config->pageSize - startOffset;
-        }
-
-        // Si estamos en la ultima pagina de la data, seguimos copiando desde el inicio de la pagina hasta el offset final
-        else if (i == finishPage) {
-            ram_editFrame(ram, frame, 0, data + dataOffset, finishOffset + 1);
-            dataOffset += finishOffset + 1;
-        }
-
-        // Si estamos en una pagina que no es la primera o la ultima (una del medio) copiamos toda la pagina
-        else{
-            ram_editFrame(ram, frame, 0, data + dataOffset, config->pageSize);
-            dataOffset += config->pageSize;
-        }    
-    }
-}
-
-//TODO: chequear comentarios que comienzan con "C:"
+// UNUSED, version vieja.
 bool memallocHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t mallocSize = streamTake_INT32(petition->payload);
@@ -260,6 +169,198 @@ bool memallocHandler(t_packet* petition, int socket){
     destroyPacket(response);
     free(thisAlloc);
     return true;
+}
+*/
+
+/*  TODO: Funciones a definir:
+ *      initializeInMemory(PID)
+ *      pageTable_isEmpty(PID)
+ *      getFreeAlloc(PID, size)
+ *
+ * 
+ * 
+ */
+
+
+bool memallocHandler(t_packet* petition, int socket){
+    uint32_t PID  = streamTake_UINT32(petition->payload);
+    uint32_t size = streamTake_INT32(petition->payload);
+    destroyPacket(petition);
+
+    t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
+
+    if (pageTable_isEmpty(PID)) {
+        int32_t newPageQty = div_roundUp(2 * sizeof(t_heapMetadata) + size + 1, config->pageSize);
+        for (int i = 0; i < newPageQty; i++){
+            if(createPage(PID) == -1) {
+                streamAdd_INT32(response->payload, 0);
+                socket_sendPacket(socket, response);
+                destroyPacket(response);
+
+                pthread_mutex_lock(&logMut);
+                    log_info("No se pudo crear pagina para el carpincho de PID %u.", PID);
+                pthread_mutex_unlock(&logMut);
+
+                return false;
+            }
+        }
+        t_heapMetadata first;
+        first.isFree = true;
+        first.nextAlloc = 1 + sizeof(t_heapMetadata) + size;    // El primer heapmetadata se crea en la direc 1 para dejar el 0 como 'NULL'.
+        first.prevAlloc = NULL;
+
+        t_heapMetadata last;
+        last.isFree = false;
+        last.nextAlloc = NULL;
+        last.prevAlloc = 1;
+
+        // Se guardan los nuevos primer y ultimo alloc a memoria.
+        heap_write(PID, 1, sizeof(t_heapMetadata), &first);
+        heap_write(PID, first.nextAlloc, sizeof(t_heapMetadata), &last);    
+    }
+
+    if (getFreeAlloc(PID)){
+        uint32_t foundAllocAddr = getFreeAlloc(PID);
+        t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
+        uint32_t distanceToNextAlloc = found->nextAlloc - foundAllocAddr - sizeof(t_heapMetadata);
+        streamAdd_INT32(response->payload, foundAllocAddr);
+        
+        // Si solo hay lugar para la memoria pedida, no se crea un heapMetadata intermedio.
+        if (distanceToNextAlloc <= size + sizeof(t_heapMetadata)){            
+            // Actualizar heapMetadata en ram.
+            found->isFree = false;
+            heap_write(PID, foundAllocAddr, sizeof(t_heapMetadata), found);
+            free(found);
+
+            socket_sendPacket(socket, response);
+            destroyPacket(response);
+
+            return true;
+        }
+
+        // Si hay mas lugar, se crea un heapMetadata intermedio para evitar overallocar.
+        t_heapMetadata *oldNextAlloc = heap_read(PID, found->nextAlloc, sizeof(t_heapMetadata));
+
+        // Se crea nuevo alloc entre medio del encontrado y el siguiente.
+        t_heapMetadata midAlloc = { .nextAlloc = found->nextAlloc, .prevAlloc = foundAllocAddr, .isFree = true };
+
+        // Se actualizan los allocs que existian previamente.
+        found->nextAlloc = foundAllocAddr + sizeof(t_heapMetadata) + size;
+        found->isFree = false;
+        oldNextAlloc->prevAlloc = found->nextAlloc;
+
+        // Se actualiza la ram.
+        heap_write(PID, foundAllocAddr, sizeof(t_heapMetadata), found);
+        heap_write(PID, found->nextAlloc, sizeof(t_heapMetadata), &midAlloc);
+        heap_write(PID, midAlloc.nextAlloc, sizeof(t_heapMetadata), oldNextAlloc);
+
+        free(found);
+        free(oldNextAlloc);
+
+        socket_sendPacket(socket, response);
+        destroyPacket(response);
+        return true;
+    }
+    
+
+
+}
+
+
+
+
+/**
+ * @DESC: Lee "size" bytes del heap de un programa. Abstrayendo de la idea de paginas.
+ * @param PID: PID del programa
+ * @param logicAddress: direccion logica de donde empezar a leer
+ * @param size: cantidad de bytes a leer del heap
+ * @return void*: puntero malloc'd (con size bytes) con los datos solicitados
+ */
+void* heap_read(uint32_t PID, int32_t logicAddress, int size){
+    void* content = malloc(size);
+    int contentOffset = 0;
+    int32_t startPage = logicAddress / config->pageSize;
+    int32_t startOffset = logicAddress % config->pageSize;
+    int32_t finishPage = (logicAddress + size - 1) / config->pageSize;
+    int32_t finishOffset = (logicAddress + size - 1) % config->pageSize;
+    
+    int32_t frame = -1;
+    void* frameContent = NULL;
+
+    // Si la data esta toda en una sola pagina, hacemos esto una sola vez
+    if(startPage == finishPage){
+        frame = getFrame(PID, startPage);
+        frameContent = ram_getFrame(ram, frame);
+        memcpy(content, frameContent + startOffset, size);
+        return content;
+    }
+
+    //Si la data esta entre varias paginas, las recorremos
+    for(int i = startPage; i <= finishPage; i++){
+        frame = getFrame(PID, i);
+        frameContent = ram_getFrame(ram, frame);
+
+        // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
+        if(i == startPage){ 
+            memcpy(content+contentOffset, frameContent+startOffset, config->pageSize - startOffset);
+            contentOffset += config->pageSize - startOffset;
+        }
+
+        // Si estamos en la ultima pagina de la data, seguimos copiando desde el inicio de la pagina hasta el offset final
+        else if (i == finishPage) {
+            memcpy(content+contentOffset, frameContent, finishOffset + 1);
+            contentOffset += finishOffset + 1;
+        }
+
+        // Si estamos en una pagina que no es la primera o la ultima (una del medio) copiamos toda la pagina
+        else{
+            memcpy(content+contentOffset, frameContent, config->pageSize);
+            contentOffset += config->pageSize;
+        }    
+    }
+
+    return content;
+}
+
+void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
+    int32_t startPage = logicAddress / config->pageSize;
+    int32_t startOffset = logicAddress % config->pageSize;
+    int32_t finishPage = (logicAddress + size - 1) / config->pageSize;
+    int32_t finishOffset = (logicAddress + size - 1) % config->pageSize;
+
+    int dataOffset = 0;
+
+    int32_t frame = -1;
+
+    // Si la data a reescribir esta toda en una sola pagina, hacemos esto una sola vez
+    if(startPage == finishPage){
+        frame = getFrame(PID, startPage);
+        ram_editFrame(ram, frame, startOffset, data, size);
+        return;
+    }
+
+    //Si la data debe ser escrita entre varias paginas, las recorremos
+    for(int i = startPage; i <= finishPage; i++){
+        frame = getFrame(PID, i);
+
+        // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
+        if(i == startPage){ 
+            ram_editFrame(ram, frame, startOffset, data + dataOffset, config->pageSize - startOffset);
+            dataOffset += config->pageSize - startOffset;
+        }
+
+        // Si estamos en la ultima pagina de la data, seguimos copiando desde el inicio de la pagina hasta el offset final
+        else if (i == finishPage) {
+            ram_editFrame(ram, frame, 0, data + dataOffset, finishOffset + 1);
+            dataOffset += finishOffset + 1;
+        }
+
+        // Si estamos en una pagina que no es la primera o la ultima (una del medio) copiamos toda la pagina
+        else{
+            ram_editFrame(ram, frame, 0, data + dataOffset, config->pageSize);
+            dataOffset += config->pageSize;
+        }    
+    }
 }
 
 bool memfreeHandler(t_packet* petition, int socket){
