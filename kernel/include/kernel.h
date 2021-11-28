@@ -14,6 +14,10 @@
 #include <time.h>
 #include <string.h>
 
+//Aux
+t_log *kernelLogger;
+pthread_mutex_t mutex_log;
+u_int32_t memSocket;
 
 #define MAX_MULTIPROCESSING 10
 

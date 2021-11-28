@@ -3,11 +3,11 @@
 #include "commons/log.h"
 #include "commons/config.h"
 
-t_log *kernelLogger;
 sem_t cuposDisponibles, availableCPUS, runShortTerm;
 
 int main(void){
     kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
+    pthread_mutex_init(&mutex_log, NULL);
 
     config = getKernelConfig("./kernel.cfg");
 
@@ -26,6 +26,15 @@ int main(void){
     sem_init(&cuposDisponibles, 0, config->multiprogram);       //Cantidad de carpinchos que pueden estar en memoria
     sem_init(&availableCPUS, 0, config->multiprocess);          //Cantidad de CPUs disponibles
     sem_init(&runShortTerm, 0, 0);     //Semáforo "notifier" para correr el short term scheduler solo cuando un proceso llega a ready
+
+    //Conecto con memoria. Comentar para testing de solo kernel.
+    /* 
+    memSocket = connectToServer(config->memoryIP, config->memoryPort);
+    if(memSocket) {
+        pthread_mutex_lock(&mutex_log);
+        log_info(kernelLogger, "Kernel conectado a memoria exitosamente");
+        pthread_mutex_unlock(&mutex_log);
+    } */
     
     //Inicio hilo sobre el cual corre el long term scheduler
     pthread_create(&thread_longTerm, NULL, longTerm_run, NULL);
@@ -61,11 +70,17 @@ void *auxHandler(void *vclientSocket){
     idCliente = streamTake_UINT32(packet->payload);
     process = createProcess(idCliente, clientSocket, config->initialEstimation);
     pQueue_put(newQueue, process);
+
+    pthread_mutex_lock(&mutex_log);
+    log_info(kernelLogger, "Proceso %u recibido y agregado a cola de New", process->pid);
+    pthread_mutex_unlock(&mutex_log);
+
     destroyPacket(packet);
 
     return NULL; // Ni idea, solo para que no tire warnings, igual esta funcion hay que tirarla completita al tacho.
 }
 
+//Toma procesos de la cola de New y los pone en ready cuando sea posible.
 void *longTerm_run(void* args) {
     t_process* process;
     while(1) {
@@ -73,6 +88,11 @@ void *longTerm_run(void* args) {
         process = pQueue_take(newQueue);
         process->state = READY;
         pQueue_put(readyQueue, process);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(kernelLogger, "El planificador de largo plazo llevo de new a ready al proceso %u", process->pid);
+        pthread_mutex_unlock(&mutex_log);
+
         sem_post(&runShortTerm);
     }
 }
@@ -143,6 +163,10 @@ void *cpu(void* args) {
         process = pQueue_take(readyQueue);
         process->state = EXEC;
 
+        pthread_mutex_lock(&mutex_log);
+        log_info(kernelLogger, "El proceso %u se encuentra ahora ejecutandose", process->pid);
+        pthread_mutex_unlock(&mutex_log);
+
         int contador = 0;
         // int seguirAtendiendo = true;     UNUSED.
 
@@ -155,11 +179,24 @@ void *cpu(void* args) {
             contador += contador;
             packet = socket_getPacket(socket);
             state = petitionProcessHandler[packet->header](packet, process);
-            //TODO: Verificar exit
             destroyPacket(packet);
         }
         if(state == BLOCK){ //Cambie BLOCKED por BLOCK. Ahora los tipos son compatibles pero no se que tan correcto sea.
-            process->estimator = config->alpha *contador+(1-config->alpha)* process->estimator;
+            process->estimator = config->alpha * contador + (1-config->alpha) * process->estimator;
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(kernelLogger, "El proceso %u bloqueado tras rafaga de %u. El valor de su estimador es %d", process->pid, contador, process->estimator);
+            pthread_mutex_unlock(&mutex_log);
+
+        } 
+        else if(state == EXIT) {
+            process->state = TERMINATED;    //Posiblemente innecesario
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(kernelLogger, "Destruido el proceso %u (terminado)", process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            destroyProcess(process);
         }
         //TODO: Implementar exit
     }
