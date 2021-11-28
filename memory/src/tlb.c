@@ -152,6 +152,14 @@ void destroyTLB(t_tlb* tlb) {
     free(tlb);
 }
 
+void cleanTLB() {
+    pthread_mutex_lock(&tlb->mutex);
+    for(int i = 0; i < tlb->size; i++) {
+        tlb->entries[i].isFree = true;
+    }
+    pthread_mutex_unlock(&tlb->mutex);
+}
+
 // --------------- Metricas -----------------
 
 
