@@ -20,6 +20,7 @@ typedef struct memoryConfig{
     int TLBHitDelay;
     int TLBMissDelay;
     uint32_t frameQty;
+    char *TLBPathDump;
 } t_memoryConfig;
 
 t_memoryConfig *getMemoryConfig(char *path);
