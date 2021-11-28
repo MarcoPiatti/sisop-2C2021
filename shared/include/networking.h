@@ -111,8 +111,10 @@ void socket_relayPacket(int socket, t_packet* packet);
  * @param socket: socket del cual recibir los datos
  * @param dest: puntero al cual se alojaran los datos
  * @param size: tamanio de los datos (el puntero debe tener alojado ese tamanio minimo)
+ * 
+ * retorna false si hubo algun error en lectura
  */
-void socket_get(int socket, void* dest, size_t size);
+bool socket_get(int socket, void* dest, size_t size);
 
 /**
  * @DESC: Obtiene unicamente un header del socket
@@ -124,9 +126,11 @@ uint8_t socket_getHeader(int socket);
 /**
  * @DESC: Obtiene un packet del socket
  * @param socket: socket del cual se obtiene el packet
- * @return t_packet*: puntero al packet obtenido
+ * @return t_packet*: puntero al packet obtenido. NULL si hubo error
  */
 t_packet* socket_getPacket(int socket);
+
+bool retry_getPacket(int socket, t_packet** packet);
 
 /**
  * @DESC: Se conecta a un server y crea un socket

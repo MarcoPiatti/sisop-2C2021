@@ -1,4 +1,5 @@
 #include "networking.h"
+#include <unistd.h>
 
 t_packet* createPacket(uint8_t header, size_t size){
     t_packet* tmp = malloc(sizeof(t_packet));
@@ -32,8 +33,13 @@ void socket_relayPacket(int socket, t_packet* packet){
     socket_sendPacket(socket, packet);
 }
 
-void socket_get(int socket, void* dest, size_t size){
-    if(size != 0) guard_syscall(recv(socket, dest, size, 0));
+bool socket_get(int socket, void* dest, size_t size){
+    if(size != 0){
+        int rc;
+        guard_syscall(rc = recv(socket, dest, size, 0));
+        if(rc < 1) return false;
+    }
+    return true;
 }
 
 uint8_t socket_getHeader(int socket){
@@ -45,10 +51,25 @@ uint8_t socket_getHeader(int socket){
 t_packet* socket_getPacket(int socket){
     uint8_t header = socket_getHeader(socket);
     uint32_t streamSize;
-    socket_get(socket, &streamSize, sizeof(uint32_t));
+    if(!socket_get(socket, &streamSize, sizeof(uint32_t)))
+        return NULL;
     t_packet* packet = createPacket(header, streamSize);
-    socket_get(socket, packet->payload->stream, streamSize);
+    if(!socket_get(socket, packet->payload->stream, streamSize)){
+        destroyPacket(packet);
+        packet = NULL;
+    }
     return packet;
+}
+
+bool retry_getPacket(int socket, t_packet** packet){
+    int tries = 5;
+    while(*packet == NULL && tries > 0) {
+        sleep(1);
+        *packet = socket_getPacket(socket);
+        tries--;
+    }
+    if(*packet == NULL) return false;
+    return true;
 }
 
 int connectToServer(char* serverIp, char* serverPort){
