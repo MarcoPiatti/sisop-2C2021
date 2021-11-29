@@ -35,12 +35,12 @@ t_tlb* tlb;
 //Funciones
 t_tlb* createTLB();
 int32_t getFrameFromTLB(uint32_t pid, uint32_t page);
-uint32_t addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame);
+void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame);
 void dropEntry(uint32_t pid, uint32_t page);
 void destroyTLB(t_tlb* tlb);
 
 //Metricas
-void addToMetrics(t_dictionary* dic, uint32_t pid);
+void addToMetrics(t_dictionary* dic, char* pid);
 void sigIntHandlerTLB();
 void printTlbHits(t_dictionary* hits);
 void printTlbMisses(t_dictionary* misses);

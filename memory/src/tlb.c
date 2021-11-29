@@ -41,9 +41,8 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     }
 
     //Agrego a metricas
-    char key[10];
-    sprintf(key, "&#37;u", pid);
-    printf("Agregando key %u\n", key);//TODO: Sacar
+    char key[ 16 ];
+    sprintf(key,"%u", pid);
     if(frame == -1) {
         addToMetrics(tlb->pidMisses, key);
     } else {
@@ -54,7 +53,7 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     return frame;
 }
 
-uint32_t addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
+void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
     //Genero la entrada
     t_tlbEntry* newEntry;
     newEntry = malloc(sizeof(t_tlbEntry));
@@ -145,7 +144,7 @@ void destroyTLB(t_tlb* tlb) {
     pthread_mutex_destroy(&tlb->mutex);
 
     void destroyUint32(void* data) {
-        free((*uint32_t)data);
+        free(data);
     }
     dictionary_destroy_and_destroy_elements(tlb->pidHits, destroyUint32);
     dictionary_destroy_and_destroy_elements(tlb->pidMisses, destroyUint32);
@@ -163,16 +162,16 @@ void cleanTLB() {
 // --------------- Metricas -----------------
 
 
-void addToMetrics(t_dictionary* dic, uint32_t pid) {
-    if(dictionary_has_key(dic, &pid)) {
-        uint32_t* value = (uint32_t*) dictionary_get(dic, &pid);
+void addToMetrics(t_dictionary* dic, char* pid) {
+    if(dictionary_has_key(dic, pid)) {
+        uint32_t* value = (uint32_t*) dictionary_get(dic, pid);
         *value = *value + 1;
-        dictionary_put(dic, &pid, value);
+        dictionary_put(dic, pid, value);
     }
     else {
         uint32_t* value = malloc(sizeof(uint32_t));
         *value = 1;
-        dictionary_put(dic, &pid, value);
+        dictionary_put(dic, pid, value);
     }
 }
 
@@ -182,10 +181,10 @@ void sigIntHandlerTLB() {
     pthread_mutex_lock(&tlb->mutex);
     printf("-----------------------------------------\n");
     
-    printf("Cantidad total de hits: %d\n", list_size(tlb->pidHits));
+    printf("Cantidad total de hits: %d\n", dictionary_size(tlb->pidHits));
     printTlbHits(tlb->pidHits);
 
-    printf("Cantidad total de misses: %d\n", list_size(tlb->pidMisses));
+    printf("Cantidad total de misses: %d\n", dictionary_size(tlb->pidMisses));
     printTlbMisses(tlb->pidMisses);
     
 
@@ -241,7 +240,8 @@ void sigUsr1HandlerTLB() {
 }
 
 void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
-    char status[10] = entry->isFree ? "Libre" : "Ocupado";
+    char status[10];
+    if(entry->isFree) strcpy(status,"Libre"); else strcpy(status, "Ocupado");
     fprintf(f, "Entrada: %d\t Estado: %s\t Carpincho: %u\t Pagina: %u\t Marco: %d\n", nEntry, status, entry->pid, entry->page, entry->frame);
 }
 
