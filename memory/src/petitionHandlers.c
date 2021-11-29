@@ -176,7 +176,7 @@ bool memallocHandler(t_packet* petition, int socket){
  *      initializeInMemory(PID)
  *      pageTable_isEmpty(PID)
  *      getFreeAlloc(PID, size)
- *
+ *      getLastAllocAddr(PID)
  * 
  * 
  */
@@ -189,6 +189,7 @@ bool memallocHandler(t_packet* petition, int socket){
 
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
 
+    // Caso carpincho no tienen nada en memoria:
     if (pageTable_isEmpty(PID)) {
         int32_t newPageQty = div_roundUp(2 * sizeof(t_heapMetadata) + size + 1, config->pageSize);
         for (int i = 0; i < newPageQty; i++){
@@ -216,9 +217,11 @@ bool memallocHandler(t_packet* petition, int socket){
 
         // Se guardan los nuevos primer y ultimo alloc a memoria.
         heap_write(PID, 1, sizeof(t_heapMetadata), &first);
-        heap_write(PID, first.nextAlloc, sizeof(t_heapMetadata), &last);    
+        heap_write(PID, first.nextAlloc, sizeof(t_heapMetadata), &last);
+        // Se deja espacio suficiente para el alloc y se continua la ejecucion, que deberia entrar por el siguiente caso.
     }
 
+    // Caso hay alloc libre:
     if (getFreeAlloc(PID)){
         uint32_t foundAllocAddr = getFreeAlloc(PID);
         t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
@@ -262,11 +265,67 @@ bool memallocHandler(t_packet* petition, int socket){
         return true;
     }
     
+    // Caso no hay alloc libre:
+    uint32_t lastAllocAddr = getLastAllocAddr(PID);
+    uint32_t lastAllocOffset = lastAllocAddr % config->pageSize;
+    uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset - sizeof(t_heapMetadata);
+    uint32_t necessarySize = size + sizeof(t_heapMetadata);
 
+    t_heapMetadata *lastAlloc = heap_read(PID, lastAllocAddr, sizeof(t_heapMetadata));
+
+    // si hay espacio suficiente en la ult pagina, no se crea ninguna nueva.
+    if(freeSpaceInPage >= necessarySize) {
+        lastAlloc->isFree = false;
+        lastAlloc->nextAlloc = lastAllocAddr + sizeof(t_heapMetadata) + size;
+
+        t_heapMetadata newLastAlloc = { .nextAlloc = NULL, .prevAlloc = lastAllocAddr, .isFree = false };
+
+        heap_write(PID, lastAllocAddr, sizeof(t_heapMetadata), lastAlloc);
+        heap_write(PID, lastAlloc->nextAlloc, sizeof(t_heapMetadata), &newLastAlloc);
+
+        free(lastAlloc);
+
+        streamAdd_INT32(response->payload, lastAllocAddr);
+        socket_sendPacket(socket, response);
+
+        destroyPacket(response);
+        return true;
+    }
+
+    // Si no hay espacio disponible en la ult pagina, se deben crear las necesarias.
+    int32_t newPageQty = div_roundUp(necessarySize - freeSpaceInPage, config->pageSize);
+    for (int i = 0; i < newPageQty; i++){
+        if(createPage(PID) == -1) {
+            streamAdd_INT32(response->payload, 0);
+            socket_sendPacket(socket, response);
+            destroyPacket(response);
+
+            pthread_mutex_lock(&logMut);
+                log_info("No se pudo crear pagina para el carpincho de PID %u.", PID);
+            pthread_mutex_unlock(&logMut);
+
+            return false;
+        }
+    }
+    // Agregar siguiente y marcar como ocupado al anterior ultimo alloc.
+    lastAlloc->isFree = false;
+    lastAlloc->nextAlloc = lastAllocAddr + sizeof(t_heapMetadata) + size;
+
+    // Crear nuevo ultimo alloc.
+    t_heapMetadata newLastAlloc = { .nextAlloc = NULL, .prevAlloc = lastAllocAddr, .isFree = false };
+
+    // Actualizar ram.
+    heap_write(PID, lastAllocAddr, sizeof(t_heapMetadata), lastAlloc);
+    heap_write(PID, lastAlloc->nextAlloc, sizeof(t_heapMetadata), &newLastAlloc);
+
+    free(lastAlloc);
+
+    streamAdd_INT32(response->payload, lastAllocAddr);
+    socket_sendPacket(socket, response);
+
+    return 0;    
 
 }
-
-
 
 
 /**
