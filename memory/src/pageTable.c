@@ -1,4 +1,5 @@
 #include "pageTable.h"
+#include "memory.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <commons/string.h>
@@ -32,12 +33,20 @@ int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
     return pgQty;
 }
 
-t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pageTables) {
+t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pagTables) {
     char *PID = string_itoa(_PID);
 
     pthread_mutex_lock(&pageTablesMut);
-        t_pageTable* pt = (t_pageTable*) dictionary_get(pageTables, PID);
+        t_pageTable* pt = (t_pageTable*) dictionary_get(pagTables, PID);
     pthread_mutex_unlock(&pageTablesMut);
 
     return pt;
+}
+
+bool pageTable_isEmpty(uint32_t PID) {
+    t_pageTable *pt = getPageTable(PID, pageTables);
+    pthread_mutex_lock(&pageTablesMut);
+        bool isEmpty = pt->pageQuantity == 0;
+    pthread_mutex_unlock(&pageTablesMut);
+    return isEmpty;
 }

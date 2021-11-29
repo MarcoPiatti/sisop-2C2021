@@ -172,15 +172,45 @@ bool memallocHandler(t_packet* petition, int socket){
 }
 */
 
-/*  TODO: Funciones a definir:
- *      initializeInMemory(PID)
- *      pageTable_isEmpty(PID)
- *      getFreeAlloc(PID, size)
- *      getLastAllocAddr(PID)
- * 
- * 
- */
+uint32_t getLastAllocAddr(PID) {
+    uint32_t metadataAddr = 1;
 
+    while(1){
+        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, sizeof(t_heapMetadata));
+
+        if (currentMetadata->nextAlloc == NULL){
+            free(currentMetadata);
+            return metadataAddr;
+        }
+
+        metadataAddr = currentMetadata->nextAlloc;
+        free(currentMetadata);
+    }
+}
+
+
+uint32_t getFreeAlloc(uint32_t PID, uint32_t size) {
+    uint32_t metadataAddr = 1;
+
+    while(1){
+        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, sizeof(t_heapMetadata));
+
+        if (currentMetadata->nextAlloc == NULL){
+            free(currentMetadata);
+            return 0;
+        }
+        
+        uint32_t spaceToNextAlloc = currentMetadata->nextAlloc - metadataAddr - sizeof(t_heapMetadata);
+
+        if (currentMetadata->isFree && spaceToNextAlloc > size){
+            free(currentMetadata);
+            return metadataAddr;
+        }
+
+        metadataAddr = currentMetadata->nextAlloc;
+        free(currentMetadata);
+    }
+}
 
 bool memallocHandler(t_packet* petition, int socket){
     uint32_t PID  = streamTake_UINT32(petition->payload);
@@ -222,7 +252,7 @@ bool memallocHandler(t_packet* petition, int socket){
     }
 
     // Caso hay alloc libre:
-    if (getFreeAlloc(PID)){
+    if (getFreeAlloc(PID, size)){
         uint32_t foundAllocAddr = getFreeAlloc(PID);
         t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
         uint32_t distanceToNextAlloc = found->nextAlloc - foundAllocAddr - sizeof(t_heapMetadata);
