@@ -4,6 +4,7 @@
 #include <pthread.h>
 
 pthread_mutex_t pageTablesMut;
+t_dictionary* pageTables;
 
 typedef struct pageTableEntry {
     bool present;

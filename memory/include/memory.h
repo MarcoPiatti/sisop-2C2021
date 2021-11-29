@@ -17,7 +17,6 @@ void initalizeMemMutex();
 void destroyMemMutex();
 
 t_swapInterface* swapInterface;
-t_dictionary *pageTables;
 t_memoryConfig *config;
 t_log *memLogger;
 

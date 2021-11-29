@@ -27,9 +27,12 @@ int main(){
     pageTables = dictionary_create();
 
     swapHeader tipoAsig = strcmp(config->assignmentType, "FIJA") ? ASIG_GLOBAL : ASIG_FIJA;
-    swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, tipoAsig);
+    char *swapPort = string_itoa(config->swapPort);
+    swapInterface = swapInterface_create(config->swapIP, swapPort, config->pageSize, tipoAsig);
 
-    int serverSocket = createListenServer(config->ip, config->port);
+
+    char* port = string_itoa(config->port);
+    int serverSocket = createListenServer(config->ip, port);
     
     while(1){
         runListenServer(serverSocket, petitionHandler);
@@ -37,9 +40,13 @@ int main(){
 
     destroyMemoryMetadata(metadata);
     destroyMemoryConfig(config);
-    dictionary_destroy_and_destroy_elements(pagetables, _destroyPageTable);
+    dictionary_destroy_and_destroy_elements(pageTables, _destroyPageTable);
     log_destroy(memLogger);
     
+
+    // TODO: Eliminar estas variables auxiliares (cambiar tipo de config->puerto a char).
+    free(port);
+    free(swapPort);
 
     destroyMemMutex();
     return 0;
@@ -54,6 +61,7 @@ void *petitionHandler(void *_clientSocket){
         keepServing = petitionHandlers[petition->header](petition, clientSocket);
         destroyPacket(petition);
     }
+    return 0; // Para cumplir con el tipo.
 }
 
 t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
@@ -207,10 +215,10 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Esto es para que replace() se pueda utilizar tanto para cargar paginas a frames libres como para reemplazar.
     if (! isFree(victim)){
         // Enviar pagina reemplazada a swap.
-        pthread_mutex_lock(&metadata);
+        pthread_mutex_lock(&metadataMut);
             uint32_t victimPID  = (metadata->entries)[victim]->PID;
             uint32_t victimPage = (metadata->entries)[victim]->page;
-        pthread_mutex_lock(&metadata);
+        pthread_mutex_lock(&metadataMut);
 
         swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
@@ -258,9 +266,9 @@ uint32_t LRU(uint32_t start, uint32_t end){
     int32_t frame = getFreeFrame(start, end);
     if(frame != -1) return frame;
 
-    pthread_mutex_lock(&metadata);
+    pthread_mutex_lock(&metadataMut);
         int32_t min = metadata->counter;
-    pthread_mutex_unlock(&metadata);
+    pthread_mutex_unlock(&metadataMut);
 
     for(uint32_t i = start; i < end; i++){
         if (getFrameTimestamp(i) < min){

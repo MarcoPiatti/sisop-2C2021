@@ -1,5 +1,4 @@
 #include "pageTable.h"
-#include "memory.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <commons/string.h>
@@ -39,6 +38,8 @@ t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pagTables) {
     pthread_mutex_lock(&pageTablesMut);
         t_pageTable* pt = (t_pageTable*) dictionary_get(pagTables, PID);
     pthread_mutex_unlock(&pageTablesMut);
+
+    free(PID);
 
     return pt;
 }
