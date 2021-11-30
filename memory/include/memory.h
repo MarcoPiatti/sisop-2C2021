@@ -28,7 +28,7 @@ void *petitionHandler(void *_clientSocket);
 uint32_t (*algoritmo)(uint32_t start, uint32_t end);
 
 // Asignacion fija o global, devuelven en los parametros un rango de frames entre los cuales se puede elegir una victima.
-void (*asignacion)(uint32_t *start, uint32_t *end, uint32_t PID);
+bool (*asignacion)(uint32_t *start, uint32_t *end, uint32_t PID);
 
 typedef struct heapMetadata { 
     uint32_t prevAlloc;
@@ -72,8 +72,8 @@ uint32_t getFrameTimestamp(uint32_t frame);
 
 
 // Asignacion:
-void fijo(int32_t *start, int32_t *end, uint32_t PID);
-void global(int32_t *start, int32_t *end, uint32_t PID); // Param PID no se usa, pero es necesario para cumplir con interfaz.
+bool fijo(int32_t *start, int32_t *end, uint32_t PID);
+bool global(int32_t *start, int32_t *end, uint32_t PID); // Param PID no se usa, pero es necesario para cumplir con interfaz.
 
 /**
  * @DESC: Devuelve un puntero al frame pedido.

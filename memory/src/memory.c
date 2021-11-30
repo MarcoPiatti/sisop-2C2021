@@ -103,7 +103,7 @@ void destroyMemory(t_memory* mem){
     free(mem);
 }
 
-int32_t getFreeFrame(uint32_t start, uint32_t end){
+int32_t getFreeFrame(int32_t start, int32_t end){
     for(uint32_t i = start; i < end; i++){
         if(isFree(i)) return i;
     }
@@ -139,22 +139,40 @@ int32_t getOffset(uint32_t address, t_memoryConfig *cfg){
     return address % cfg->pageSize;
 }
 
-void fijo(int32_t *start, int32_t *end, uint32_t PID){
+bool fijo(int32_t *start, int32_t *end, uint32_t PID){
+    *start = -1;
+
     pthread_mutex_lock(&metadataMut);
         for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
             if ((metadata->firstFrame)[i] == PID){
                 *start = i * config->framesPerProcess;
                 break;
-            }
+            }           
+        }
+        if (*start == -1){
+            for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
+            if ((metadata->firstFrame)[i] == -1){
+                *start = i * config->framesPerProcess;
+                (metadata->firstFrame)[i] = PID;
+                break;
+            }           
         }
     pthread_mutex_unlock(&metadataMut);
+
+    if (*start == -1) {
+        log_info(logger, "No se hallo bloque de frames para asignar a proceso #%u.", PID);
+        *end = -1;
+        return false;
+    }
     
     *end = *start + config->framesPerProcess;
+    return true;
 }
 
-void global(int32_t *start, int32_t *end, uint32_t PID){
+bool global(int32_t *start, int32_t *end, uint32_t PID){
     *start = 0;
-    *end = config->frameQty;
+    *end = config->frameQty - 1;
+    return true;
 }
 
 bool isPresent(uint32_t PID, uint32_t page){
@@ -192,7 +210,7 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
 
 uint32_t swapPage(uint32_t PID, uint32_t page){
 
-    uint32_t start, end;
+    int32_t start, end;
     asignacion(&start, &end, PID);
 
     uint32_t victima = algoritmo(start, end);
@@ -208,7 +226,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Chequear que se haya podido traer.
     if (!pageFromSwap){
         pthread_mutex_lock(&logMut);
-            log_error(memLogger, "No se pudeo cargar pagina #%i del PID #%i", page, PID);
+            log_error(memLogger, "No se pudeo cargar pagina #%u del proces #%u", page, PID);
         pthread_mutex_unlock(&logMut);        
         return -1;
     }
@@ -224,15 +242,19 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
         swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
+        t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
         pthread_mutex_lock(&pageTablesMut);
-            t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
             (ptReemplazado->entries)[victimPage].present = false;
             (ptReemplazado->entries)[victimPage].frame = -1;
         pthread_mutex_unlock(&pageTablesMut);
 
+        pthread_mutex_lock(&logMut);
+            log_info(logger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
+        pthread_mutex_unlock(&logMut);
+
     }
 
-    // Escribir pagina traida de swap a memoria.
+    // Escribir pagina traida de swap a memoria. 
     writeFrame(ram, victim, pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
     t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
@@ -264,7 +286,7 @@ uint32_t getFrameTimestamp(uint32_t frame){
     return ts;
 }
 
-uint32_t LRU(uint32_t start, uint32_t end){
+uint32_t LRU(int32_t start, int32_t end){
     
     int32_t frame = getFreeFrame(start, end);
     if(frame != -1) return frame;
