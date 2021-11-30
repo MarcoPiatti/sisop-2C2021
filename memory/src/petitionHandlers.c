@@ -312,11 +312,23 @@ bool capiTermHandler(t_packet* petition, int socket){
 }
 
 bool disconnectedHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    return true;
 }
 
 bool capiIDHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    uint32_t PID = streamTake_UINT32(petition->payload);
+    destroyPacket(petition);
+
+    t_pageTable *newPageTable = initializePageTable();
+    char *_PID = string_itoa(PID);
+    dictionary_put(pageTables, _PID, (void*) newPageTable);
+    free(_PID);
+
+    pthread_mutex_lock(&logMut);
+        log_info(logger, "Se conecto un carpincho con PID #%u.", PID);
+    pthread_mutex_unlock(&logMut);
+
+    return true;
 }
 
 
