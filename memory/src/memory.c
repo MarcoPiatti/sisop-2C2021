@@ -157,6 +157,14 @@ void global(int32_t *start, int32_t *end, uint32_t PID){
     *end = config->frameQty;
 }
 
+bool isPresent(uint32_t PID, uint32_t page){
+    t_pageTable* pt = getPageTable(PID, pageTables);
+    pthread_mutex_lock(&pageTablesMut);
+        bool present = (pt->entries)[page].present;
+    pthread_mutex_unlock(&pageTablesMut);
+    return present;
+}
+
 int32_t getFrame(uint32_t PID, uint32_t pageN){
 
     /* TODO: Integrar con TLB:
@@ -167,25 +175,19 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
     // Si esta presente retorna el numero de frame.
     t_pageTable* pt = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
-    if (((pt->entries)[pageN]).present) {
+    if (isPresent(PID, pageN)) {
         uint32_t frame = ((pt->entries)[pageN]).frame;
-        
         pthread_mutex_unlock(&pageTablesMut);
+
+        updateTimestamp(frame);
         return frame;
     }
     pthread_mutex_unlock(&pageTablesMut);
 
     // Si no esta presente hay que traerla de swap.
-    return swapPage(PID, pageN);
-
-}
-
-bool isPresent(uint32_t PID, uint32_t page){
-    pthread_mutex_lock(&pageTablesMut);
-        t_pageTable* pt = getPageTable(PID, pageTables);
-        bool present = (pt->entries)[page].present;
-    pthread_mutex_unlock(&pageTablesMut);
-    return present;
+    uint32_t frame = swapPage(PID, pageN);
+    updateTimestamp(frame);    // (creo) nunca se accede a un frame sin conseguirlo con getFrame(), por lo que este es el unico lugar donde se actualiza el timestamp de los frames.
+    return frame;
 }
 
 uint32_t swapPage(uint32_t PID, uint32_t page){
@@ -254,6 +256,7 @@ bool isFree(uint32_t frame){
     pthread_mutex_unlock(&metadataMut);
     return free;
 }
+
 uint32_t getFrameTimestamp(uint32_t frame){
     pthread_mutex_lock(&metadataMut);
         uint32_t ts = (metadata->entries)[frame]->timeStamp;
