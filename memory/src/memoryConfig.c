@@ -6,11 +6,12 @@ t_memoryConfig *getMemoryConfig(char *path){
     memConfig-> config = config_create(path);
 
     // Networking
-    memConfig -> swapIP = config_get_string_value(memConfig->config, "IPSWAP");
-    memConfig -> swapPort = config_get_int_value(memConfig->config, "PUERTOSWAP");
+    memConfig -> swapIP = config_get_string_value(memConfig->config, "IP_SWAP");
+    memConfig -> swapPort = config_get_string_value(memConfig->config, "PUERTO_SWAP");
     memConfig -> ip = config_get_string_value(memConfig-> config, "IP");
-    memConfig -> port = config_get_int_value(memConfig-> config, "PUERTO");
+    memConfig -> port = config_get_string_value(memConfig-> config, "PUERTO");
     
+
     memConfig -> size = config_get_int_value(memConfig-> config, "TAMANIO");
     memConfig -> pageSize = config_get_int_value(memConfig-> config, "TAMANIO_PAGINA");
     memConfig -> MMUreplacementAlgorithm = config_get_string_value(memConfig-> config, "ALGORITMO_REEMPLAZO_MMU");
@@ -26,13 +27,17 @@ t_memoryConfig *getMemoryConfig(char *path){
     memConfig -> TLBPathDump = config_get_string_value(memConfig-> config, "PATH_DUMP_TLB");
 
     return memConfig;
-}
+}   
 
 void destroyMemoryConfig(t_memoryConfig *config){
-    free(config->ip);
-    free(config->MMUreplacementAlgorithm);
-    free(config->assignmentType);
-    free(config->TLBReplacementAlgorithm);
+    free(config -> swapIP);
+    free(config -> swapPort);
+    free(config -> ip);
+    free(config -> port);
+    free(config -> MMUreplacementAlgorithm);
+    free(config -> assignmentType);
+    free(config -> TLBReplacementAlgorithm);
+    free(config -> TLBPathDump);
     config_destroy(config->config);
     free(config);
 }

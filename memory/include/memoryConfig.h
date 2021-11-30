@@ -7,9 +7,9 @@
 typedef struct memoryConfig{
     t_config *config;
     char *swapIP;
-    int swapPort;
+    char *swapPort;
     char *ip;
-    int port;
+    char *port;
     int size;
     int pageSize;
     char *MMUreplacementAlgorithm;
