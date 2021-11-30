@@ -134,7 +134,7 @@ int main(){
             for(int i = 0; i < swapConfig->delay; i++){
                 usleep(1000);
             }
-            swapHandler[petition->header](petition, memorySocket);
+            petitionHandler[petition->header](petition, memorySocket);
             destroyPacket(petition);
         }
     }

@@ -112,13 +112,6 @@ int swapFile_getIndex(t_swapFile* sf, uint32_t pid, int32_t pageNumber){
     return found;
 }
 
-<<<<<<< HEAD
-int swapFile_countPagesOfProcess(t_swapFile* sf, uint32_t pid){
-    bool samePid(void* elem){
-        pid == ((t_pageMetadata*)elem)->pid;
-    };
-    return list_count_satisfying(sf->entries, samePid);
-=======
 int swapFile_findFreeIndex(t_swapFile* sf){
     int i = 0;
     while(sf->entries[i].used){
@@ -132,5 +125,4 @@ void swapFile_register(t_swapFile* sf, uint32_t pid, int32_t pageNumber, int ind
     sf->entries[index].used = true;
     sf->entries[index].pid = pid;
     sf->entries[index].pageNumber = pageNumber;
->>>>>>> MiVersion
 }

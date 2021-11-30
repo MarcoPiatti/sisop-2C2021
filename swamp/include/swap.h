@@ -26,8 +26,8 @@ t_swapFile* pidExists(uint32_t pid);
 bool (*asignacion)(uint32_t pid, int32_t page, void* pageContent);
 
 /**
- * @DESC: Funciones con respuestas a peticiones de memoria, definidas en swapHandler.c
+ * @DESC: Funciones con respuestas a peticiones de memoria, definidas en petitionHandlers.c
  */
-extern void (*swapHandler[MAX_MEM_PETITIONS])(t_packet* petition, int memorySocket);
+extern void (*petitionHandler[MAX_MEM_PETITIONS])(t_packet* petition, int memorySocket);
 
 #endif // !SWAP_H_
