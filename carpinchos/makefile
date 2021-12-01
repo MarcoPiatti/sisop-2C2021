@@ -1,3 +1,4 @@
+  
 CC=gcc
 SRC = $(wildcard ./*/*.c)
 OUT = $(patsubst %.c,%.out,$(SRC))
@@ -15,3 +16,6 @@ simpleDeadlock: ./simpleDeadlock/simpleDeadlock.out
 
 mediumTermUsage: ./mediumTermUsage/mediumTermUsage.out
 	./mediumTermUsage/mediumTermUsage.out
+
+memoryUsage: ./memoryUsage/memoryUsage.out
+	./memoryUsage/memoryUsage.out
