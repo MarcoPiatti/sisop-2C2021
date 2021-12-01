@@ -175,7 +175,7 @@ bool memallocHandler(t_packet* petition, int socket){
         }
         t_heapMetadata first;
         first.isFree = true;
-        first.nextAlloc = 1 + sizeof(t_heapMetadata) + size;    // El primer heapmetadata se crea en la direc 1 para dejar el 0 como 'NULL'.
+        first.nextAlloc = sizeof(t_heapMetadata) + size;
         first.prevAlloc = 0;
 
         t_heapMetadata last;
@@ -184,7 +184,7 @@ bool memallocHandler(t_packet* petition, int socket){
         last.prevAlloc = 1;
 
         // Se guardan los nuevos primer y ultimo alloc a memoria.
-        heap_write(PID, 1, sizeof(t_heapMetadata), &first);
+        heap_write(PID, 0, sizeof(t_heapMetadata), &first);
         heap_write(PID, first.nextAlloc, sizeof(t_heapMetadata), &last);
         // Se deja espacio suficiente para el alloc y se continua la ejecucion, que deberia entrar por el siguiente caso.
     }
@@ -194,7 +194,7 @@ bool memallocHandler(t_packet* petition, int socket){
         uint32_t foundAllocAddr = getFreeAlloc(PID, size);
         t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
         uint32_t distanceToNextAlloc = found->nextAlloc - foundAllocAddr - sizeof(t_heapMetadata);
-        streamAdd_INT32(response->payload, foundAllocAddr);
+        streamAdd_INT32(response->payload, foundAllocAddr + sizeof(t_heapMetadata));
         
         // Si solo hay lugar para la memoria pedida, no se crea un heapMetadata intermedio.
         if (distanceToNextAlloc <= size + sizeof(t_heapMetadata)){            
@@ -253,7 +253,7 @@ bool memallocHandler(t_packet* petition, int socket){
 
         free(lastAlloc);
 
-        streamAdd_INT32(response->payload, lastAllocAddr);
+        streamAdd_INT32(response->payload, lastAllocAddr + sizeof(t_heapMetadata));
         socket_sendPacket(socket, response);
 
         destroyPacket(response);
@@ -288,7 +288,7 @@ bool memallocHandler(t_packet* petition, int socket){
 
     free(lastAlloc);
 
-    streamAdd_INT32(response->payload, lastAllocAddr);
+    streamAdd_INT32(response->payload, lastAllocAddr + sizeof(t_heapMetadata));
     socket_sendPacket(socket, response);
 
     return 0;    
@@ -296,11 +296,18 @@ bool memallocHandler(t_packet* petition, int socket){
 }
 
 bool memfreeHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    return true;
+
 }
 
 bool memreadHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    uint32_t PID = streamTake_UINT32(petition->payload);
+    int32_t addr = streamTake_INT32(petition->payload);
+    int32_t size = streamTake_INT32(petition->payload);
+    destroyPacket(petition);
+
+    t_packet *response = createPacket(MEM_CHUNK, size + INITIAL_STREAM_SIZE); // TODO: ver que size asignar al stream.
+    return true; // No terminado, placeholder.
 }
 
 bool memwriteHandler(t_packet* petition, int socket){
