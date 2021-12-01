@@ -12,7 +12,7 @@ typedef struct pageTableEntry {
 } t_pageTableEntry;
 
 typedef struct pageTable {
-    int pageQuantity;
+    int32_t pageQuantity;
     t_pageTableEntry *entries;
 } t_pageTable;
 
