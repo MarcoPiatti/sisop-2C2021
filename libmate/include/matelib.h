@@ -1,11 +1,11 @@
-
 #ifndef MATELIB_H_INCLUDED
 #define MATELIB_H_INCLUDED
-        
+
 #include <stdint.h>
 
 //-------------------Type Definitions----------------------/
-typedef struct mate_instance {
+typedef struct mate_instance
+{
     void *group_info;
 } mate_instance;
 
@@ -14,6 +14,14 @@ typedef char *mate_io_resource;
 typedef char *mate_sem_name;
 
 typedef int32_t mate_pointer;
+
+enum mate_errors {
+    MATE_FREE_FAULT = -5,
+    MATE_READ_FAULT = -6,
+    MATE_WRITE_FAULT = -7
+};
+
+// TODO: Docstrings
 
 //------------------General Functions---------------------/
 int mate_init(mate_instance *lib_ref, char *config);
