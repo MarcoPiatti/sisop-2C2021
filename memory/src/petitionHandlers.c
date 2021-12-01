@@ -151,9 +151,16 @@ uint32_t getFreeAlloc(uint32_t PID, uint32_t size) {
 
 //  HANDLERS.
 bool memallocHandler(t_packet* petition, int socket){
+    pthread_mutex_lock(&logMut);
+        log_debug(memLogger, "Paquete MEMALLOC recibido");
+    pthread_mutex_unlock(&logMut);
+
     uint32_t PID  = streamTake_UINT32(petition->payload);
     uint32_t size = streamTake_INT32(petition->payload);
-    destroyPacket(petition);
+
+    pthread_mutex_lock(&logMut);
+        log_debug(memLogger, "Haciendo alloc de %u, bytes para carpincho de PID %u.", size, PID);
+    pthread_mutex_unlock(&logMut);
 
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
 
@@ -167,10 +174,10 @@ bool memallocHandler(t_packet* petition, int socket){
                 destroyPacket(response);
 
                 pthread_mutex_lock(&logMut);
-                    log_info(logger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
+                    log_debug(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
                 pthread_mutex_unlock(&logMut);
 
-                return false;
+                return true;
             }
         }
         t_heapMetadata first;
@@ -189,8 +196,10 @@ bool memallocHandler(t_packet* petition, int socket){
         // Se deja espacio suficiente para el alloc y se continua la ejecucion, que deberia entrar por el siguiente caso.
     }
 
+
     // Caso hay alloc libre:
     if (getFreeAlloc(PID, size)){
+        puts("HAY ALLOC LIBRE");
         uint32_t foundAllocAddr = getFreeAlloc(PID, size);
         t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
         uint32_t distanceToNextAlloc = found->nextAlloc - foundAllocAddr - sizeof(t_heapMetadata);
@@ -269,10 +278,10 @@ bool memallocHandler(t_packet* petition, int socket){
             destroyPacket(response);
 
             pthread_mutex_lock(&logMut);
-                log_info(logger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
+                log_info(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
             pthread_mutex_unlock(&logMut);
 
-            return false;
+            return true;
         }
     }
     // Agregar siguiente y marcar como ocupado al anterior ultimo alloc.
@@ -297,34 +306,107 @@ bool memallocHandler(t_packet* petition, int socket){
 
 bool memfreeHandler(t_packet* petition, int socket){
     return true;
-
 }
 
 bool memreadHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t addr = streamTake_INT32(petition->payload);
-    int32_t size = streamTake_INT32(petition->payload);
-    destroyPacket(petition);
+    int32_t size = streamTake_INT32(petition->payload);    
+    
+    t_pageTable *pt = getPageTable(PID, pageTables);
 
-    t_packet *response = createPacket(MEM_CHUNK, size + INITIAL_STREAM_SIZE); // TODO: ver que size asignar al stream.
-    return true; // No terminado, placeholder.
+    pthread_mutex_lock(&pageTablesMut);
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    // Si se intenta leer por fuera del espacio de direcciones del carpincho, devuelve error.
+    if (addr + size < maxAddr) {
+        t_packet *response = createPacket(ERROR, INITIAL_STREAM_SIZE);
+        socket_sendPacket(socket, response);
+        destroyPacket(response);
+        return true;
+    }
+
+    t_packet *response = createPacket(MEM_CHUNK, INITIAL_STREAM_SIZE + size);
+    void *data = heap_read(PID, addr, size);
+    streamAdd(response->payload, data, size);
+    socket_sendPacket(socket, response);
+    destroyPacket(response);
+    free(data);
+    return true;
 }
 
 bool memwriteHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    uint32_t PID = streamTake_UINT32(petition->payload);
+    int32_t addr = streamTake_INT32(petition->payload);
+    int32_t dataSize = streamTake_INT32(petition->payload);
+    void *data;
+    streamTake(petition->payload, &data, dataSize);
+
+    t_pageTable *pt = getPageTable(PID, pageTables);
+
+    pthread_mutex_lock(&pageTablesMut);
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    // Si se intenta escribir por fuera del espacio de direcciones del carpincho, devuelve error.
+    if (addr + dataSize < maxAddr) {
+        t_packet *response = createPacket(ERROR, INITIAL_STREAM_SIZE);
+        socket_sendPacket(socket, response);
+        destroyPacket(response);
+        return true;
+    }
+
+    heap_write(PID, addr, dataSize, data);
+    t_packet *response = createPacket(OK, INITIAL_STREAM_SIZE);
+    socket_sendPacket(socket, response);
+    destroyPacket(response);
+    free(data);
+    return true;
 }
 
 bool capiTermHandler(t_packet* petition, int socket){
-    return true;    // placeholder
+    uint32_t PID = streamTake_UINT32(petition->payload);
+
+    t_pageTable *pt = getPageTable(PID, pageTables);
+
+    pthread_mutex_lock(&pageTablesMut);
+        uint32_t pageQty = pt->pageQuantity;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    for (int32_t i = pageQty; i > 0; i--){          // TODO: arreglar logica chancha y fea.
+        swapInterface_erasePage(swapInterface, PID, i);
+
+        pthread_mutex_lock(&pageTablesMut);
+        if ((pt->entries)[i].present == true){
+            uint32_t frame = (pt->entries)[i].frame;
+            pthread_mutex_lock(&metadataMut);
+                (metadata->entries)[frame].isFree = true;
+            pthread_mutex_unlock(&metadataMut);
+        }
+        pthread_mutex_unlock(&pageTablesMut);
+    }
+
+    char *_PID = string_itoa(PID);
+    dictionary_remove_and_destroy(pageTables, _PID, _destroyPageTable);
+
+    t_packet *response = createPacket(OK, INITIAL_STREAM_SIZE);
+    socket_sendPacket(socket, response);
+    destroyPacket(response);
+
+    pthread_mutex_lock(&logMut);
+        log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
+    pthread_mutex_unlock(&logMut);
+    
+    return false;
 }
 
 bool disconnectedHandler(t_packet* petition, int socket){
-    return true;
+    return true;        //TODO: Preguntar que hace esto.
 }
 
 bool capiIDHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
-    destroyPacket(petition);
 
     t_pageTable *newPageTable = initializePageTable();
     char *_PID = string_itoa(PID);
@@ -332,7 +414,7 @@ bool capiIDHandler(t_packet* petition, int socket){
     free(_PID);
 
     pthread_mutex_lock(&logMut);
-        log_info(logger, "Se conecto un carpincho con PID #%u.", PID);
+        log_info(memLogger, "Se conecto un carpincho con PID #%u.", PID);
     pthread_mutex_unlock(&logMut);
 
     return true;
@@ -416,7 +498,7 @@ bool memallocHandler(t_packet* petition, int socket){
             socket_sendPacket(socket, response);
             destroyPacket(response);
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
+            log_info(memLogger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
             pthread_mutex_unlock(&mutex_log);
             return true;
         }
@@ -493,7 +575,7 @@ bool memallocHandler(t_packet* petition, int socket){
                 socket_sendPacket(socket, response);
                 destroyPacket(response);
                 pthread_mutex_lock(&mutex_log);
-                log_info(logger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
+                log_info(memLogger, "Proceso %u: No pudo asignar %i bytes, no habia lugar para mas paginas", PID, mallocSize);
                 pthread_mutex_unlock(&mutex_log);
                 free(thisAlloc);
                 return true;
