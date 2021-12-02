@@ -40,7 +40,10 @@
 			"stdlib.h": "c",
 			"pagetable.h": "c",
 			"dictionary.h": "c",
-			"stdbool.h": "c"
+			"stdbool.h": "c",
+			"memoryconfig.h": "c",
+			"string.h": "c",
+			"config.h": "c"
 		},
 
 		"doxdocgen.c.factoryMethodText": "Crea un objeto {name} en memoria",

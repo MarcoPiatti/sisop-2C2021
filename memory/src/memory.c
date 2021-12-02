@@ -1,38 +1,39 @@
 #include <stdint.h>
 #include <commons/string.h>
 #include "memory.h"
+#include <commons/memory.h>
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
 #include "swapInterface.h"
 #include "utils.h"
 
-// TODO: coordinar ram, metadata y pagetables.
 // TODO: cambiar metadata->firstFrame cuando se inicializa (o finaliza) un proceso en memoria.
-// TODO: asignar algoritmo y asignacion a variables algoritmo y asignacion en main.
 
 int main(){
-
 
     initalizeMemMutex();
 
     // Initialize memLogger.
     memLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
-    
+
     // Load and validate config
     config = getMemoryConfig("./cfg/memory.config");
     validateConfg(config, memLogger);
-    
 
     ram = initializeMemory(config);
     metadata = initializeMemoryMetadata(config);
     pageTables = dictionary_create();
-    
+
+    asignacion = strcmp(config->assignmentType, "FIJA") ? global : fijo;
+    // algoritmo = strcmp(config->MMUreplacementAlgorithm, "LRU") ? clock_m : LRU;
+    algoritmo = LRU;
+
     swapHeader tipoAsig = strcmp(config->assignmentType, "FIJA") ? ASIG_GLOBAL : ASIG_FIJA;
     swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, tipoAsig);
 
     int serverSocket = createListenServer(config->ip, config->port);
-    
+
     while(1){
         runListenServer(serverSocket, petitionHandler);
     }
@@ -52,6 +53,7 @@ void *petitionHandler(void *_clientSocket){
     socket_sendHeader(clientSocket, ID_MEMORIA);
     while(keepServing){
         t_packet *petition = socket_getPacket(clientSocket);
+        printf("Header recibido: %u\n", petition->header);
         keepServing = petitionHandlers[petition->header](petition, clientSocket);
         destroyPacket(petition);
     }
@@ -64,11 +66,9 @@ t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
     newMetadata->counter = 0;
     newMetadata->entries = calloc(newMetadata->entryQty, sizeof(t_frameMetadata));
 
-    if (strcmp(config->assignmentType, "FIJA")){
-        uint32_t blockQty = config->frameQty / config->framesPerProcess;
-        newMetadata->firstFrame = calloc(blockQty, sizeof(uint32_t));
-        memset(newMetadata->firstFrame, 0, sizeof(uint32_t) * blockQty);        
-    } else newMetadata->firstFrame = NULL;
+    uint32_t blockQty = config->frameQty / config->framesPerProcess;
+    newMetadata->firstFrame = calloc(blockQty, sizeof(uint32_t));
+    memset(newMetadata->firstFrame, -1, sizeof(uint32_t) * blockQty);
 
     for (int i = 0; i < newMetadata->entryQty; i++){
         ((newMetadata->entries)[i]).isFree = true;
@@ -102,13 +102,6 @@ int32_t getFreeFrame(int32_t start, int32_t end){
         if(isFree(i)) return i;
     }
     return -1;
-}
-
-void readFrame(t_memory *mem, uint32_t frame, void *dest){
-    void *frameAddress = ram_getFrame(mem, frame);
-    pthread_mutex_lock(&ramMut);
-        memcpy(dest, frameAddress, mem->config->pageSize);
-    pthread_mutex_unlock(&ramMut);
 }
 
 void writeFrame(t_memory *mem, uint32_t frame, void *from){
@@ -162,7 +155,9 @@ bool fijo(int32_t *start, int32_t *end, uint32_t PID){
     pthread_mutex_unlock(&metadataMut);
 
     if (*start == -1) {
-        log_info(logger, "No se hallo bloque de frames para asignar a proceso #%u.", PID);
+        pthread_mutex_lock(&logMut);
+            log_debug(logger, "No se hallo bloque de frames para asignar a proceso #%u.", PID);
+        pthread_mutex_unlock(&logMut);
         *end = -1;
         return false;
     }
@@ -193,16 +188,15 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
     */
 
     // Si esta presente retorna el numero de frame.
-    t_pageTable* pt = getPageTable(PID, pageTables);
-    pthread_mutex_lock(&pageTablesMut);
     if (isPresent(PID, pageN)) {
-        uint32_t frame = ((pt->entries)[pageN]).frame;
+        t_pageTable* pt = getPageTable(PID, pageTables);
+        pthread_mutex_lock(&pageTablesMut);
+            uint32_t frame = ((pt->entries)[pageN]).frame;
         pthread_mutex_unlock(&pageTablesMut);
 
         updateTimestamp(frame);
         return frame;
     }
-    pthread_mutex_unlock(&pageTablesMut);
 
     // Si no esta presente hay que traerla de swap.
     uint32_t frame = swapPage(PID, pageN);
@@ -218,7 +212,6 @@ uint32_t swapPage(uint32_t PID, uint32_t page){
     uint32_t victima = algoritmo(start, end);
 
     return replace(victima, PID, page);
-
 }
 
 uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
@@ -228,19 +221,21 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Chequear que se haya podido traer.
     if (!pageFromSwap){
         pthread_mutex_lock(&logMut);
-            log_error(memLogger, "No se pudeo cargar pagina #%u del proces #%u", page, PID);
+            log_error(memLogger, "No se pudeo cargar pagina #%u del proceso #%u", page, PID);
         pthread_mutex_unlock(&logMut);        
         return -1;
     }
 
     // Si el frame no esta libre se envia a swap la pagina que lo ocupa. 
     // Esto es para que replace() se pueda utilizar tanto para cargar paginas a frames libres como para reemplazar.
+    bool isfree = true;
     if (! isFree(victim)){
+        isfree = false;
         // Enviar pagina reemplazada a swap.
         pthread_mutex_lock(&metadataMut);
             uint32_t victimPID  = (metadata->entries)[victim].PID;
             uint32_t victimPage = (metadata->entries)[victim].page;
-        pthread_mutex_lock(&metadataMut);
+        pthread_mutex_unlock(&metadataMut);
 
         swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
@@ -251,7 +246,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
         pthread_mutex_unlock(&pageTablesMut);
 
         pthread_mutex_lock(&logMut);
-            log_info(logger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
+            log_info(memLogger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
         pthread_mutex_unlock(&logMut);
 
     }
@@ -266,6 +261,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     pthread_mutex_unlock(&pageTablesMut);
     // Modificar frame metadata.
     pthread_mutex_lock(&metadataMut);
+        printf("Se va pag %u entra pag %u al frame %u, libre: %u. \n", (metadata->entries)[victim].page, page, victim, isfree);
         (metadata->entries)[victim].page = page;
         (metadata->entries)[victim].PID = PID;
         (metadata->entries)[victim].isFree = false;
@@ -284,7 +280,7 @@ bool isFree(uint32_t frame){
 uint32_t getFrameTimestamp(uint32_t frame){
     pthread_mutex_lock(&metadataMut);
         uint32_t ts = (metadata->entries)[frame].timeStamp;
-    pthread_mutex_lock(&metadataMut);
+    pthread_mutex_unlock(&metadataMut);
     return ts;
 }
 
@@ -309,7 +305,7 @@ uint32_t LRU(int32_t start, int32_t end){
 void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, uint32_t size){
     void *frameAddress = ram_getFrame(mem, frame);
     void *dest = frameAddress + offset;
-    
+
     pthread_mutex_lock(&ramMut);
         memcpy(dest, from, size);
     pthread_mutex_unlock(&ramMut);
@@ -352,6 +348,14 @@ void destroyMemMutex(void){
 
 
 /*
+
+// UNUSED
+void readFrame(t_memory *mem, uint32_t frame, void *dest){
+    void *frameAddress = ram_getFrame(mem, frame);
+    pthread_mutex_lock(&ramMut);
+        memcpy(dest, frameAddress, mem->config->pageSize);
+    pthread_mutex_unlock(&ramMut);
+}
 
 // Unused, reemplazado por heapRead()
 void memread(uint32_t bytes, uint32_t address, int PID, void *destination){

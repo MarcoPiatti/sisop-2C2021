@@ -269,6 +269,7 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
+
     packet = socket_getPacket(mateStruct->mateSocket);
     if(packet->header == ERROR){
         log_debug(mateStruct->logger, "Fallo al leer");
@@ -276,8 +277,9 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
         return MATE_READ_FAULT;
     }
 
-    void* recvd = NULL;
+    void *recvd = NULL;
     int32_t recvdSize = streamTake_INT32(packet->payload);
+    printf("Rcvd size: %i\n", recvdSize);
     streamTake(packet->payload, &recvd, (size_t)recvdSize);
     memcpy(dest, recvd, recvdSize);
     destroyPacket(packet);
@@ -301,9 +303,13 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
+    log_debug(mateStruct->logger, "Enviada peticion para escrbir %i bytes en la direccion logica %i", size, dest);
+
     packet = socket_getPacket(mateStruct->mateSocket);
     int rc = (packet->header == OK) ? 0 : MATE_WRITE_FAULT;
     destroyPacket(packet);
+
+    log_debug(mateStruct->logger, "Recibida respuesta de escritura");
 
     if(rc) log_debug(mateStruct->logger, "Fallo al escribir");
     else log_debug(mateStruct->logger, "Memoria escrita");

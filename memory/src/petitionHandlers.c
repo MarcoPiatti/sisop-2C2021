@@ -3,6 +3,7 @@
 #include "stdint.h"
 #include "swapInterface.h"
 #include "utils.h"
+#include <commons/memory.h>
 
 
 //  AUX
@@ -82,8 +83,8 @@ void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
     // Si la data a reescribir esta toda en una sola pagina, hacemos esto una sola vez
     if(startPage == finishPage){
         frame = getFrame(PID, startPage);
-        ram_editFrame(ram, frame, startOffset, data, size);
-        return;
+        ram_editFrame(ram, startOffset, frame, data, size);
+        return;     
     }
 
     //Si la data debe ser escrita entre varias paginas, las recorremos
@@ -92,29 +93,29 @@ void heap_write(uint32_t PID, int32_t logicAddress, int size, void* data){
 
         // Si estamos en la primer pagina de la data, copiamos desde el offset inicial hasta el fin de pagina
         if(i == startPage){ 
-            ram_editFrame(ram, frame, startOffset, data + dataOffset, config->pageSize - startOffset);
+            ram_editFrame(ram, startOffset, frame, data + dataOffset, config->pageSize - startOffset);
             dataOffset += config->pageSize - startOffset;
         }
 
         // Si estamos en la ultima pagina de la data, seguimos copiando desde el inicio de la pagina hasta el offset final
         else if (i == finishPage) {
-            ram_editFrame(ram, frame, 0, data + dataOffset, finishOffset + 1);
+            ram_editFrame(ram, 0, frame, data + dataOffset, finishOffset + 1);
             dataOffset += finishOffset + 1;
         }
 
         // Si estamos en una pagina que no es la primera o la ultima (una del medio) copiamos toda la pagina
         else{
-            ram_editFrame(ram, frame, 0, data + dataOffset, config->pageSize);
+            ram_editFrame(ram, 0, frame, data + dataOffset, config->pageSize);
             dataOffset += config->pageSize;
         }    
     }
 }
 
 uint32_t getLastAllocAddr(uint32_t PID) {
-    uint32_t metadataAddr = 1;
+    uint32_t metadataAddr = 0;
 
     while(1){
-        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, sizeof(t_heapMetadata));
+        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, 9);
 
         if (currentMetadata->nextAlloc == 0){
             free(currentMetadata);
@@ -126,20 +127,20 @@ uint32_t getLastAllocAddr(uint32_t PID) {
     }
 }
 
-uint32_t getFreeAlloc(uint32_t PID, uint32_t size) {
-    uint32_t metadataAddr = 1;
+int32_t getFreeAlloc(uint32_t PID, uint32_t size) {
+    uint32_t metadataAddr = 0;
 
     while(1){
-        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, sizeof(t_heapMetadata));
+        t_heapMetadata *currentMetadata = heap_read(PID, metadataAddr, 9);
 
         if (currentMetadata->nextAlloc == 0){
             free(currentMetadata);
-            return 0;
+            return -1;
         }
         
-        uint32_t spaceToNextAlloc = currentMetadata->nextAlloc - metadataAddr - sizeof(t_heapMetadata);
+        uint32_t spaceToNextAlloc = currentMetadata->nextAlloc - metadataAddr - 9;
 
-        if (currentMetadata->isFree && spaceToNextAlloc > size){
+        if (currentMetadata->isFree && spaceToNextAlloc >= size){
             free(currentMetadata);
             return metadataAddr;
         }
@@ -166,50 +167,53 @@ bool memallocHandler(t_packet* petition, int socket){
 
     // Caso carpincho no tienen nada en memoria:
     if (pageTable_isEmpty(PID)) {
-        int32_t newPageQty = div_roundUp(2 * sizeof(t_heapMetadata) + size + 1, config->pageSize);
-        for (int i = 0; i < newPageQty; i++){
-            if(createPage(PID) == -1) {
-                streamAdd_INT32(response->payload, 0);
-                socket_sendPacket(socket, response);
-                destroyPacket(response);
+        if(createPage(PID) == -1) {
+            streamAdd_INT32(response->payload, 0);
+            socket_sendPacket(socket, response);
+            destroyPacket(response);
 
-                pthread_mutex_lock(&logMut);
-                    log_debug(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
-                pthread_mutex_unlock(&logMut);
-
-                return true;
-            }
+            pthread_mutex_lock(&logMut);
+                log_debug(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
+            pthread_mutex_unlock(&logMut);
         }
         t_heapMetadata first;
         first.isFree = true;
-        first.nextAlloc = sizeof(t_heapMetadata) + size;
+        first.nextAlloc = 0;
         first.prevAlloc = 0;
 
-        t_heapMetadata last;
-        last.isFree = false;
-        last.nextAlloc = 0;
-        last.prevAlloc = 1;
-
-        // Se guardan los nuevos primer y ultimo alloc a memoria.
-        heap_write(PID, 0, sizeof(t_heapMetadata), &first);
-        heap_write(PID, first.nextAlloc, sizeof(t_heapMetadata), &last);
-        // Se deja espacio suficiente para el alloc y se continua la ejecucion, que deberia entrar por el siguiente caso.
+        // Se guarda el nuevo alloc en memoria.
+        heap_write(PID, 0, 9, &first);
     }
 
 
+    bool useLastAlloc = false;
+    uint32_t currentAllocAddr = 0;
+
+    while (! useLastAlloc){
+        t_heapMetadata *currentAlloc = heap_read(PID, currentAllocAddr, 9);
+        if (currentAlloc->nextAlloc == 0) {
+            free(currentAlloc);
+            useLastAlloc = true;
+            break;
+        } else if (currentAlloc->isFree && currentAlloc->nextAlloc - currentAllocAddr - 9 >= size) {
+            free(currentAlloc);
+            break;
+        }
+        currentAllocAddr = currentAlloc->nextAlloc;
+        free(currentAlloc);
+    }
+
     // Caso hay alloc libre:
-    if (getFreeAlloc(PID, size)){
-        puts("HAY ALLOC LIBRE");
-        uint32_t foundAllocAddr = getFreeAlloc(PID, size);
-        t_heapMetadata *found = heap_read(PID, foundAllocAddr, sizeof(t_heapMetadata));
-        uint32_t distanceToNextAlloc = found->nextAlloc - foundAllocAddr - sizeof(t_heapMetadata);
-        streamAdd_INT32(response->payload, foundAllocAddr + sizeof(t_heapMetadata));
+    if (!useLastAlloc){
+        t_heapMetadata *found = heap_read(PID, currentAllocAddr, 9);
+        uint32_t distanceToNextAlloc = found->nextAlloc - currentAllocAddr - 9;
+        streamAdd_INT32(response->payload, currentAllocAddr + 9);
         
         // Si solo hay lugar para la memoria pedida, no se crea un heapMetadata intermedio.
-        if (distanceToNextAlloc <= size + sizeof(t_heapMetadata)){            
+        if (distanceToNextAlloc <= size + 9){
             // Actualizar heapMetadata en ram.
             found->isFree = false;
-            heap_write(PID, foundAllocAddr, sizeof(t_heapMetadata), found);
+            heap_write(PID, currentAllocAddr, 9, found);
             free(found);
 
             socket_sendPacket(socket, response);
@@ -219,20 +223,20 @@ bool memallocHandler(t_packet* petition, int socket){
         }
 
         // Si hay mas lugar, se crea un heapMetadata intermedio para evitar overallocar.
-        t_heapMetadata *oldNextAlloc = heap_read(PID, found->nextAlloc, sizeof(t_heapMetadata));
+        t_heapMetadata *oldNextAlloc = heap_read(PID, found->nextAlloc, 9);
 
         // Se crea nuevo alloc entre medio del encontrado y el siguiente.
-        t_heapMetadata midAlloc = { .nextAlloc = found->nextAlloc, .prevAlloc = foundAllocAddr, .isFree = true };
+        t_heapMetadata midAlloc = { .nextAlloc = found->nextAlloc, .prevAlloc = currentAllocAddr, .isFree = true };
 
         // Se actualizan los allocs que existian previamente.
-        found->nextAlloc = foundAllocAddr + sizeof(t_heapMetadata) + size;
+        found->nextAlloc = currentAllocAddr + 9 + size;
         found->isFree = false;
         oldNextAlloc->prevAlloc = found->nextAlloc;
 
         // Se actualiza la ram.
-        heap_write(PID, foundAllocAddr, sizeof(t_heapMetadata), found);
-        heap_write(PID, found->nextAlloc, sizeof(t_heapMetadata), &midAlloc);
-        heap_write(PID, midAlloc.nextAlloc, sizeof(t_heapMetadata), oldNextAlloc);
+        heap_write(PID, currentAllocAddr, 9, found);
+        heap_write(PID, found->nextAlloc, 9, &midAlloc);
+        heap_write(PID, midAlloc.nextAlloc, 9, oldNextAlloc);
 
         free(found);
         free(oldNextAlloc);
@@ -243,26 +247,25 @@ bool memallocHandler(t_packet* petition, int socket){
     }
     
     // Caso no hay alloc libre:
-    uint32_t lastAllocAddr = getLastAllocAddr(PID);
-    uint32_t lastAllocOffset = lastAllocAddr % config->pageSize;
-    uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset - sizeof(t_heapMetadata);
-    uint32_t necessarySize = size + sizeof(t_heapMetadata);
+    uint32_t lastAllocOffset = currentAllocAddr % config->pageSize;
+    uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset - 9;
+    uint32_t necessarySize = size + 9;
 
-    t_heapMetadata *lastAlloc = heap_read(PID, lastAllocAddr, sizeof(t_heapMetadata));
+    t_heapMetadata *lastAlloc = heap_read(PID, currentAllocAddr, 9);
 
-    // si hay espacio suficiente en la ult pagina, no se crea ninguna nueva.
+    // Si hay espacio suficiente en la ult pagina, no se crea ninguna nueva.
     if(freeSpaceInPage >= necessarySize) {
         lastAlloc->isFree = false;
-        lastAlloc->nextAlloc = lastAllocAddr + sizeof(t_heapMetadata) + size;
+        lastAlloc->nextAlloc = currentAllocAddr + 9 + size;
 
-        t_heapMetadata newLastAlloc = { .nextAlloc = 0, .prevAlloc = lastAllocAddr, .isFree = false };
+        t_heapMetadata newLastAlloc = { .nextAlloc = 0, .prevAlloc = currentAllocAddr, .isFree = true };
 
-        heap_write(PID, lastAllocAddr, sizeof(t_heapMetadata), lastAlloc);
-        heap_write(PID, lastAlloc->nextAlloc, sizeof(t_heapMetadata), &newLastAlloc);
+        heap_write(PID, currentAllocAddr, 9, lastAlloc);
+        heap_write(PID, lastAlloc->nextAlloc, 9, &newLastAlloc);
 
         free(lastAlloc);
 
-        streamAdd_INT32(response->payload, lastAllocAddr + sizeof(t_heapMetadata));
+        streamAdd_INT32(response->payload, currentAllocAddr + 9);
         socket_sendPacket(socket, response);
 
         destroyPacket(response);
@@ -286,21 +289,21 @@ bool memallocHandler(t_packet* petition, int socket){
     }
     // Agregar siguiente y marcar como ocupado al anterior ultimo alloc.
     lastAlloc->isFree = false;
-    lastAlloc->nextAlloc = lastAllocAddr + sizeof(t_heapMetadata) + size;
+    lastAlloc->nextAlloc = currentAllocAddr + 9 + size;
 
     // Crear nuevo ultimo alloc.
-    t_heapMetadata newLastAlloc = { .nextAlloc = 0, .prevAlloc = lastAllocAddr, .isFree = false };
+    t_heapMetadata newLastAlloc = { .nextAlloc = 0, .prevAlloc = currentAllocAddr, .isFree = true };
 
     // Actualizar ram.
-    heap_write(PID, lastAllocAddr, sizeof(t_heapMetadata), lastAlloc);
-    heap_write(PID, lastAlloc->nextAlloc, sizeof(t_heapMetadata), &newLastAlloc);
+    heap_write(PID, currentAllocAddr, 9, lastAlloc);
+    heap_write(PID, lastAlloc->nextAlloc, 9, &newLastAlloc);
 
     free(lastAlloc);
 
-    streamAdd_INT32(response->payload, lastAllocAddr + sizeof(t_heapMetadata));
+    streamAdd_INT32(response->payload, currentAllocAddr + 9);
     socket_sendPacket(socket, response);
 
-    return 0;    
+    return true;    
 
 }
 
@@ -316,11 +319,11 @@ bool memreadHandler(t_packet* petition, int socket){
     t_pageTable *pt = getPageTable(PID, pageTables);
 
     pthread_mutex_lock(&pageTablesMut);
-        uint32_t maxAddr = pt->pageQuantity * config->pageSize;
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
     pthread_mutex_unlock(&pageTablesMut);
 
     // Si se intenta leer por fuera del espacio de direcciones del carpincho, devuelve error.
-    if (addr + size < maxAddr) {
+    if (addr + size > maxAddr) {
         t_packet *response = createPacket(ERROR, INITIAL_STREAM_SIZE);
         socket_sendPacket(socket, response);
         destroyPacket(response);
@@ -329,6 +332,9 @@ bool memreadHandler(t_packet* petition, int socket){
 
     t_packet *response = createPacket(MEM_CHUNK, INITIAL_STREAM_SIZE + size);
     void *data = heap_read(PID, addr, size);
+    printf("Leido: %s \n", (char*) data);
+    mem_hexdump(ram_getFrame(ram, 0), config->pageSize * 10);
+    streamAdd_INT32(response->payload, size);
     streamAdd(response->payload, data, size);
     socket_sendPacket(socket, response);
     destroyPacket(response);
@@ -340,17 +346,17 @@ bool memwriteHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t addr = streamTake_INT32(petition->payload);
     int32_t dataSize = streamTake_INT32(petition->payload);
-    void *data;
+    void *data = NULL;
     streamTake(petition->payload, &data, dataSize);
 
     t_pageTable *pt = getPageTable(PID, pageTables);
 
     pthread_mutex_lock(&pageTablesMut);
-        uint32_t maxAddr = pt->pageQuantity * config->pageSize;
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
     pthread_mutex_unlock(&pageTablesMut);
 
     // Si se intenta escribir por fuera del espacio de direcciones del carpincho, devuelve error.
-    if (addr + dataSize < maxAddr) {
+    if (addr + dataSize > maxAddr) {
         t_packet *response = createPacket(ERROR, INITIAL_STREAM_SIZE);
         socket_sendPacket(socket, response);
         destroyPacket(response);
@@ -398,11 +404,13 @@ bool capiTermHandler(t_packet* petition, int socket){
         log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
     pthread_mutex_unlock(&logMut);
     
-    return false;
+    return true;
 }
 
 bool disconnectedHandler(t_packet* petition, int socket){
-    return true;        //TODO: Preguntar que hace esto.
+    t_packet *response = createPacket(OK, INITIAL_STREAM_SIZE);
+    socket_sendPacket(socket, response);
+    return false;
 }
 
 bool capiIDHandler(t_packet* petition, int socket){
@@ -419,7 +427,6 @@ bool capiIDHandler(t_packet* petition, int socket){
 
     return true;
 }
-
 
 bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) =
 {
@@ -506,7 +513,7 @@ bool memallocHandler(t_packet* petition, int socket){
         //C: Creación de primer alloc, ocupa toda la primer página
         void* newPageContents = calloc(1, config->pageSize);
         t_heapMetadata firstAlloc = { .prevAlloc = NULL, .nextAlloc = NULL, .isFree = true };
-        memcpy(newPageContents, &firstAlloc, sizeof(t_heapMetadata));
+        memcpy(newPageContents, &firstAlloc, 9);
         
         //C: Carga de la página generada en memoria principal
         int32_t newPageFrame = getFrameForPage(PID, page); // Page no declarado.
@@ -515,30 +522,30 @@ bool memallocHandler(t_packet* petition, int socket){
 
     // bool found = false;      Unused
     int32_t thisAllocAddress = 0;
-    t_heapMetadata* thisAlloc = heap_read(PID, thisAllocAddress, sizeof(t_heapMetadata));
-    int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - sizeof(t_heapMetadata);
+    t_heapMetadata* thisAlloc = heap_read(PID, thisAllocAddress, 9);
+    int32_t thisAllocSize = thisAlloc->nextAlloc - thisAllocAddress - 9;
 
     //C: Búsqueda de alloc existente, libre, donde pueda entrar el nuevo
     while(thisAlloc->nextAlloc != NULL){
         if(thisAlloc->isFree){
-            if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + sizeof(t_heapMetadata)){
+            if(thisAllocSize == mallocSize || thisAllocSize > mallocSize + 9){
                 thisAlloc->isFree = false;
 
                 //C: Si sobra espacio, generar nuevo alloc libre nuevo en el espacio restante
                 if(thisAllocSize > mallocSize){
-                    t_heapMetadata* newMiddleMalloc = malloc(sizeof(t_heapMetadata));
-                    int32_t newMiddleMallocAddress = thisAllocAddress + sizeof(t_heapMetadata) + mallocSize;
+                    t_heapMetadata* newMiddleMalloc = malloc(9);
+                    int32_t newMiddleMallocAddress = thisAllocAddress + 9 + mallocSize;
                     newMiddleMalloc->prevAlloc = thisAllocAddress;
                     newMiddleMalloc->nextAlloc = thisAlloc->nextAlloc;
                     newMiddleMalloc->isFree = true;
                     thisAlloc->nextAlloc = newMiddleMallocAddress;
-                    heap_write(PID, newMiddleMallocAddress, sizeof(t_heapMetadata), newMiddleMalloc);
+                    heap_write(PID, newMiddleMallocAddress, 9, newMiddleMalloc);
                     free(newMiddleMalloc);
                 }
 
                 //C: Asignación del alloc existente al nuevo y retorno de la dirección lógica
-                heap_write(PID, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
-                streamAdd_INT32(response->payload, thisAllocAddress + sizeof(t_heapMetadata));
+                heap_write(PID, thisAllocAddress, 9, thisAlloc);
+                streamAdd_INT32(response->payload, thisAllocAddress + 9);
                 socket_sendPacket(socket, response);
                 destroyPacket(response);
                 free(thisAlloc);
@@ -547,16 +554,16 @@ bool memallocHandler(t_packet* petition, int socket){
         }
         thisAllocAddress = thisAlloc->nextAlloc;
         free(thisAlloc);
-        thisAlloc = heap_read(PID, thisAllocAddress, sizeof(t_heapMetadata));
+        thisAlloc = heap_read(PID, thisAllocAddress, 9);
     }
 
     //Llegamos hasta aca, el alloc final en la ultima pagina
     int32_t thisAllocOffset = thisAllocAddress % config->pageSize;
-    thisAllocSize = config->pageSize - thisAllocOffset - sizeof(t_heapMetadata);
+    thisAllocSize = config->pageSize - thisAllocOffset - 9;
 
     //Si no alcanza el lugar para crear otro malloc en la misma pagina, creamos mas paginas
-    if(thisAllocSize <= sizeof(t_heapMetadata) + 1 || thisAllocSize - sizeof(t_heapMetadata) - 1 < mallocSize){
-        int newPages = 1 + (mallocSize - thisAllocSize + sizeof(t_heapMetadata) + 1) / config->pageSize;
+    if(thisAllocSize <= 9 + 1 || thisAllocSize - 9 - 1 < mallocSize){
+        int newPages = 1 + (mallocSize - thisAllocSize + 9 + 1) / config->pageSize;
         // bool rc;         Unused
         for(int i = 0; i < newPages; i++){
             int32_t firstPage = 0;
@@ -584,16 +591,16 @@ bool memallocHandler(t_packet* petition, int socket){
     }
     
     thisAlloc->isFree = false;
-    t_heapMetadata* newLastAlloc = malloc(sizeof(t_heapMetadata));
-    int32_t newLastAllocAddress = thisAllocAddress + sizeof(t_heapMetadata) + mallocSize;
+    t_heapMetadata* newLastAlloc = malloc(9);
+    int32_t newLastAllocAddress = thisAllocAddress + 9 + mallocSize;
     newLastAlloc->prevAlloc = thisAllocAddress;
     newLastAlloc->nextAlloc = thisAlloc->nextAlloc;
     newLastAlloc->isFree = true;
     thisAlloc->nextAlloc = newLastAllocAddress;
-    heap_write(PID, newLastAllocAddress, sizeof(t_heapMetadata), newLastAlloc);
+    heap_write(PID, newLastAllocAddress, 9, newLastAlloc);
     free(newLastAlloc);
-    heap_write(PID, thisAllocAddress, sizeof(t_heapMetadata), thisAlloc);
-    streamAdd_INT32(response->payload, thisAllocAddress + sizeof(t_heapMetadata));
+    heap_write(PID, thisAllocAddress, 9, thisAlloc);
+    streamAdd_INT32(response->payload, thisAllocAddress + 9);
     socket_sendPacket(socket, response);
     destroyPacket(response);
     free(thisAlloc);

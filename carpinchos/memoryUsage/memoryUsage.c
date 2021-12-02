@@ -14,15 +14,15 @@ int main(){
     mate_instance mate;
     mate_init(&mate, CONFIG);
 
-    mate_pointer puntero = mate_memalloc(&mate, 8);
-    
-    char* mensaje = "Hola :)";
-    printf("%s\n", mensaje);
-    mate_memwrite(&mate, mensaje, puntero, 8);
+    mate_pointer puntero = mate_memalloc(&mate, 200);
 
-    char* mensajeLeido = malloc(8);
-    mate_memread(&mate, puntero, mensajeLeido, 8);
-    mate_memfree(&mate, puntero);
+    char* mensaje = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    printf("Mensaje a escribir: %s.\n", mensaje);
+    mate_memwrite(&mate, mensaje, puntero, 200);
+
+    char* mensajeLeido = malloc(200);
+    mate_memread(&mate, puntero, mensajeLeido, 200);
+    // mate_memfree(&mate, puntero);
     mate_close(&mate);
-    printf("%s\n", mensajeLeido);
+    printf("Mensaje leido: %s\n", mensajeLeido);
 }
