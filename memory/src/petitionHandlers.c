@@ -8,13 +8,32 @@
 
 //  AUX
 int32_t createPage(uint32_t PID){
-    t_pageTable* table = getPageTable(PID, pageTables);
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable* table = getPageTable(PID, pageTables);
+    pthread_mutex_unlock(&pageTablesMut);
+    
     int32_t pageNumber = pageTableAddEntry(table, 0);
     void* newPageContents = calloc(1, config->pageSize);
     if(swapInterface_savePage(swapInterface, PID, pageNumber, newPageContents)){
         return pageNumber;
     }
     return -1;
+}
+
+void deleteLastPages(uint32_t PID, uint32_t lastAllocAddr){
+    
+    uint32_t firstToDelete = (lastAllocAddr + 9) / config->pageSize;
+    
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        uint32_t lastToDelete = pt->pageQuantity - 1;
+    pthread_mutex_unlock(&pageTablesMut);
+    
+    for (uint32_t i = lastToDelete; i > firstToDelete; i--){
+        swapInterface_erasePage(swapInterface, PID, i);
+        
+        pageTable_destroyLastEntry(pt);
+    }
 }
 
 /**
@@ -308,6 +327,85 @@ bool memallocHandler(t_packet* petition, int socket){
 }
 
 bool memfreeHandler(t_packet* petition, int socket){
+    uint32_t PID = streamTake_UINT32(petition->payload);
+    int32_t addr = streamTake_INT32(petition->payload);
+    t_packet *response;
+
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    if (addr > maxAddr){
+        response = createPacket(ERROR, INITIAL_STREAM_SIZE);
+        socket_sendPacket(socket, response);
+        destroyPacket(response);
+        return true;
+    }
+
+    t_heapMetadata *alloc = heap_read(PID, addr - 9, 9);
+    uint32_t prevAllocAddr = alloc->prevAlloc;
+    uint32_t nextAllocAddr = alloc->nextAlloc;
+    uint32_t lastLastAllocAddr = 0;
+
+    t_heapMetadata *nextAlloc;
+    t_heapMetadata *prevAlloc;
+
+    bool clearLastPages = false;
+
+    if (nextAllocAddr) {
+        nextAlloc = heap_read(PID, nextAllocAddr, 9);
+
+        if (nextAlloc->isFree){
+            uint32_t lastAllocAddr = nextAlloc->nextAlloc;
+
+            if (lastAllocAddr){
+                t_heapMetadata *lastAlloc = heap_read(PID, lastAllocAddr, 9);
+                lastAlloc->prevAlloc = addr - 9;
+                heap_write(PID, lastAllocAddr, 9, (void*) lastAlloc);
+                free(lastAlloc);
+            } else {
+                clearLastPages = true;
+                lastLastAllocAddr = addr - 9; 
+            }
+
+            alloc->nextAlloc = nextAlloc->nextAlloc;
+            alloc->isFree = true;
+        }
+
+        free(nextAlloc);
+    }
+
+    if (prevAllocAddr) {
+        prevAlloc = heap_read(PID, prevAllocAddr, 9);
+
+        if (prevAlloc->isFree){
+            prevAlloc->nextAlloc = alloc->nextAlloc;
+
+            if (alloc->nextAlloc){
+                t_heapMetadata *lastAlloc = heap_read(PID, alloc->nextAlloc, 9);
+                lastAlloc->prevAlloc = prevAllocAddr;
+                heap_write(PID, alloc->nextAlloc, 9, (void*) lastAlloc);
+                free(lastAlloc);
+            } else {
+                clearLastPages = true;
+                lastLastAllocAddr = prevAllocAddr;
+            }
+        }
+
+        free(prevAlloc);
+    }
+
+    if (clearLastPages) {
+        deleteLastPages(PID, lastLastAllocAddr);
+    }
+
+    response = createPacket(OK, INITIAL_STREAM_SIZE);
+    socket_sendPacket(socket, response);
+    destroyPacket(response);
+
+    free(alloc);
+
     return true;
 }
 
@@ -316,9 +414,8 @@ bool memreadHandler(t_packet* petition, int socket){
     int32_t addr = streamTake_INT32(petition->payload);
     int32_t size = streamTake_INT32(petition->payload);    
     
-    t_pageTable *pt = getPageTable(PID, pageTables);
-
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
         uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
     pthread_mutex_unlock(&pageTablesMut);
 
@@ -349,9 +446,8 @@ bool memwriteHandler(t_packet* petition, int socket){
     void *data = NULL;
     streamTake(petition->payload, &data, dataSize);
 
-    t_pageTable *pt = getPageTable(PID, pageTables);
-
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
         uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
     pthread_mutex_unlock(&pageTablesMut);
 
@@ -371,12 +467,15 @@ bool memwriteHandler(t_packet* petition, int socket){
     return true;
 }
 
+bool suspendHandler(t_packet *petition, int socket) {
+    return true;
+}
+
 bool capiTermHandler(t_packet* petition, int socket){
     uint32_t PID = streamTake_UINT32(petition->payload);
 
-    t_pageTable *pt = getPageTable(PID, pageTables);
-
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
         uint32_t pageQty = pt->pageQuantity;
     pthread_mutex_unlock(&pageTablesMut);
 
@@ -440,6 +539,7 @@ bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) =
     memfreeHandler,
     memreadHandler,
     memwriteHandler,
+    suspendHandler,
     capiTermHandler,
     disconnectedHandler
 };
