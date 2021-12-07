@@ -99,6 +99,14 @@ processState _disconnected(t_packet *received, t_process* process){
     return EXIT;
 }
 
+void relayPetition(t_packet* packet, uint32_t socket) {
+    socket_relayPacket(memSocket, packet);
+    t_packet* response = socket_getPacket(memSocket);
+    
+    socket_relayPacket(socket, response);
+    destroyPacket(response);
+}
+
 processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process) = {
     _capi_id,
     _sem_init,
@@ -106,6 +114,11 @@ processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_proc
     _sem_post,
     _sem_destroy,
     _call_io,
+    relayPetition,
+    relayPetition,
+    relayPetition,
+    relayPetition,
+    NULL,
     _capi_term,
     _disconnected
 };
@@ -124,11 +137,3 @@ processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_proc
     CAPI_TERM,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
 */
-
-void relayPetition(t_packet* packet, uint32_t socket) {
-    socket_relayPacket(memSocket, packet);
-    t_packet* response = socket_getPacket(memSocket);
-    
-    socket_relayPacket(socket, response);
-    destroyPacket(response);
-}
