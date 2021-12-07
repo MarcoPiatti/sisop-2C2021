@@ -2,6 +2,7 @@
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
+#include "sleeper.h"
 
 sem_t cuposDisponibles, availableCPUS, runShortTerm;
 
@@ -45,6 +46,8 @@ int main(void){
     }
 
     int serverSocket = createListenServer(config->ip, config->port);
+
+    deadlockDetector = createDeadlockDetector(deadlockDetector_thread);
 
     while(1){   
         runListenServer(serverSocket, auxHandler);
@@ -221,7 +224,8 @@ bool compareHRRN(t_process* p1, t_process* p2) {
     return responseRatio(p1) > responseRatio(p2);
 }
 
-
-
-
-//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde. //Ojo quizas este "//TODO:" ya esta obsoleto
+void *deadlockDetector_thread(void* args){
+    while(1){
+        milliSleep(config->deadlockTime);
+    }
+}
