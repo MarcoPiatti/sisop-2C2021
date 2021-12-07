@@ -468,7 +468,29 @@ bool memwriteHandler(t_packet* petition, int socket){
 }
 
 bool suspendHandler(t_packet *petition, int socket) {
-    return true;
+    uint32_t PID = streamTake_UINT32(petition->payload);
+
+    pthread_mutex_lock(&pageTablesMut);                     // TODO: Revisar posibilidad de deadlock, verificar logica.
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        uint32_t pages = pt->pageQuantity;
+        for (uint32_t i = 0; i < pages; i++){
+            if (pt->entries[i].present){
+                void *pageContent = ram_getFrame(ram, pt->entries[i].frame);
+                swapInterface_savePage(swapInterface, PID, i, pageContent);
+                pthread_mutex_lock(&metadataMut);
+                    metadata->entries[pt->entries[i].frame].isFree = true;
+                pthread_mutex_unlock(&metadataMut);
+                pt->entries[i].present = false;
+            }
+        }
+    pthread_mutex_unlock(&pageTablesMut); 
+
+    pthread_mutex_lock(&metadataMut);
+        for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
+            if(metadata->firstFrame[i] == PID) = -1;
+        }
+    pthread_mutex_unlock(&metadataMut);
+    
 }
 
 bool capiTermHandler(t_packet* petition, int socket){
