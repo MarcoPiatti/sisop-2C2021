@@ -25,6 +25,7 @@ typedef enum msgHeader {
     MEMFREE,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 |
     MEMREAD,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | SIZE = INT32 |
     MEMWRITE,           // | HEADER | PAYLOAD_SIZE | PID = UINT32 | PTR = INT32 | DATASIZE = INT32 | DATA = STREAM |
+    SUSPEND,            // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     CAPI_TERM,          // | HEADER | PAYLOAD_SIZE | PID = UINT32 |
     DISCONNECTED,       // | HEADER | PAYLOAD_SIZE = 0 |
     MAX_PETITIONS,
