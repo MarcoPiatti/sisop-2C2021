@@ -23,6 +23,8 @@ void _destroyPageTable(void *table);
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame);
 
+void pageTable_destroyLastEntry(t_pageTable* pt);
+
 t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pageTables);
 
 bool pageTable_isEmpty(uint32_t PID);
