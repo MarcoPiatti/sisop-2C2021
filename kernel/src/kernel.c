@@ -78,6 +78,8 @@ void *auxHandler(void *vclientSocket){
     log_info(kernelLogger, "Proceso %u recibido y agregado a cola de New", process->pid);
     pthread_mutex_unlock(&mutex_log);
 
+    DDProcInit(deadlockDetector, process);
+
     destroyPacket(packet);
 
     return NULL; // Ni idea, solo para que no tire warnings, igual esta funcion hay que tirarla completita al tacho.

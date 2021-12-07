@@ -17,6 +17,8 @@ processState _sem_init(t_packet *received, t_process* process){
     log_info(kernelLogger, "El proceso %u inicializo un semaforo <%s> con valor %d", process->pid, semName, semCount);
     pthread_mutex_unlock(&mutex_log);
 
+    DDSemInit(deadlockDetector, newSem, semCount);
+
     return CONTINUE;
 }
 
@@ -36,6 +38,8 @@ processState _sem_post(t_packet *received, t_process* process){
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
     mateSem_post(semaforo, processQueues);
 
+    DDSemRelease(deadlockDetector, process, semaforo);
+
     pthread_mutex_lock(&mutex_log);
     log_info(kernelLogger, "El proceso %u realizo un post al semaforo <%s>", process->pid, semaforo->nombre);
     pthread_mutex_unlock(&mutex_log);
@@ -50,9 +54,12 @@ processState _sem_destroy(t_packet *received, t_process* process){
     pthread_mutex_lock(&mutex_log);
     log_info(kernelLogger, "El proceso %u esta destruyendo al semaforo <%s>", process->pid, semaforo->nombre);
     pthread_mutex_unlock(&mutex_log);
+    
+    DDSemDestroy(deadlockDetector, semaforo);
 
     mateSem_destroy(semaforo);
     dictionary_remove(mateSems, nombreSem);
+
 
     return CONTINUE;
 }
@@ -67,30 +74,9 @@ processState _call_io(t_packet *received, t_process* process){
     return BLOCK;    //TODO: Ulises
 }
 
-//Pasar al petition handler de memory
-processState _memalloc(t_packet *received, t_process* process){
-    pthread_mutex_lock(&mutex_log);
-    log_info(kernelLogger, "Proceso %u: hace un pedido a memoria", process->pid);
-    pthread_mutex_unlock(&mutex_log);
-
-    relayPetition(received, process->socket);
-    return CONTINUE;
-}
-
-processState _memfree(t_packet *received, t_process* process){
-    return CONTINUE;
-}
-
-processState _memread(t_packet *received, t_process* process){
-    return CONTINUE;
-}
-
-processState _memwrite(t_packet *received, t_process* process){
-    return CONTINUE;
-}
-
 processState _capi_term(t_packet *received, t_process* process){
     //Avisar a memoria. Implica recibir un disconnected inmediatamente despues
+    DDProcTerm(deadlockDetector, process);
     return CONTINUE;
 }
 
