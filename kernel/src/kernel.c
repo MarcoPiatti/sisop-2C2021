@@ -227,7 +227,14 @@ bool compareHRRN(t_process* p1, t_process* p2) {
 }
 
 void *deadlockDetector_thread(void* args){
+    t_deadlockDetector* self = (t_deadlockDetector*)args;
+
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+
     while(1){
-        milliSleep(config->deadlockTime);
+        milliSleep(kernelConfig->deadlockTime);
+        pthread_mutex_lock(&dd->mutex);
+        while(findDeadlocks(self, memorySocket));
+        pthread_mutex_unlock(&dd->mutex);
     }
 }
