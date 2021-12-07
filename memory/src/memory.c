@@ -8,7 +8,7 @@
 #include "swapInterface.h"
 #include "utils.h"
 
-// TODO: cambiar metadata->firstFrame cuando se inicializa (o finaliza) un proceso en memoria.
+// TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
 int main(){
 
@@ -173,8 +173,8 @@ bool global(int32_t *start, int32_t *end, uint32_t PID){
 }
 
 bool isPresent(uint32_t PID, uint32_t page){
-    t_pageTable* pt = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable* pt = getPageTable(PID, pageTables);
         bool present = (pt->entries)[page].present;
     pthread_mutex_unlock(&pageTablesMut);
     return present;
@@ -189,8 +189,8 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
 
     // Si esta presente retorna el numero de frame.
     if (isPresent(PID, pageN)) {
-        t_pageTable* pt = getPageTable(PID, pageTables);
         pthread_mutex_lock(&pageTablesMut);
+            t_pageTable* pt = getPageTable(PID, pageTables);
             uint32_t frame = ((pt->entries)[pageN]).frame;
         pthread_mutex_unlock(&pageTablesMut);
 
@@ -239,8 +239,8 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
         swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
-        t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
         pthread_mutex_lock(&pageTablesMut);
+            t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
             (ptReemplazado->entries)[victimPage].present = false;
             (ptReemplazado->entries)[victimPage].frame = -1;
         pthread_mutex_unlock(&pageTablesMut);
@@ -254,8 +254,8 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Escribir pagina traida de swap a memoria. 
     writeFrame(ram, victim, pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
-    t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
         (ptReemplaza->entries)[page].present = true;
         (ptReemplaza->entries)[page].frame = victim;
     pthread_mutex_unlock(&pageTablesMut);
