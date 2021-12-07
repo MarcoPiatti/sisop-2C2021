@@ -59,26 +59,26 @@ int mate_close(mate_instance *lib_ref){
     if(lib_ref->group_info == NULL) return -1;
     mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
     
-    t_packet* packet = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
-    streamAdd_UINT32(packet->payload, mateStruct->pid);
-    socket_sendPacket(mateStruct->mateSocket, packet);
-    destroyPacket(packet);
+    t_packet* req1 = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(req1->payload, mateStruct->pid);
+    socket_sendPacket(mateStruct->mateSocket, req1);
+    destroyPacket(req1);
 
     log_debug(mateStruct->logger, "Avisando terminacion");
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response1 = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response1->header == OK) ? 0 : -1;
+    destroyPacket(response1);
 
-    packet = createPacket(DISCONNECTED, 0);
-    socket_sendPacket(mateStruct->mateSocket, packet);
-    destroyPacket(packet);
+    t_packet *req2 = createPacket(DISCONNECTED, 0);
+    socket_sendPacket(mateStruct->mateSocket, req2);
+    destroyPacket(req2);
 
     log_debug(mateStruct->logger, "Avisando desconexion");
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);    
+    t_packet *response2 = socket_getPacket(mateStruct->mateSocket);
+    rc = (response2->header == OK) ? 0 : -1;
+    destroyPacket(response2);    
 
     log_debug(mateStruct->logger, "Mate cerrado");
     
@@ -103,9 +103,9 @@ int mate_sem_init(mate_instance *lib_ref, mate_sem_name sem, unsigned int value)
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : -1;
+    destroyPacket(response);
 
     if(rc) log_debug(mateStruct->logger, "Semaforo %s no pudo ser creado", sem);
     else log_debug(mateStruct->logger, "Semaforo %s creado", sem);
@@ -120,14 +120,14 @@ int mate_sem_wait(mate_instance *lib_ref, mate_sem_name sem){
 
     log_debug(mateStruct->logger, "Por esperar al Semaforo %s", sem);
 
-    t_packet* packet = createPacket(SEM_WAIT, INITIAL_STREAM_SIZE);
-    streamAdd_STRING(packet->payload, sem);
-    socket_sendPacket(mateStruct->mateSocket, packet);
-    destroyPacket(packet);
+    t_packet* petition = createPacket(SEM_WAIT, INITIAL_STREAM_SIZE);
+    streamAdd_STRING(petition->payload, sem);
+    socket_sendPacket(mateStruct->mateSocket, petition);
+    destroyPacket(petition);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : -1;
+    destroyPacket(response);
     
     if(rc) {
         log_debug(mateStruct->logger, "Error de deadlock al esperar al semaforo, el mate se ha cerrado %s", sem);
@@ -152,9 +152,9 @@ int mate_sem_post(mate_instance *lib_ref, mate_sem_name sem){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : -1;
+    destroyPacket(response);
 
     if(rc) log_debug(mateStruct->logger, "Semaforo %s no pudo ser posteado", sem);
     else log_debug(mateStruct->logger, "Semaforo %s posteado", sem);
@@ -172,9 +172,9 @@ int mate_sem_destroy(mate_instance *lib_ref, mate_sem_name sem){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : -1;
+    destroyPacket(response);
 
     if(rc) log_debug(mateStruct->logger, "Semaforo %s no pudo ser destruido", sem);
     else log_debug(mateStruct->logger, "Semaforo %s destruido", sem);
@@ -196,9 +196,9 @@ int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : -1;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : -1;
+    destroyPacket(response);
 
     if(rc) log_debug(mateStruct->logger, "Error al querer usar el dispositivo IO %s", io);
     else log_debug(mateStruct->logger, "Termino el uso del dispositivo IO %s", io);
@@ -222,9 +222,9 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
 
     log_debug(mateStruct->logger, "Se pidieron los %i bytes.", size);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    mate_pointer result = streamTake_INT32(packet->payload);
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    mate_pointer result = streamTake_INT32(response->payload);
+    destroyPacket(response);
     log_debug(mateStruct->logger, "Resultado: %u.", result);
 
 
@@ -246,9 +246,9 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : MATE_FREE_FAULT;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : MATE_FREE_FAULT;
+    destroyPacket(response);
 
     if(rc) log_debug(mateStruct->logger, "Fallo al hacer free");
     else log_debug(mateStruct->logger, "Memoria liberada");
@@ -270,19 +270,19 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
     destroyPacket(packet);
 
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    if(packet->header == ERROR){
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    if(response->header == ERROR){
         log_debug(mateStruct->logger, "Fallo al leer");
-        destroyPacket(packet);
+        destroyPacket(response);
         return MATE_READ_FAULT;
     }
 
     void *recvd = NULL;
     int32_t recvdSize = streamTake_INT32(packet->payload);
     printf("Rcvd size: %i\n", recvdSize);
-    streamTake(packet->payload, &recvd, (size_t)recvdSize);
+    streamTake(response->payload, &recvd, (size_t)recvdSize);
     memcpy(dest, recvd, recvdSize);
-    destroyPacket(packet);
+    destroyPacket(response);
 
     log_debug(mateStruct->logger, "Memoria leida");
 
@@ -305,9 +305,9 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
 
     log_debug(mateStruct->logger, "Enviada peticion para escrbir %i bytes en la direccion logica %i", size, dest);
 
-    packet = socket_getPacket(mateStruct->mateSocket);
-    int rc = (packet->header == OK) ? 0 : MATE_WRITE_FAULT;
-    destroyPacket(packet);
+    t_packet *response = socket_getPacket(mateStruct->mateSocket);
+    int rc = (response->header == OK) ? 0 : MATE_WRITE_FAULT;
+    destroyPacket(response);
 
     log_debug(mateStruct->logger, "Recibida respuesta de escritura");
 
