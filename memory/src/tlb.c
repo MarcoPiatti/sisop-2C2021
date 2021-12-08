@@ -152,6 +152,22 @@ void cleanTLB() {
     pthread_mutex_unlock(&tlb->mutex);
 }
 
+//Libera las entradas de un proceso específico
+void freeProcessEntries(uint32_t pid) {
+    pthread_mutex_lock(&tlb->mutex);
+    for(int i = 0; i < tlb->size; i++) {
+        if(tlb->entries[i].pid == pid) {
+            tlb->entries[i].isFree = true;
+        }
+    }
+
+    pthread_mutex_lock(&logMut);
+    log_info(memLogger, "TLB: Liberadas entradas del proceso %u", pid);
+    pthread_mutex_unlock(&logMut);
+
+    pthread_mutex_unlock(&tlb->mutex);
+}
+
 // --------------- Metricas -----------------
 
 

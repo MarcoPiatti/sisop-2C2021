@@ -38,6 +38,7 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page);
 void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame);
 void dropEntry(uint32_t pid, uint32_t page);
 void destroyTLB(t_tlb* tlb);
+void freeProcessEntries(uint32_t pid);
 
 //Metricas
 void addToMetrics(t_dictionary* dic, char* pid);
