@@ -430,7 +430,6 @@ bool memreadHandler(t_packet* petition, int socket){
 
     t_packet *response = createPacket(MEM_CHUNK, INITIAL_STREAM_SIZE + size);
     void *data = heap_read(PID, addr, size);
-    mem_hexdump(ram_getFrame(ram, 0), config->pageSize * 10);
     streamAdd_INT32(response->payload, size);
     streamAdd(response->payload, data, size);
     socket_sendPacket(socket, response);
