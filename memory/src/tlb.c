@@ -7,22 +7,22 @@
 t_tlb* createTLB() {
 
     //Inicializo estructura de TLB
-    tlb = malloc(sizeof(t_tlbEntry));
+    tlb = malloc(sizeof(t_tlb));
     tlb->size = config->TLBEntryAmount;
     tlb->entries = (t_tlbEntry*) calloc(sizeof(t_tlbEntry), tlb->size);
-    tlb->fifoEntries = queue_create();
+    tlb->victimQueue = list_create();
     pthread_mutex_init(&tlb->mutex, NULL);
     tlb->pidHits = dictionary_create();
     tlb->pidMisses = dictionary_create();
 
     if(strcmp(config->TLBReplacementAlgorithm, "LRU") == 0) {
-        tlb->replaceAlgorithm = lruAlgorithm;
+        tlb->updateVictimQueue = lruAlgorithm;
     } else {
-        tlb->replaceAlgorithm = fifoAlgorithm;
+        tlb->updateVictimQueue = fifoAlgorithm;
     }
 
     //Seteo todas las entradas como libres
-    for(int i = 0; i < config->TLBEntryAmount; i++) {
+    for(int i = 0; i < tlb->size; i++) {
         tlb->entries[i].isFree = true;
     }
 
@@ -35,7 +35,7 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     int32_t frame = -1;
     for(int i = 0; i < tlb->size; i++) {
         if(tlb->entries[i].pid == pid && tlb->entries[i].page == page && tlb->entries[i].isFree == false) {
-            clock_gettime(CLOCK_MONOTONIC, tlb->entries[i].lastAccess);
+            tlb->updateVictimQueue(&(tlb->entries[i]));
             frame = tlb->entries[i].frame;
         }
     }
@@ -45,8 +45,15 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     sprintf(key,"%u", pid);
     if(frame == -1) {
         addToMetrics(tlb->pidMisses, key);
+
+        pthread_mutex_lock(&logMut);
+        log_info(memLogger, "TLB Miss: Proceso %s, numero de pagina %u", key, page);
+        pthread_mutex_unlock(&logMut);
     } else {
         addToMetrics(tlb->pidHits, key);
+        pthread_mutex_lock(&logMut);
+        log_info(memLogger, "TLB Hit: Proceso %s, numero de pagina %u, marco %u", key, page, frame);
+        pthread_mutex_unlock(&logMut);
     }
 
     pthread_mutex_unlock(&tlb->mutex);
@@ -54,75 +61,61 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
 }
 
 void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
-    //Genero la entrada
-    t_tlbEntry* newEntry;
-    newEntry = malloc(sizeof(t_tlbEntry));
-    newEntry->pid = pid;
-    newEntry->page = page;
-    newEntry->frame = frame;
-
-    //Reemplazo/Agrego segun algoritmo
     pthread_mutex_lock(&tlb->mutex);
-    tlb->replaceAlgorithm(newEntry);
-    pthread_mutex_unlock(&tlb->mutex);
 
-
-    //Libero la entrada auxiliar
-    free(newEntry);
-}
-
-
-void lruAlgorithm(t_tlbEntry* newEntry) {
-    //Fetch de la entrada a la que hace mas tiempo no se accede
-    t_tlbEntry* entryToBeReplaced = tlb->entries;
-    _Bool cont = true;
-    for(int i=0; i < tlb->size-1 && cont; i++) {
-
-        //Ver si la entrada esta libre
-        if(entryToBeReplaced->isFree) {
-            cont = false;
-        }
-        //Ver si la entrada lleva más tiempo sin ser accedida
-        else if(tlb->entries[i].lastAccess->tv_sec > tlb->entries[i+1].lastAccess->tv_sec) {
-            entryToBeReplaced = &tlb->entries[i+1];
-        }
-    }
-
-    //Reemplazo de la entrada
-    entryToBeReplaced->pid = newEntry->pid;
-    entryToBeReplaced->page = newEntry->page;
-    entryToBeReplaced->frame = newEntry->frame;
-    entryToBeReplaced->isFree = false;
-    clock_gettime(CLOCK_MONOTONIC, entryToBeReplaced->lastAccess);
-
-}
-
-void fifoAlgorithm(t_tlbEntry* newEntry) {
-    //Se controla si hay alguna entrada libre
-    for(int i = 0; i < tlb->size; i++) {
+    //Busco si hay una entrada libre
+    _Bool freeFound = false;
+    for(int i = 0; i < tlb->size && !freeFound; i++) {
         if(tlb->entries[i].isFree) {
-            tlb->entries[i].pid = newEntry->pid;
-            tlb->entries[i].page = newEntry->page;
-            tlb->entries[i].frame = newEntry->frame;
+            tlb->entries[i].pid = pid;
+            tlb->entries[i].page = page;
+            tlb->entries[i].frame = frame;
             tlb->entries[i].isFree = false;
-            clock_gettime(CLOCK_MONOTONIC, tlb->entries[i].lastAccess); //No necesario
-            return;
+
+            pthread_mutex_lock(&logMut);
+            log_debug(memLogger, "TLB: Ocupada entrada previamente libre");
+            pthread_mutex_unlock(&logMut);
+
+            freeFound = true;
+            list_add(tlb->victimQueue, &(tlb->entries[i]));
+            break;
         }
     }
 
+    //Si no hay entrada libre, reemplazo
+    if(!freeFound) {
+        t_tlbEntry* victim = list_remove(tlb->victimQueue, 0);
 
-    //Fetch de la entrada que hace mas tiempo se encuentra cargada
-    t_tlbEntry* entryToBeReplaced = queue_pop(tlb->fifoEntries);
+        pthread_mutex_lock(&logMut);
+        log_info(memLogger, "TLB, reemplazo de entrada. Sale PID: %u, numero de pagina: %u, marco: %u // Entra PID: %u, numero de pagina: %u, marco: %u", 
+        victim->pid, victim->page, victim->frame, pid, page, frame);
+        pthread_mutex_unlock(&logMut);
 
-    //Reemplazo de la entrada
-    entryToBeReplaced->pid = newEntry->pid;
-    entryToBeReplaced->page = newEntry->page;
-    entryToBeReplaced->frame = newEntry->frame;
-    entryToBeReplaced->isFree = false;
-    clock_gettime(CLOCK_MONOTONIC, entryToBeReplaced->lastAccess); //No necesario
-    queue_push(tlb->fifoEntries, entryToBeReplaced);
+        victim->pid = pid;
+        victim->page = page;
+        victim->frame = frame;
+        victim->isFree = false;
+        list_add(tlb->victimQueue, victim);
+    }
+
+    pthread_mutex_unlock(&tlb->mutex);
+}
 
 
+void lruAlgorithm(t_tlbEntry* entry) {
+
+    bool isVictim(t_tlbEntry* victim) {
+        return victim == entry;
+    }
+
+    t_tlbEntry* entryToBeMoved = list_remove_by_condition(tlb->victimQueue, (void*) isVictim);
+
+    list_add(tlb->victimQueue, entryToBeMoved);
+
+}
+
+void fifoAlgorithm(t_tlbEntry* entry) {
+    //Intencionalmente vacío
 }
 
 //No libera la entrada, si no que la marca como libre
@@ -140,7 +133,7 @@ void dropEntry(uint32_t pid, uint32_t page) {
 void destroyTLB(t_tlb* tlb) {
     //TODO: Chequear pls
     free(tlb->entries);
-    queue_destroy(tlb->fifoEntries);
+    list_destroy(tlb->victimQueue);
     pthread_mutex_destroy(&tlb->mutex);
 
     void destroyUint32(void* data) {
@@ -222,6 +215,12 @@ void sigUsr1HandlerTLB() {
     sprintf(filePath, "%s/Dump_%s.tlb", dirPath, timestamp);
 
     FILE* f = fopen(config->TLBPathDump, "w");
+    if(f == NULL) {
+        pthread_mutex_lock(&logMut);
+        log_error(memLogger, "Error al abrir el archivo de dump de TLB");
+        pthread_mutex_unlock(&logMut);
+        return;
+    }
     printf("-----------------------------------------\n");
     pthread_mutex_lock(&tlb->mutex);
 

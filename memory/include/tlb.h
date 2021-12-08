@@ -5,6 +5,7 @@
 #include<time.h>
 #include<stdbool.h>
 #include<stdio.h>
+#include<stdlib.h>
 
 
 typedef struct tlbEntry {
@@ -12,16 +13,15 @@ typedef struct tlbEntry {
     uint32_t page;
     int32_t frame;
     _Bool isFree;
-    struct timespec* lastAccess;       //LRU
 } t_tlbEntry;
 
-typedef void (*TLBAlgorithm)(t_tlbEntry* newEntry);
+typedef void (*TLBAlgorithm)(t_tlbEntry*);
 typedef struct tlb {
     //Funcionamiento tlb
     t_tlbEntry* entries;
     unsigned int size;
-    TLBAlgorithm replaceAlgorithm;
-    t_queue* fifoEntries;
+    TLBAlgorithm updateVictimQueue;
+    t_list* victimQueue;
     pthread_mutex_t mutex;
 
     //Metricas
@@ -49,5 +49,5 @@ void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry);
 void sigUsr2HandlerTLB();
 
 //Algoritmos de reemplazo
-void lruAlgorithm(t_tlbEntry* newEntry);
-void fifoAlgorithm(t_tlbEntry* newEntry);
+void lruAlgorithm(t_tlbEntry* entry);
+void fifoAlgorithm(t_tlbEntry* entry);
