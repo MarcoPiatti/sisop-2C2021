@@ -124,6 +124,7 @@ void dropEntry(uint32_t pid, uint32_t page) {
     for(int i = 0; i < tlb->size; i++) {
         if(tlb->entries[i].pid == pid && tlb->entries[i].page == page) {
             tlb->entries[i].isFree = true;
+            pthread_mutex_unlock(&tlb->mutex);
             return;
         }
     }
