@@ -43,9 +43,11 @@ typedef struct mem {
 
 typedef struct frameMetadata {
     bool isFree;
+    bool modified;
+    bool u;         // Para el clock-m
     uint32_t PID;
     uint32_t page;
-    uint32_t timeStamp;     // TODO: Cuando actualizar timestamp;
+    uint32_t timeStamp;
 } t_frameMetadata;
 
 typedef struct memoryMetadata{

@@ -28,8 +28,7 @@ int main(){
     pageTables = dictionary_create();
 
     asignacion = strcmp(config->assignmentType, "FIJA") ? global : fijo;
-    // algoritmo = strcmp(config->MMUreplacementAlgorithm, "LRU") ? clock_m : LRU;
-    algoritmo = LRU;
+    algoritmo = strcmp(config->MMUreplacementAlgorithm, "LRU") ? clock_m : LRU;
 
     swapHeader tipoAsig = strcmp(config->assignmentType, "FIJA") ? ASIG_GLOBAL : ASIG_FIJA;
     swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, tipoAsig);
@@ -56,7 +55,6 @@ void *petitionHandler(void *_clientSocket){
     socket_sendHeader(clientSocket, ID_MEMORIA);
     while(keepServing){
         t_packet *petition = socket_getPacket(clientSocket);
-        printf("Header recibido: %u\n", petition->header);
         keepServing = petitionHandlers[petition->header](petition, clientSocket);
         destroyPacket(petition);
     }
@@ -109,6 +107,12 @@ int32_t getFreeFrame(int32_t start, int32_t end){
 
 void writeFrame(t_memory *mem, uint32_t frame, void *from){
     void *frameAddress = ram_getFrame(mem, frame);
+
+    pthread_mutex_lock(&metadataMut);
+        metadata->entries[frame].modified = true;
+        metadata->entries[frame].u = true;
+    pthread_mutex_unlock(&metadataMut);
+
     pthread_mutex_lock(&ramMut);
         memcpy(frameAddress, from, mem->config->pageSize);
     pthread_mutex_unlock(&ramMut);
@@ -186,7 +190,13 @@ bool isPresent(uint32_t PID, uint32_t page){
 int32_t getFrame(uint32_t PID, uint32_t pageN){
    
     int32_t frame = getFrameFromTLB(PID, pageN);
-    if (frame != -1) return frame;
+    if (frame != -1){
+        pthread_mutex_lock(&metadataMut);
+            metadata->entries[frame].u = true;
+        pthread_mutex_unlock(&metadataMut);
+
+        return frame;
+    }
 
     // Si esta presente, lo agrega a la TLB y retorna el numero de frame.
     if (isPresent(PID, pageN)) {
@@ -197,13 +207,21 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
 
         updateTimestamp(frame);
 
+        pthread_mutex_lock(&metadataMut);
+            metadata->entries[frame].u = true;
+        pthread_mutex_unlock(&metadataMut);
+
         addEntryToTLB(PID, pageN, frame);
 
         return frame;
     }
 
     // Si no esta presente hay que traerla de swap.
-    uint32_t frame = swapPage(PID, pageN);
+    frame = swapPage(PID, pageN);
+
+    pthread_mutex_lock(&metadataMut);
+        metadata->entries[frame].u = true;
+    pthread_mutex_unlock(&metadataMut);
 
     updateTimestamp(frame);    // (creo) nunca se accede a un frame sin conseguirlo con getFrame(), por lo que este es el unico lugar donde se actualiza el timestamp de los frames.
     return frame;
@@ -240,11 +258,12 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
         pthread_mutex_lock(&metadataMut);
             uint32_t victimPID  = (metadata->entries)[victim].PID;
             uint32_t victimPage = (metadata->entries)[victim].page;
+            bool modified = (metadata->entries)[victim].modified;
         pthread_mutex_unlock(&metadataMut);
 
         dropEntry(victimPID, victimPage);
 
-        swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
+        if(modified) swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
         pthread_mutex_lock(&pageTablesMut);
             t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
@@ -271,10 +290,11 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
     // Modificar frame metadata.
     pthread_mutex_lock(&metadataMut);
-        printf("Se va pag %u entra pag %u al frame %u, libre: %u. \n", (metadata->entries)[victim].page, page, victim, isfree);
         (metadata->entries)[victim].page = page;
         (metadata->entries)[victim].PID = PID;
         (metadata->entries)[victim].isFree = false;
+        (metadata->entries)[victim].modified = false;
+        (metadata->entries)[victim].u = true;
     pthread_mutex_unlock(&metadataMut);
 
     return victim;
@@ -312,9 +332,43 @@ uint32_t LRU(int32_t start, int32_t end){
     return frame;
 }
 
+uint32_t clock_m(int32_t start, int32_t end){
+    int32_t frame = getFreeFrame(start, end);
+
+    if(frame != -1){
+        return frame;
+    }
+    
+    pthread_mutex_lock(&metadataMut);
+    for (int32_t j = 0; j < 2; j++){
+        for (int32_t i = start; i < end; i++){
+            if (!(metadata->entries[i].u || metadata->entries[i].modified)){
+                pthread_mutex_unlock(&metadataMut);
+                return i;
+            }
+        }
+        for (int32_t i = start; i < end; i++){
+            if(! metadata->entries[i].u) {
+                pthread_mutex_unlock(&metadataMut);
+                return i;
+            }
+            metadata->entries[i].u = false;
+        }
+    }
+
+    pthread_mutex_unlock(&metadataMut);
+
+    return frame;
+}
+
 void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, uint32_t size){
     void *frameAddress = ram_getFrame(mem, frame);
     void *dest = frameAddress + offset;
+
+    pthread_mutex_lock(&metadataMut);
+        metadata->entries[frame].modified = true;
+        metadata->entries[frame].u = true;
+    pthread_mutex_unlock(&metadataMut);
 
     pthread_mutex_lock(&ramMut);
         memcpy(dest, from, size);
