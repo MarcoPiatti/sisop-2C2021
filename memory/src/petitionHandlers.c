@@ -490,7 +490,9 @@ bool suspendHandler(t_packet *petition, int socket) {
             if(metadata->firstFrame[i] == PID) = -1;
         }
     pthread_mutex_unlock(&metadataMut);
-    
+
+    // clearTLBFromPID(PID);   TODO: Descomentar y arreglar nombre;
+
 }
 
 bool capiTermHandler(t_packet* petition, int socket){
@@ -524,6 +526,8 @@ bool capiTermHandler(t_packet* petition, int socket){
     pthread_mutex_lock(&logMut);
         log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
     pthread_mutex_unlock(&logMut);
+
+    // clearTLBFromPID(PID);   TODO: Descomentar y arreglar nombre;
     
     return true;
 }
