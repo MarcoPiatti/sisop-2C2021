@@ -57,6 +57,7 @@ void* heap_read(uint32_t PID, int32_t logicAddress, int size){
     // Si la data esta toda en una sola pagina, hacemos esto una sola vez
     if(startPage == finishPage){
         frame = getFrame(PID, startPage);
+
         frameContent = ram_getFrame(ram, frame);
         memcpy(content, frameContent + startOffset, size);
         return content;
@@ -429,7 +430,6 @@ bool memreadHandler(t_packet* petition, int socket){
 
     t_packet *response = createPacket(MEM_CHUNK, INITIAL_STREAM_SIZE + size);
     void *data = heap_read(PID, addr, size);
-    printf("Leido: %s \n", (char*) data);
     mem_hexdump(ram_getFrame(ram, 0), config->pageSize * 10);
     streamAdd_INT32(response->payload, size);
     streamAdd(response->payload, data, size);
@@ -487,12 +487,13 @@ bool suspendHandler(t_packet *petition, int socket) {
 
     pthread_mutex_lock(&metadataMut);
         for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
-            if(metadata->firstFrame[i] == PID) = -1;
+            if(metadata->firstFrame[i] == PID) metadata->firstFrame[i] = -1;
         }
     pthread_mutex_unlock(&metadataMut);
 
     // clearTLBFromPID(PID);   TODO: Descomentar y arreglar nombre;
 
+    return true;
 }
 
 bool capiTermHandler(t_packet* petition, int socket){
