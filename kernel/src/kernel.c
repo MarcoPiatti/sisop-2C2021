@@ -2,6 +2,7 @@
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
+#include "sleeper.h"
 
 sem_t cuposDisponibles, availableCPUS, runShortTerm;
 
@@ -46,6 +47,8 @@ int main(void){
 
     int serverSocket = createListenServer(config->ip, config->port);
 
+    deadlockDetector = createDeadlockDetector(deadlockDetector_thread);
+
     while(1){   
         runListenServer(serverSocket, auxHandler);
     }
@@ -74,6 +77,8 @@ void *auxHandler(void *vclientSocket){
     pthread_mutex_lock(&mutex_log);
     log_info(kernelLogger, "Proceso %u recibido y agregado a cola de New", process->pid);
     pthread_mutex_unlock(&mutex_log);
+
+    DDProcInit(deadlockDetector, process);
 
     destroyPacket(packet);
 
@@ -221,7 +226,15 @@ bool compareHRRN(t_process* p1, t_process* p2) {
     return responseRatio(p1) > responseRatio(p2);
 }
 
+void *deadlockDetector_thread(void* args){
+    t_deadlockDetector* self = (t_deadlockDetector*)args;
 
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
 
-
-//TODO: Agregar funcion CPU que reciba un proceso de ready, revise los paquetes y responda de manera acorde. //Ojo quizas este "//TODO:" ya esta obsoleto
+    while(1){
+        milliSleep(kernelConfig->deadlockTime);
+        pthread_mutex_lock(&dd->mutex);
+        while(findDeadlocks(self, memorySocket));
+        pthread_mutex_unlock(&dd->mutex);
+    }
+}

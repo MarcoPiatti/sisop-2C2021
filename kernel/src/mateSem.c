@@ -2,6 +2,8 @@
 
 #include "commons/string.h"
 #include <stdlib.h>
+#include "deadlockDetector.h"
+extern t_deadlockDetector* deadlockDetector;
 
 t_mateSem* mateSem_create(char* nombre, unsigned int contadorInicial){
     t_mateSem* mateSem = malloc(sizeof(t_mateSem));
@@ -25,8 +27,10 @@ processState mateSem_wait(t_mateSem* mateSem, t_process* process, t_processQueue
     if(mateSem->semaforo < 0){
         pQueue_put(mateSem->waitingProcesses, (void*)process);
         pQueue_put(direcciones.blockedQueue, process);
+        DDSemRequested(deadlockDetector, process, mateSem);
         return BLOCKED;
     } else {
+        DDSemAllocatedInstant(deadlockDetector, process, mateSem);
         return CONTINUE;
     }
 }
@@ -42,7 +46,7 @@ void mateSem_post(t_mateSem* mateSem, t_processQueues direcciones){
         bool getProcessById(void* elem) {
             return ((t_process*)elem)->pid == process->pid;
         }
-
+        DDSemAllocated(deadlockDetector, process, mateSem);
         //Blocked -> Ready
         if(process->state==BLOCKED){
             pQueue_removeBy(direcciones.blockedQueue, getProcessById);

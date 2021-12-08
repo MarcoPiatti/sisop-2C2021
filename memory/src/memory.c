@@ -7,8 +7,9 @@
 #include "commons/config.h"
 #include "swapInterface.h"
 #include "utils.h"
+#include "tlb.h"
 
-// TODO: cambiar metadata->firstFrame cuando se inicializa (o finaliza) un proceso en memoria.
+// TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
 int main(){
 
@@ -21,6 +22,7 @@ int main(){
     config = getMemoryConfig("./cfg/memory.config");
     validateConfg(config, memLogger);
 
+    tlb = createTLB();
     ram = initializeMemory(config);
     metadata = initializeMemoryMetadata(config);
     pageTables = dictionary_create();
@@ -42,6 +44,7 @@ int main(){
     destroyMemoryConfig(config);
     dictionary_destroy_and_destroy_elements(pageTables, _destroyPageTable);
     log_destroy(memLogger);
+    destroyTLB(tlb);
 
     destroyMemMutex();
     return 0;
@@ -173,33 +176,35 @@ bool global(int32_t *start, int32_t *end, uint32_t PID){
 }
 
 bool isPresent(uint32_t PID, uint32_t page){
-    t_pageTable* pt = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable* pt = getPageTable(PID, pageTables);
         bool present = (pt->entries)[page].present;
     pthread_mutex_unlock(&pageTablesMut);
     return present;
 }
 
 int32_t getFrame(uint32_t PID, uint32_t pageN){
+   
+    int32_t frame = getFrameFromTLB(PID, pageN);
+    if (frame != -1) return frame;
 
-    /* TODO: Integrar con TLB:
-        * Buscar en TLB antes de tabla de paginas.
-        * Actualizar TLB cuando se swapean paginas.
-    */
-
-    // Si esta presente retorna el numero de frame.
+    // Si esta presente, lo agrega a la TLB y retorna el numero de frame.
     if (isPresent(PID, pageN)) {
-        t_pageTable* pt = getPageTable(PID, pageTables);
         pthread_mutex_lock(&pageTablesMut);
+            t_pageTable* pt = getPageTable(PID, pageTables);
             uint32_t frame = ((pt->entries)[pageN]).frame;
         pthread_mutex_unlock(&pageTablesMut);
 
         updateTimestamp(frame);
+
+        addEntryToTLB(PID, pageN, frame);
+
         return frame;
     }
 
     // Si no esta presente hay que traerla de swap.
     uint32_t frame = swapPage(PID, pageN);
+
     updateTimestamp(frame);    // (creo) nunca se accede a un frame sin conseguirlo con getFrame(), por lo que este es el unico lugar donde se actualiza el timestamp de los frames.
     return frame;
 }
@@ -237,10 +242,12 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
             uint32_t victimPage = (metadata->entries)[victim].page;
         pthread_mutex_unlock(&metadataMut);
 
+        dropEntry(victimPID, victimPage);
+
         swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
-        t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
         pthread_mutex_lock(&pageTablesMut);
+            t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);
             (ptReemplazado->entries)[victimPage].present = false;
             (ptReemplazado->entries)[victimPage].frame = -1;
         pthread_mutex_unlock(&pageTablesMut);
@@ -254,11 +261,14 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Escribir pagina traida de swap a memoria. 
     writeFrame(ram, victim, pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
-    t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
     pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *ptReemplaza = getPageTable(PID, pageTables);
         (ptReemplaza->entries)[page].present = true;
         (ptReemplaza->entries)[page].frame = victim;
     pthread_mutex_unlock(&pageTablesMut);
+
+    addEntryToTLB(PID, page, victim);
+
     // Modificar frame metadata.
     pthread_mutex_lock(&metadataMut);
         printf("Se va pag %u entra pag %u al frame %u, libre: %u. \n", (metadata->entries)[victim].page, page, victim, isfree);

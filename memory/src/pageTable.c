@@ -20,6 +20,12 @@ void _destroyPageTable(void *table){
     destroyPageTable((t_pageTable*) table);
 }
 
+void pageTable_destroyLastEntry(t_pageTable* pt){
+    pthread_mutex_lock(&pageTablesMut);
+        (pt->pageQuantity)--;
+        pt->entries = realloc(pt->entries, sizeof(t_pageTableEntry)*(pt->pageQuantity));
+    pthread_mutex_unlock(&pageTablesMut);
+}
 
 int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
     pthread_mutex_lock(&pageTablesMut);
@@ -34,10 +40,8 @@ int32_t pageTableAddEntry(t_pageTable *table, uint32_t newFrame){
 
 t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pagTables) {
     char *PID = string_itoa(_PID);
-
-    pthread_mutex_lock(&pageTablesMut);
-        t_pageTable* pt = (t_pageTable*) dictionary_get(pagTables, PID);
-    pthread_mutex_unlock(&pageTablesMut);
+    
+    t_pageTable* pt = (t_pageTable*) dictionary_get(pagTables, PID);
 
     free(PID);
 

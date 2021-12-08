@@ -11,6 +11,7 @@
 #include "kernelConfig.h"
 #include "mateSem.h"
 #include "commons/collections/dictionary.h"
+#include "deadlockDetector.h"
 #include <time.h>
 #include <string.h>
 
@@ -33,6 +34,8 @@ pthread_t thread_longTerm, thread_mediumTerm, *thread_Cpus;
 
 t_kernelConfig* config;
 
+t_deadlockDetector* deadlockDetector;
+
 void *auxHandler(void *vclientSocket);
 
 void *longTerm_run(void* args);
@@ -50,5 +53,9 @@ int responseRatio(t_process* process);
 bool compareHRRN(t_process* p1, t_process* p2);
 
 processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process);
+
+void *deadlockDetector_thread(void* args);
+
+bool findDeadlocks(t_deadlockDetector* dd, int memorySocket);
 
 #endif // !KERNEL_H_
