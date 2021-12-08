@@ -11,8 +11,10 @@ sudo make uninstall
 make all
 sudo make install
 cd $CWD
-echo -e "\n\nBuilding projects...\n\n"
-make -C ./proceso1
-make -C ./proceso2
-make -C ./proceso3
-echo -e "\n\nDeploy done!\n\n"
+echo -e "\n\nBuilding...\n\n"
+make -C ./kernel
+make -C ./memory
+make -C ./swamp
+make -C ./libmate
+sudo cp ./libmate/libmatelib.so /usr/lib
+echo -e "\n\nDeploy terminado!\n\n"
