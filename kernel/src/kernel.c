@@ -4,8 +4,6 @@
 #include "commons/config.h"
 #include "sleeper.h"
 
-sem_t cuposDisponibles, availableCPUS, runShortTerm;
-
 int main(void){
     kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
@@ -158,7 +156,7 @@ void *shortTerm_run(void* args) {
 void *cpu(void* args) {
 
     // TODO: Habria que revisar TODA la funcion, en particular el tema del contador y las comparaciones entre enums.
-
+    int memSock = connectToServer(config->memoryIP, config->memoryPort);
     t_process* process;
     t_packet* packet;
     while(1) {
@@ -183,14 +181,14 @@ void *cpu(void* args) {
         while(state == CONTINUE){
             contador += contador;
             packet = socket_getPacket(socket);
-            state = petitionProcessHandler[packet->header](packet, process);
+            state = petitionProcessHandler[packet->header](packet, process, memSock);
             destroyPacket(packet);
         }
         if(state == BLOCK){ //Cambie BLOCKED por BLOCK. Ahora los tipos son compatibles pero no se que tan correcto sea.
             process->estimator = config->alpha * contador + (1-config->alpha) * process->estimator;
 
             pthread_mutex_lock(&mutex_log);
-            log_info(kernelLogger, "El proceso %u bloqueado tras rafaga de %u. El valor de su estimador es %d", process->pid, contador, process->estimator);
+            log_info(kernelLogger, "El proceso %u bloqueado tras rafaga de %u. El valor de su estimador es %f", process->pid, contador, process->estimator);
             pthread_mutex_unlock(&mutex_log);
 
         } 
@@ -229,12 +227,12 @@ bool compareHRRN(t_process* p1, t_process* p2) {
 void *deadlockDetector_thread(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 
-    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    int memorySocket = connectToServer(config->memoryIP, config->memoryPort);
 
     while(1){
-        milliSleep(kernelConfig->deadlockTime);
-        pthread_mutex_lock(&dd->mutex);
+        milliSleep(config->deadlockTime);
+        pthread_mutex_lock(&deadlockDetector->mutex);
         while(findDeadlocks(self, memorySocket));
-        pthread_mutex_unlock(&dd->mutex);
+        pthread_mutex_unlock(&deadlockDetector->mutex);
     }
 }
