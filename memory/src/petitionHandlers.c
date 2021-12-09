@@ -4,6 +4,7 @@
 #include "swapInterface.h"
 #include "utils.h"
 #include <commons/memory.h>
+#include "tlb.h"
 
 
 //  AUX
@@ -484,13 +485,15 @@ bool suspendHandler(t_packet *petition, int socket) {
         }
     pthread_mutex_unlock(&pageTablesMut); 
 
-    pthread_mutex_lock(&metadataMut);
-        for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
-            if(metadata->firstFrame[i] == PID) metadata->firstFrame[i] = -1;
-        }
-    pthread_mutex_unlock(&metadataMut);
-
-    // clearTLBFromPID(PID);   TODO: Descomentar y arreglar nombre;
+    if(metadata->firstFrame){
+        pthread_mutex_lock(&metadataMut);
+            for (uint32_t i = 0; i < config->frameQty / config->framesPerProcess; i++){
+                if(metadata->firstFrame[i] == PID) metadata->firstFrame[i] = -1;
+            }
+        pthread_mutex_unlock(&metadataMut);
+    }
+    
+    freeProcessEntries(PID);
 
     return true;
 }
@@ -527,7 +530,9 @@ bool capiTermHandler(t_packet* petition, int socket){
         log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
     pthread_mutex_unlock(&logMut);
 
-    // clearTLBFromPID(PID);   TODO: Descomentar y arreglar nombre;
+    sigUsr1HandlerTLB();
+
+    freeProcessEntries(PID);
     
     return true;
 }
