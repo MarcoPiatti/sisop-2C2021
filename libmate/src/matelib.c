@@ -48,6 +48,8 @@ int mate_init(mate_instance *lib_ref, char *config){
     socket_sendPacket(mateStruct->mateSocket, ID);
     destroyPacket(ID);
 
+    // TODO: Cambiar orden para que se desbloquee cuando entra a exec.
+
     if(mateStruct->isMemory)
         log_debug(mateStruct->logger, "Mate creado y conectado directamente a memoria");
     else log_debug(mateStruct->logger, "Mate creado y conectado al kernel");
