@@ -25,6 +25,7 @@ int main(){
     tlb = createTLB();
     ram = initializeMemory(config);
     metadata = initializeMemoryMetadata(config);
+    clock_m_Counter = 0;
     pageTables = dictionary_create();
 
     asignacion = strcmp(config->assignmentType, "FIJA") ? global : fijo;
@@ -66,10 +67,18 @@ t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
     newMetadata->entryQty = config->frameQty;
     newMetadata->counter = 0;
     newMetadata->entries = calloc(newMetadata->entryQty, sizeof(t_frameMetadata));
+    newMetadata->clock_m_Counter = NULL;
+    newMetadata->firstFrame = NULL;
 
-    uint32_t blockQty = config->frameQty / config->framesPerProcess;
-    newMetadata->firstFrame = calloc(blockQty, sizeof(uint32_t));
-    memset(newMetadata->firstFrame, -1, sizeof(uint32_t) * blockQty);
+
+    if (! strcmp(config->assignmentType, "FIJA")){
+        uint32_t blockQty = config->frameQty / config->framesPerProcess;
+        
+        newMetadata->firstFrame = calloc(blockQty, sizeof(uint32_t));
+        memset(newMetadata->firstFrame, -1, sizeof(uint32_t) * blockQty);
+
+        newMetadata->clock_m_Counter = calloc(blockQty, sizeof(uint32_t));
+    }
 
     for (int i = 0; i < newMetadata->entryQty; i++){
         ((newMetadata->entries)[i]).isFree = true;
@@ -80,7 +89,11 @@ t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
 }
 
 void destroyMemoryMetadata(t_memoryMetadata *meta){
-    free(meta->firstFrame);
+    
+    if(meta->firstFrame){
+        free(meta->firstFrame);
+        free(meta->clock_m_Counter);
+    }
     free(meta->entries);
     free(meta);
 }
@@ -251,9 +264,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
     // Si el frame no esta libre se envia a swap la pagina que lo ocupa. 
     // Esto es para que replace() se pueda utilizar tanto para cargar paginas a frames libres como para reemplazar.
-    bool isfree = true;
     if (! isFree(victim)){
-        isfree = false;
         // Enviar pagina reemplazada a swap.
         pthread_mutex_lock(&metadataMut);
             uint32_t victimPID  = (metadata->entries)[victim].PID;
@@ -335,28 +346,40 @@ uint32_t LRU(int32_t start, int32_t end){
 uint32_t clock_m(int32_t start, int32_t end){
     int32_t frame = getFreeFrame(start, end);
 
-    if(frame != -1){
+    if (frame != -1) {
         return frame;
     }
-    
+
+    uint32_t total = end - start;
+
     pthread_mutex_lock(&metadataMut);
-    for (int32_t j = 0; j < 2; j++){
-        for (int32_t i = start; i < end; i++){
-            if (!(metadata->entries[i].u || metadata->entries[i].modified)){
+    uint32_t *counter = metadata->firstFrame ? &(metadata->clock_m_Counter[start / config->framesPerProcess]) : &clock_m_Counter;
+
+    uint32_t auxCounter = *counter;
+
+    for (uint32_t j = 0; j < 2; j++){
+        for (uint32_t i = 0; i < total; i++){
+            auxCounter = start + (auxCounter + i) % total;
+            if (! (metadata->entries[auxCounter].u || metadata->entries[auxCounter].modified)){
                 pthread_mutex_unlock(&metadataMut);
-                return i;
+                frame = auxCounter;
+                *counter = auxCounter % total;
+                return frame;
             }
         }
-        for (int32_t i = start; i < end; i++){
-            if(! metadata->entries[i].u) {
+        for (uint32_t i = 0; i < total; i++){
+            auxCounter = start + (auxCounter + i) % total;
+            if (! metadata->entries[auxCounter].u){
                 pthread_mutex_unlock(&metadataMut);
-                return i;
+                frame = auxCounter;
+                *counter = auxCounter % total;
+                return frame;
             }
-            metadata->entries[i].u = false;
+            metadata->entries[auxCounter].u = false;
         }
     }
-
     pthread_mutex_unlock(&metadataMut);
+    *counter = auxCounter % total;
 
     return frame;
 }
@@ -388,107 +411,3 @@ void destroyMemMutex(void){
     pthread_mutex_destroy(&metadataMut);
     pthread_mutex_destroy(&pageTablesMut);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-// UNUSED
-void readFrame(t_memory *mem, uint32_t frame, void *dest){
-    void *frameAddress = ram_getFrame(mem, frame);
-    pthread_mutex_lock(&ramMut);
-        memcpy(dest, frameAddress, mem->config->pageSize);
-    pthread_mutex_unlock(&ramMut);
-}
-
-// Unused, reemplazado por heapRead()
-void memread(uint32_t bytes, uint32_t address, int PID, void *destination){
-    uint32_t firstPage = getPage(address, config);
-    uint32_t offset = getOffset(address, config);
-
-    uint32_t toRead = min(bytes, config->pageSize - offset);
-    uint32_t fullPages = (bytes - toRead) / config->pageSize;
-
-    uint32_t firstFrame = getFrame(PID, firstPage);
-    void *aux = destination;
-
-    // Leer "pedacito" de memoria en el final de una pag.
-    memcpy(aux, ram_getFrame(ram, firstFrame), toRead);
-    aux += toRead;
-
-    // Leer frames del medio completos.
-    toRead = config->pageSize;
-    size_t i;
-    for (i = 1; i < fullPages; i++){
-        readFrame(ram, getFrame(PID, firstPage + i), aux);
-        aux += toRead;
-    }
-
-    // Leer "pedacito" al inicio de ultima pagina.
-    toRead = bytes - toRead;
-    memcpy(aux, ram_getFrame(ram, getFrame(PID, firstPage + i)), toRead);
-    
-}
-// Unused, reemplazado por heapWrite()
-void memwrite(uint32_t bytes, uint32_t address, int PID, void *from){
-    uint32_t firstPage = getPage(address, config);
-    uint32_t offset = getOffset(address, config);
-
-    uint32_t toWrite = min(bytes, config->pageSize - offset);
-    uint32_t fullPages = (bytes - toWrite) / config->pageSize;
-
-    uint32_t firstFrame = getFrame(PID, firstPage);
-    void *aux = from;
-
-    // Escribir "pedacito" de memoria en el final de una pag.
-    memcpy(ram_getFrame(ram, firstFrame), aux, toWrite);
-    aux += toWrite;
-
-    // Escribir frames del medio completos.
-    toWrite = config->pageSize;
-    size_t i;
-    for (i = 1; i < fullPages; i++){
-        writeFrame(ram, getFrame(PID, firstPage + 1), aux);
-        aux += toWrite;
-    }
-
-    // Escribir "pedacito" al inicio de ultima pagina.
-    toWrite = bytes - toWrite;
-    memcpy(ram_getFrame(ram, getFrame(PID, firstPage + i)), aux, toWrite);
-}
-// UNUSED.
-void createPages(uint32_t PID, uint32_t qty){
-    t_pageTable* pt = getPageTable(PID, pageTables);
-    
-    // No existe funcion para crear pag vacia en swap.
-
-    for (uint32_t i = 0; i < qty; i++){
-        uint32_t pageN = pageTableAddEntry(pt, -1);
-        if (! swapInterface_createEmptyPage(swapInterface, PID, pageN)){
-            pthread_mutex_lock(&logMut);
-            log_error(memLogger, "No se pudo crear pagina Nro. %i en swap para PID: %i", pageN, PID);
-            pthread_mutex_unlock(&logMut);
-        }
-    }
-}
-*/

@@ -26,6 +26,8 @@ void *petitionHandler(void *_clientSocket);
 
 // Algoritmo (clock-m o LRU) toma un frame de inicio y un frame final y eligen la victima dentro del rango.
 uint32_t (*algoritmo)(int32_t start, int32_t end);
+uint32_t clock_m_Counter;
+
 
 // Asignacion fija o global, devuelven en los parametros un rango de frames entre los cuales se puede elegir una victima.
 bool (*asignacion)(int32_t *start, int32_t *end, uint32_t PID);
@@ -53,6 +55,7 @@ typedef struct frameMetadata {
 typedef struct memoryMetadata{
     uint32_t entryQty;
     uint32_t *firstFrame; // Array de PIDS donde el indice es el numero de "bloque" asignado a un carpincho en asig fija.
+    uint32_t *clock_m_Counter;
     uint32_t counter;
     t_frameMetadata *entries;
 } t_memoryMetadata;
