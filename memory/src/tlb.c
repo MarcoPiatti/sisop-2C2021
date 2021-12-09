@@ -234,14 +234,14 @@ void sigUsr1HandlerTLB() {
     FILE* f = fopen(config->TLBPathDump, "w");
     if(f == NULL) {
         pthread_mutex_lock(&logMut);
-        log_error(memLogger, "Error al abrir el archivo de dump de TLB");
+            log_error(memLogger, "Error al abrir el archivo de dump de TLB");
         pthread_mutex_unlock(&logMut);
         return;
     }
     printf("-----------------------------------------\n");
     pthread_mutex_lock(&tlb->mutex);
 
-    fprintf(f, "%d/%d/%d %d:%d:%d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    fprintf(f, "%d/%d/%d %d:%d:%d\n", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     for(int i = 0; i<tlb->size; i++) {
         printTLBEntry(f, &tlb->entries[i], i);
@@ -250,6 +250,7 @@ void sigUsr1HandlerTLB() {
     pthread_mutex_unlock(&tlb->mutex);
     printf("-----------------------------------------\n");
 
+    fclose(f);
     free(filePath);
     free(timestamp);
     //TODO
@@ -257,7 +258,7 @@ void sigUsr1HandlerTLB() {
 
 void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
     char status[10];
-    if(entry->isFree) strcpy(status,"Libre"); else strcpy(status, "Ocupado");
+    if(entry->isFree) strcpy(status,"libre"); else strcpy(status, "ocupado");
     fprintf(f, "Entrada: %d\t Estado: %s\t Carpincho: %u\t Pagina: %u\t Marco: %d\n", nEntry, status, entry->pid, entry->page, entry->frame);
 }
 
