@@ -24,7 +24,7 @@ int32_t createPage(uint32_t PID){
 void deleteLastPages(uint32_t PID, uint32_t lastAllocAddr){
     
     uint32_t firstToDelete = (lastAllocAddr + 9) / config->pageSize;
-    
+
     pthread_mutex_lock(&pageTablesMut);
         t_pageTable *pt = getPageTable(PID, pageTables);
         uint32_t lastToDelete = pt->pageQuantity - 1;
@@ -192,7 +192,7 @@ bool memallocHandler(t_packet* petition, int socket){
             streamAdd_INT32(response->payload, 0);
             socket_sendPacket(socket, response);
             destroyPacket(response);
-
+            // TODO: Evaluar caso borde de liberar las pags creadas cuando esto da error.
             pthread_mutex_lock(&logMut);
                 log_debug(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
             pthread_mutex_unlock(&logMut);
@@ -300,7 +300,7 @@ bool memallocHandler(t_packet* petition, int socket){
             streamAdd_INT32(response->payload, 0);
             socket_sendPacket(socket, response);
             destroyPacket(response);
-
+            // TODO: Evaluar caso borde de liberar las pags creadas cuando esto da error.
             pthread_mutex_lock(&logMut);
                 log_info(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
             pthread_mutex_unlock(&logMut);
@@ -506,7 +506,7 @@ bool capiTermHandler(t_packet* petition, int socket){
         uint32_t pageQty = pt->pageQuantity;
     pthread_mutex_unlock(&pageTablesMut);
 
-    for (int32_t i = pageQty; i > 0; i--){
+    for (int32_t i = pageQty - 1; i >= 0; i--){
         swapInterface_erasePage(swapInterface, PID, i);
 
         pthread_mutex_lock(&pageTablesMut);
