@@ -506,7 +506,7 @@ bool capiTermHandler(t_packet* petition, int socket){
         uint32_t pageQty = pt->pageQuantity;
     pthread_mutex_unlock(&pageTablesMut);
 
-    for (int32_t i = pageQty; i > 0; i--){          // TODO: arreglar logica chancha y fea.
+    for (int32_t i = pageQty; i > 0; i--){
         swapInterface_erasePage(swapInterface, PID, i);
 
         pthread_mutex_lock(&pageTablesMut);

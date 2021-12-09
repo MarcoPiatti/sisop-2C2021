@@ -22,7 +22,7 @@ int main(){
 
     char* mensajeLeido = malloc(200);
     mate_memread(&mate, puntero, mensajeLeido, 200);
-    // mate_memfree(&mate, puntero);
+    mate_memfree(&mate, puntero);
     mate_close(&mate);
     printf("Mensaje leido: %s\n", mensajeLeido);
 }
