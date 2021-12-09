@@ -43,6 +43,7 @@ int main(){
     destroyMemoryMetadata(metadata);
     destroyMemoryConfig(config);
     dictionary_destroy_and_destroy_elements(pageTables, _destroyPageTable);
+    swapInterface_destroy(swapInterface);
     log_destroy(memLogger);
     destroyTLB(tlb);
 
