@@ -2,8 +2,6 @@
 #include "memoryConfig.h"
 #include "memory.h"
 
-//TODO: Implementar sigUsrs 
-
 t_tlb* createTLB() {
 
     //Inicializo estructura de TLB
@@ -169,6 +167,7 @@ void freeProcessEntries(uint32_t pid) {
     pthread_mutex_unlock(&tlb->mutex);
 }
 
+
 // --------------- Metricas -----------------
 
 
@@ -231,14 +230,18 @@ void sigUsr1HandlerTLB() {
 
     sprintf(filePath, "%s/Dump_%s.tlb", dirPath, timestamp);
 
-    FILE* f = fopen(config->TLBPathDump, "w");
+    FILE* f = fopen(filePath, "w");
     if(f == NULL) {
         pthread_mutex_lock(&logMut);
-            log_error(memLogger, "Error al abrir el archivo de dump de TLB");
+        log_error(memLogger, "Error al abrir el archivo de dump de TLB %s", filePath);
         pthread_mutex_unlock(&logMut);
         return;
+    } else {
+        pthread_mutex_lock(&logMut);
+        log_debug(memLogger, "TLB: Generado dump en %s", filePath);
+        pthread_mutex_unlock(&logMut);
     }
-    printf("-----------------------------------------\n");
+    
     pthread_mutex_lock(&tlb->mutex);
 
     fprintf(f, "%d/%d/%d %d:%d:%d\n", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -248,8 +251,7 @@ void sigUsr1HandlerTLB() {
     }
 
     pthread_mutex_unlock(&tlb->mutex);
-    printf("-----------------------------------------\n");
-
+    
     fclose(f);
     free(filePath);
     free(timestamp);
