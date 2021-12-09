@@ -20,6 +20,8 @@ t_log *kernelLogger;
 pthread_mutex_t mutex_log;
 u_int32_t memSocket;
 
+sem_t cuposDisponibles, availableCPUS, runShortTerm;
+
 #define MAX_MULTIPROCESSING 10
 
 //Colas de estado compartidas
@@ -52,7 +54,7 @@ int responseRatio(t_process* process);
 
 bool compareHRRN(t_process* p1, t_process* p2);
 
-processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process);
+processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process, int memSocket);
 
 void *deadlockDetector_thread(void* args);
 

@@ -8,7 +8,7 @@ typedef struct kernelConfig {
     char* ip;
     char* port;
     char* memoryIP;
-    int memoryPort;
+    char* memoryPort;
     char* algorithm;
     double initialEstimation;
     double alpha;

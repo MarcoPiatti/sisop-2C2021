@@ -1,11 +1,11 @@
 #include <kernel.h>
 
-processState _capi_id(t_packet *received, t_process* process){
+processState _capi_id(t_packet *received, t_process* process, int memSocket){
 
     return CONTINUE;
 }
 
-processState _sem_init(t_packet *received, t_process* process){
+processState _sem_init(t_packet *received, t_process* process, int memSocket){
 
 
     char* semName = streamTake_STRING(received->payload);
@@ -22,7 +22,7 @@ processState _sem_init(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _sem_wait(t_packet *received, t_process* process){
+processState _sem_wait(t_packet *received, t_process* process, int memSocket){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem); //fetch semaphore from dictionary
 
@@ -33,7 +33,7 @@ processState _sem_wait(t_packet *received, t_process* process){
     return mateSem_wait(semaforo, process, processQueues);
 }
 
-processState _sem_post(t_packet *received, t_process* process){
+processState _sem_post(t_packet *received, t_process* process, int memSocket){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
     mateSem_post(semaforo, processQueues);
@@ -47,7 +47,7 @@ processState _sem_post(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _sem_destroy(t_packet *received, t_process* process){
+processState _sem_destroy(t_packet *received, t_process* process, int memSocket){
     char* nombreSem = streamTake_STRING(received->payload);
     t_mateSem* semaforo = dictionary_get(mateSems, nombreSem);
 
@@ -64,7 +64,7 @@ processState _sem_destroy(t_packet *received, t_process* process){
     return CONTINUE;
 }
 
-processState _call_io(t_packet *received, t_process* process){
+processState _call_io(t_packet *received, t_process* process, int memSocket){
     /* todo tuyo rey
     pthread_mutex_lock(&mutex_log);
     log_info(kernelLogger, "", process->pid);
@@ -74,26 +74,27 @@ processState _call_io(t_packet *received, t_process* process){
     return BLOCK;    //TODO: Ulises
 }
 
-processState _capi_term(t_packet *received, t_process* process){
+processState _capi_term(t_packet *received, t_process* process, int memSocket){
     //Avisar a memoria. Implica recibir un disconnected inmediatamente despues
     DDProcTerm(deadlockDetector, process);
     return CONTINUE;
 }
 
-processState _disconnected(t_packet *received, t_process* process){
+processState _disconnected(t_packet *received, t_process* process, int memSocket){
     //Pasar a exit
     return EXIT;
 }
 
-void relayPetition(t_packet* packet, uint32_t socket) {
+processState relayPetition(t_packet* packet, t_process* process, int memSocket) {
     socket_relayPacket(memSocket, packet);
     t_packet* response = socket_getPacket(memSocket);
     
-    socket_relayPacket(socket, response);
+    socket_relayPacket(process->socket, response);
     destroyPacket(response);
+    return CONTINUE;
 }
 
-processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process) = {
+processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process, int memSocket) = {
     _capi_id,
     _sem_init,
     _sem_wait,
