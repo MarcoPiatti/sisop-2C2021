@@ -56,6 +56,12 @@ void *petitionHandler(void *_clientSocket){
     bool keepServing = true;
     while(keepServing){
         t_packet *petition = socket_getPacket(clientSocket);
+        if(petition == NULL){
+            if(!retry_getPacket(clientSocket, &petition)){
+                close(clientSocket);
+                break;
+            }
+        }
         keepServing = petitionHandlers[petition->header](petition, clientSocket);
         destroyPacket(petition);
     }
