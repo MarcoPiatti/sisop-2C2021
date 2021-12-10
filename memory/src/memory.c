@@ -94,6 +94,9 @@ t_memoryMetadata *initializeMemoryMetadata(t_memoryConfig *config){
         memset(newMetadata->firstFrame, -1, sizeof(uint32_t) * blockQty);
 
         newMetadata->clock_m_Counter = calloc(blockQty, sizeof(uint32_t));
+        for(int i = 0; i < blockQty; i++){
+            newMetadata->clock_m_Counter[i] = i * config->framesPerProcess;
+        }
     }
 
     for (int i = 0; i < newMetadata->entryQty; i++){
@@ -371,33 +374,27 @@ uint32_t clock_m(int32_t start, int32_t end){
     pthread_mutex_lock(&metadataMut);
     uint32_t *counter = metadata->firstFrame ? &(metadata->clock_m_Counter[start / config->framesPerProcess]) : &clock_m_Counter;
 
-    uint32_t auxCounter = *counter;
-
-    for (uint32_t j = 0; j < 2; j++){
+    while(1){
         for (uint32_t i = 0; i < total; i++){
-            auxCounter = start + (auxCounter + i) % total;
-            if (! (metadata->entries[auxCounter].u || metadata->entries[auxCounter].modified)){
+            if (!metadata->entries[*counter].u && !metadata->entries[*counter].modified){
                 pthread_mutex_unlock(&metadataMut);
-                frame = auxCounter;
-                *counter = auxCounter % total;
+                frame = *counter;
+                *counter = start + ((*counter + 1) % total);
                 return frame;
             }
+            *counter = start + ((*counter + 1) % total);
         }
         for (uint32_t i = 0; i < total; i++){
-            auxCounter = start + (auxCounter + i) % total;
-            if (! metadata->entries[auxCounter].u){
+            if (! metadata->entries[*counter].u){
                 pthread_mutex_unlock(&metadataMut);
-                frame = auxCounter;
-                *counter = auxCounter % total;
+                frame = *counter;
+                *counter = start + ((*counter + 1) % total);
                 return frame;
             }
-            metadata->entries[auxCounter].u = false;
+            metadata->entries[*counter].u = false;
+            *counter = start + ((*counter + 1) % total);
         }
     }
-    pthread_mutex_unlock(&metadataMut);
-    *counter = auxCounter % total;
-
-    return frame;
 }
 
 void ram_editFrame(t_memory *mem, uint32_t offset, uint32_t frame, void *from, uint32_t size){
