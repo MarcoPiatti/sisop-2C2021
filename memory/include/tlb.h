@@ -52,3 +52,7 @@ void sigUsr2HandlerTLB(int unused);
 //Algoritmos de reemplazo
 void lruAlgorithm(t_tlbEntry* entry);
 void fifoAlgorithm(t_tlbEntry* entry);
+
+//Aux
+
+uint32_t sum_dictionary_values(t_dictionary* dict);
