@@ -273,7 +273,7 @@ void* thread_deadlockDetectorFunc(void* args){
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
 
     while(1){
-        for(int i = 0; i < kernelConfig->deadlockTime; i++){
+        for(int i = 0; i < kernelConfig->DeadlockDelay; i++){
             usleep(1000);
         }
         pthread_mutex_lock(&dd->mutex);
@@ -298,9 +298,9 @@ int main(){
     suspendedReadyQueue = pQueue_create();
 
     // Se toma el algoritmo de planificacion
-    if(!strcmp(kernelConfig->algorithm, "SJF"))
+    if(!strcmp(kernelConfig->schedulerAlgorithm, "SJF"))
         sortingAlgoritm = SJF;
-    if(!strcmp(kernelConfig->algorithm, "HRRN"))
+    if(!strcmp(kernelConfig->schedulerAlgorithm, "HRRN"))
         sortingAlgoritm = HRRN;
 
     // Inicializar semaforo de multiprocesamiento
@@ -320,11 +320,11 @@ int main(){
 
     // Inicializar Dispositivos IO 
     IO_dict = dictionary_create();
-    for(int i = 0; kernelConfig->IODevices[i]; i++){
+    for(int i = 0; kernelConfig->IODeviceNames[i]; i++){
         dictionary_put( IO_dict,
-                        kernelConfig->IODevices[i],
-                        createIODevice( kernelConfig->IODevices[i],
-                                        atoi(kernelConfig->IODurations[i]),
+                        kernelConfig->IODeviceNames[i],
+                        createIODevice( kernelConfig->IODeviceNames[i],
+                                        atoi(kernelConfig->IODeviceDelays[i]),
                                         thread_IODeviceFunc));
     }
     pthread_mutex_init(&mutex_IO_dict, NULL);
@@ -345,7 +345,7 @@ int main(){
     // Inicializar detector de deadlocks
     dd = createDeadlockDetector(thread_deadlockDetectorFunc);
     // Inicializar servidor
-    int serverSocket = createListenServer(kernelConfig->ip, kernelConfig->port);
+    int serverSocket = createListenServer(kernelConfig->kernelIP, kernelConfig->kernelPort);
     
     // El main hace de server, escucha conexiones nuevas y las pone en new
     t_process* process = NULL;
@@ -368,7 +368,7 @@ int main(){
         destroyPacket(ignored);
         socket_sendHeader(newProcessSocket, ID_KERNEL);
 
-        process = createProcess(pid, newProcessSocket, kernelConfig->initialEstimation);
+        process = createProcess(pid, newProcessSocket, kernelConfig->initialEstimator);
 
         pthread_mutex_lock(&mutex_mediumTerm);
             pQueue_put(newQueue, process);

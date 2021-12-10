@@ -48,6 +48,10 @@ uint8_t socket_getHeader(int socket){
     return header;
 }
 
+void socket_ignoreHeader(int socket){
+    uint8_t ignored = socket_getHeader(socket);
+}
+
 t_packet* socket_getPacket(int socket){
     uint8_t header = socket_getHeader(socket);
     uint32_t streamSize;

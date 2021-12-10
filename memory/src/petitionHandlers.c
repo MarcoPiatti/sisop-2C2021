@@ -558,7 +558,7 @@ bool capiIDHandler(t_packet* petition, int socket){
     socket_sendHeader(clientSocket, ID_MEMORIA);
 
     t_packet* response = createPacket(OK, 0);
-    socket_sendPacket(clientSocket, response);
+    socket_sendPacket(socket, response);
     destroyPacket(response);
 
     return true;

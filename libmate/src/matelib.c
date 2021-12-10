@@ -42,7 +42,7 @@ int mate_init(mate_instance *lib_ref, char *config){
     free(mateName);
 
     mateStruct->mateSocket = connectToServer(mateStruct->mateIP, mateStruct->matePort);
-    t_packet* packet = createPacket(ID_CAPI, INITIAL_STREAM_SIZE);
+    t_packet* packet = createPacket(CAPI_ID, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(packet->payload, mateStruct->pid);
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);

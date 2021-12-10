@@ -124,6 +124,8 @@ bool socket_get(int socket, void* dest, size_t size);
  */
 uint8_t socket_getHeader(int socket);
 
+void socket_ignoreHeader(int socket);
+
 /**
  * @DESC: Obtiene un packet del socket
  * @param socket: socket del cual se obtiene el packet
