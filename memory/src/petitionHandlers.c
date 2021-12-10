@@ -16,6 +16,7 @@ int32_t createPage(uint32_t PID){
     int32_t pageNumber = pageTableAddEntry(table, 0);
     void* newPageContents = calloc(1, config->pageSize);
     if(swapInterface_savePage(swapInterface, PID, pageNumber, newPageContents)){
+        free(newPageContents);
         return pageNumber;
     }
     free(newPageContents);
@@ -327,6 +328,7 @@ bool memallocHandler(t_packet* petition, int socket){
 
     streamAdd_INT32(response->payload, currentAllocAddr + 9);
     socket_sendPacket(socket, response);
+    free(response);
 
     return true;    
 
@@ -525,6 +527,7 @@ bool capiTermHandler(t_packet* petition, int socket){
 
     char *_PID = string_itoa(PID);
     dictionary_remove_and_destroy(pageTables, _PID, _destroyPageTable);
+    free(_PID);
 
     t_packet *response = createPacket(OK, INITIAL_STREAM_SIZE);
     socket_sendPacket(socket, response);

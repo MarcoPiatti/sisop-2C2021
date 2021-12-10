@@ -278,7 +278,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     void *pageFromSwap = swapInterface_loadPage(swapInterface, PID, page);
 
     // Chequear que se haya podido traer.
-    if (!pageFromSwap){
+    if (pageFromSwap == NULL){
         pthread_mutex_lock(&logMut);
             log_error(logger, "No se pudeo cargar pagina #%u del proceso #%u", page, PID);
         pthread_mutex_unlock(&logMut);        
@@ -313,6 +313,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
     // Escribir pagina traida de swap a memoria. 
     writeFrame(ram, victim, pageFromSwap);
+    free(pageFromSwap);
     // Modificar tabla de paginas del proceso cuya pagina entra a memoria.
     pthread_mutex_lock(&pageTablesMut);
         t_pageTable *ptReemplaza = getPageTable(PID, pageTables);

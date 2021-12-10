@@ -8,7 +8,7 @@ t_tlb* createTLB() {
     //Inicializo estructura de TLB
     tlb = malloc(sizeof(t_tlb));
     tlb->size = config->TLBEntryAmount;
-    tlb->entries = (t_tlbEntry*) calloc(sizeof(t_tlbEntry), tlb->size);
+    tlb->entries = (t_tlbEntry*) calloc(tlb->size, sizeof(t_tlbEntry));
     tlb->victimQueue = list_create();
     pthread_mutex_init(&tlb->mutex, NULL);
     tlb->pidHits = dictionary_create();
@@ -40,8 +40,7 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     }
 
     //Agrego a metricas
-    char key[ 16 ];
-    sprintf(key,"%u", pid);
+    char* key = string_itoa(pid);
     if(frame == -1) {
         addToMetrics(tlb->pidMisses, key);
 
@@ -56,6 +55,7 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
     }
 
     pthread_mutex_unlock(&tlb->mutex);
+    free(key);
     return frame;
 }
 
@@ -136,11 +136,8 @@ void destroyTLB(t_tlb* tlb) {
     list_destroy(tlb->victimQueue);
     pthread_mutex_destroy(&tlb->mutex);
 
-    void destroyUint32(void* data) {
-        free(data);
-    }
-    dictionary_destroy_and_destroy_elements(tlb->pidHits, destroyUint32);
-    dictionary_destroy_and_destroy_elements(tlb->pidMisses, destroyUint32);
+    dictionary_destroy_and_destroy_elements(tlb->pidHits, free);
+    dictionary_destroy_and_destroy_elements(tlb->pidMisses, free);
     free(tlb);
 }
 
@@ -176,7 +173,6 @@ void addToMetrics(t_dictionary* dic, char* pid) {
     if(dictionary_has_key(dic, pid)) {
         uint32_t* value = (uint32_t*) dictionary_get(dic, pid);
         *value = *value + 1;
-        dictionary_put(dic, pid, value);
     }
     else {
         uint32_t* value = malloc(sizeof(uint32_t));
