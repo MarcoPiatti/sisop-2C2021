@@ -26,7 +26,7 @@ int main(){
     // Initialize memLogger.
     memLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
 
-    log_debug(memLogger, "PID del proceso memoria: %i.", getpid());
+    log_debug(memLogger, "PID del proceso memoria: %i", getpid());
 
     // Load and validate config
     config = getMemoryConfig("./cfg/memory.config");
@@ -223,7 +223,7 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
         pthread_mutex_lock(&metadataMut);
             metadata->entries[frame].u = true;
         pthread_mutex_unlock(&metadataMut);
-
+        updateTimestamp(frame);
         return frame;
     }
 
