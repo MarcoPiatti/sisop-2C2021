@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "tlb.h"
 #include <unistd.h>
+#include "sleeper.h"
 
 // TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
@@ -223,12 +224,14 @@ int32_t getFrame(uint32_t PID, uint32_t pageN){
    
     int32_t frame = getFrameFromTLB(PID, pageN);
     if (frame != -1){
+        milliSleep(config->TLBHitDelay);
         pthread_mutex_lock(&metadataMut);
             metadata->entries[frame].u = true;
         pthread_mutex_unlock(&metadataMut);
         updateTimestamp(frame);
         return frame;
     }
+    milliSleep(config->TLBMissDelay);
 
     // Si esta presente, lo agrega a la TLB y retorna el numero de frame.
     if (isPresent(PID, pageN)) {
