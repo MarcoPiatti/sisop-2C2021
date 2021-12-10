@@ -37,22 +37,31 @@ int mate_init(mate_instance *lib_ref, char *config){
     else loggerLevel = LOG_LEVEL_INFO;
     char* loggerFileName = string_from_format("mate_%u.log", mateStruct->pid);
     char* mateName = string_from_format("Mate %u", mateStruct->pid);
-    mateStruct->logger = log_create(loggerFileName, mateName, isDebug, loggerLevel);
+    mateStruct->logger = log_create(loggerFileName, mateName, false, loggerLevel);
     free(loggerFileName);
     free(mateName);
 
     mateStruct->mateSocket = connectToServer(mateStruct->mateIP, mateStruct->matePort);
+    t_packet* packet = createPacket(ID_CAPI, INITIAL_STREAM_SIZE);
+    streamAdd_UINT32(packet->payload, mateStruct->pid);
+    socket_sendPacket(mateStruct->mateSocket, packet);
+    destroyPacket(packet);
+
     mateStruct->isMemory = (socket_getHeader(mateStruct->mateSocket) == ID_MEMORIA);
-    t_packet* ID = createPacket(CAPI_ID, INITIAL_STREAM_SIZE);
-    streamAdd_UINT32(ID->payload, mateStruct->pid);
-    socket_sendPacket(mateStruct->mateSocket, ID);
-    destroyPacket(ID);
-
-    // TODO: Cambiar orden para que se desbloquee cuando entra a exec.
-
     if(mateStruct->isMemory)
         log_debug(mateStruct->logger, "Mate creado y conectado directamente a memoria");
     else log_debug(mateStruct->logger, "Mate creado y conectado al kernel");
+
+    t_packet* response = socket_getPacket(mateStruct->mateSocket);
+    if(response->header != OK){
+        log_debug(mateStruct->logger, "Hubo algun problema al terminar de conectar al sistema, cerrando mate");
+        close(mateStruct->mateSocket);
+        config_destroy(mateStruct->mateConfig);
+        log_destroy(mateStruct->logger);
+        free(mateStruct);
+        lib_ref->group_info = NULL;
+    }
+    destroyPacket(response);
 
     return 0;
 }
@@ -212,9 +221,9 @@ int mate_call_io(mate_instance *lib_ref, mate_io_resource io, void *msg){
 
 mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     if(lib_ref->group_info == NULL) return 0;
-    mate_inner_structure* mateStruct = (mate_inner_structure*) (lib_ref->group_info);
+    mate_inner_structure* mateStruct = (mate_inner_structure*)lib_ref->group_info;
 
-    log_debug(mateStruct->logger, "Por pedir %i bytes de memoria.", size);
+    log_debug(mateStruct->logger, "Por pedir %i bytes de memoria", size);
 
     t_packet* packet = createPacket(MEMALLOC, INITIAL_STREAM_SIZE);
     streamAdd_UINT32(packet->payload, mateStruct->pid);
@@ -222,13 +231,9 @@ mate_pointer mate_memalloc(mate_instance *lib_ref, int size){
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    log_debug(mateStruct->logger, "Se pidieron los %i bytes.", size);
-
-    t_packet *response = socket_getPacket(mateStruct->mateSocket);
-    mate_pointer result = streamTake_INT32(response->payload);
-    destroyPacket(response);
-    log_debug(mateStruct->logger, "Resultado: %u.", result);
-
+    packet = socket_getPacket(mateStruct->mateSocket);
+    mate_pointer result = streamTake_INT32(packet->payload);
+    destroyPacket(packet);
 
     if(result == -1) log_debug(mateStruct->logger, "Fallo al pedir memoria");
     else log_debug(mateStruct->logger, "Memoria asignada en direccion logica %i", result);
@@ -252,7 +257,7 @@ int mate_memfree(mate_instance *lib_ref, mate_pointer addr){
     int rc = (response->header == OK) ? 0 : MATE_FREE_FAULT;
     destroyPacket(response);
 
-    if(rc) log_debug(mateStruct->logger, "Fallo al hacer free");
+    if(rc == MATE_FREE_FAULT) log_debug(mateStruct->logger, "Fallo al hacer free");
     else log_debug(mateStruct->logger, "Memoria liberada");
 
     return rc;
@@ -271,20 +276,18 @@ int mate_memread(mate_instance *lib_ref, mate_pointer origin, void *dest, int si
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-
-    t_packet *response = socket_getPacket(mateStruct->mateSocket);
-    if(response->header == ERROR){
+    packet = socket_getPacket(mateStruct->mateSocket);
+    if(packet->header == ERROR){
         log_debug(mateStruct->logger, "Fallo al leer");
-        destroyPacket(response);
+        destroyPacket(packet);
         return MATE_READ_FAULT;
     }
 
-    void *recvd = NULL;
+    void* recvd = NULL;
     int32_t recvdSize = streamTake_INT32(packet->payload);
-    printf("Rcvd size: %i\n", recvdSize);
-    streamTake(response->payload, &recvd, (size_t)recvdSize);
+    streamTake(packet->payload, &recvd, (size_t)recvdSize);
     memcpy(dest, recvd, recvdSize);
-    destroyPacket(response);
+    destroyPacket(packet);
 
     log_debug(mateStruct->logger, "Memoria leida");
 
@@ -305,13 +308,9 @@ int mate_memwrite(mate_instance *lib_ref, void *origin, mate_pointer dest, int s
     socket_sendPacket(mateStruct->mateSocket, packet);
     destroyPacket(packet);
 
-    log_debug(mateStruct->logger, "Enviada peticion para escrbir %i bytes en la direccion logica %i", size, dest);
-
-    t_packet *response = socket_getPacket(mateStruct->mateSocket);
-    int rc = (response->header == OK) ? 0 : MATE_WRITE_FAULT;
-    destroyPacket(response);
-
-    log_debug(mateStruct->logger, "Recibida respuesta de escritura");
+    packet = socket_getPacket(mateStruct->mateSocket);
+    int rc = (packet->header == OK) ? 0 : MATE_WRITE_FAULT;
+    destroyPacket(packet);
 
     if(rc) log_debug(mateStruct->logger, "Fallo al escribir");
     else log_debug(mateStruct->logger, "Memoria escrita");
