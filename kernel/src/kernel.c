@@ -1,227 +1,180 @@
 #include "kernel.h"
-#include "networking.h"
-#include "commons/log.h"
-#include "commons/config.h"
-#include "sleeper.h"
+#include <commons/temporal.h>
+#include <string.h>
 
-int main(void){
-    kernelLogger = log_create("./kernel.log", "KERNEL", 1, LOG_LEVEL_TRACE);
-    pthread_mutex_init(&mutex_log, NULL);
 
-    config = getKernelConfig("./kernel.cfg");
-
-    //Inicializo estructura t_processQueues
-    processQueues.newQueue = newQueue = pQueue_create();
-    processQueues.readyQueue = readyQueue = pQueue_create();
-    processQueues.blockedQueue = blockedQueue = pQueue_create();
-    processQueues.suspendedReadyQueue = suspendedReadyQueue = pQueue_create();
-    processQueues.suspendedBlockedQueue = suspendedBlockedQueue = pQueue_create();
-    processQueues.execQueue = execQueue = pQueue_create();
-
-    //Inicializo diccionario de mateSems
-    mateSems = dictionary_create();
-
-    //Inicializacion semáforos
-    sem_init(&cuposDisponibles, 0, config->multiprogram);       //Cantidad de carpinchos que pueden estar en memoria
-    sem_init(&availableCPUS, 0, config->multiprocess);          //Cantidad de CPUs disponibles
-    sem_init(&runShortTerm, 0, 0);     //Semáforo "notifier" para correr el short term scheduler solo cuando un proceso llega a ready
-
-    //Conecto con memoria. Comentar para testing de solo kernel.
-    /* 
-    memSocket = connectToServer(config->memoryIP, config->memoryPort);
-    if(memSocket) {
-        pthread_mutex_lock(&mutex_log);
-        log_info(kernelLogger, "Kernel conectado a memoria exitosamente");
-        pthread_mutex_unlock(&mutex_log);
-    } */
-    
-    //Inicio hilo sobre el cual corre el long term scheduler
-    pthread_create(&thread_longTerm, NULL, longTerm_run, NULL);
-    pthread_detach(thread_longTerm);
-    thread_Cpus = calloc(config->multiprocess, sizeof(pthread_t));
-    for(int i=0;i<config->multiprocess;i++){
-        pthread_create(&thread_Cpus[i], NULL, cpu, NULL);
-    }
-
-    int serverSocket = createListenServer(config->ip, config->port);
-
-    deadlockDetector = createDeadlockDetector(deadlockDetector_thread);
-
-    while(1){   
-        runListenServer(serverSocket, auxHandler);
-    }
-
-    close(serverSocket);
-
-    return 0;
+double rr(t_process* process){
+    return 1 + (process->waitedTime / process->estimate);
 }
 
-void *auxHandler(void *vclientSocket){
-    int clientSocket = (int) vclientSocket;
-    socket_sendHeader(clientSocket, OK);
-    
-    t_packet *packet;
-    t_process* process;
-    
-    uint32_t idCliente;
+// Funcion para poner un proceso a ready, actualiza la cola de ready y la reordena segun algoritmo
+// No hay hilo de corto plazo ya que esta funcion hace exactamente eso de un saque
+void putToReady(t_process* process){
+    pQueue_lock(readyQueue);
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+        double timeSinceLastReschedule = (double)(stop.tv_sec - start.tv_sec) * 1000 
+                                       + (double)(stop.tv_nsec - start.tv_nsec) / 1000000;
+        clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 
-    socket_sendHeader(clientSocket, ID_KERNEL);
+        void updateMetrics(void* elem){
+            t_process* process = (t_process*)elem;
+            process->waitedTime += timeSinceLastReschedule;
+        };
+        pQueue_iterate(readyQueue, updateMetrics);
 
-    packet = socket_getPacket(clientSocket);
-    idCliente = streamTake_UINT32(packet->payload);
-    process = createProcess(idCliente, clientSocket, config->initialEstimation);
-    pQueue_put(newQueue, process);
-
-    pthread_mutex_lock(&mutex_log);
-    log_info(kernelLogger, "Proceso %u recibido y agregado a cola de New", process->pid);
-    pthread_mutex_unlock(&mutex_log);
-
-    DDProcInit(deadlockDetector, process);
-
-    destroyPacket(packet);
-
-    return NULL; // Ni idea, solo para que no tire warnings, igual esta funcion hay que tirarla completita al tacho.
-}
-
-//Toma procesos de la cola de New y los pone en ready cuando sea posible.
-void *longTerm_run(void* args) {
-    t_process* process;
-    while(1) {
-        sem_wait(&cuposDisponibles);
-        process = pQueue_take(newQueue);
+        process->waitedTime = 0;
         process->state = READY;
-        pQueue_put(readyQueue, process);
+        pQueue_put(readyQueue, (void*)process);
+        pQueue_sort(readyQueue, sortingAlgoritm);
+
+        void _printEstimators(void* elem){
+            t_process* proc = (t_process*)elem;
+            log_info(logger, "Proceso %i - estimador: %f, rr: %f", proc->pid, proc->estimate, rr(proc));
+        };
 
         pthread_mutex_lock(&mutex_log);
-        log_info(kernelLogger, "El planificador de largo plazo llevo de new a ready al proceso %u", process->pid);
+        printf("\n");
+        log_info(logger, "Corto Plazo: Cola Ready replanificada:");
+        pQueue_iterate(readyQueue, _printEstimators);
+        printf("\n");
         pthread_mutex_unlock(&mutex_log);
 
-        sem_post(&runShortTerm);
+    pQueue_unlock(readyQueue);
+}
+
+bool SJF(void*elem1, void*elem2){
+    return ((t_process*)elem1)->estimate <= ((t_process*)elem2)->estimate;
+}
+
+bool HRRN(void*elem1, void*elem2){
+    t_process* process1 = (t_process*)elem1;
+    t_process* process2 = (t_process*)elem2;
+    double RR1 = rr(process1);
+    double RR2 = rr(process2);
+    return RR1 >= RR2;
+}
+
+// Hilo del largo plazo, toma un proceso de new o suspended_ready y lo pasa a ready
+void* thread_longTermFunc(void* args){
+    t_process *process;
+    while(1){
+        sem_wait(&sem_multiprogram);
+        sem_post(&sem_multiprogram);
+        sem_wait(&sem_newProcess);
+        pthread_mutex_lock(&mutex_mediumTerm);
+            if(pQueue_isEmpty(suspendedReadyQueue))
+                process = (t_process*)pQueue_take(newQueue);
+            else process = (t_process*)pQueue_take(suspendedReadyQueue);
+            process->state = READY;
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Largo Plazo: el proceso %u pasa a ready", process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            putToReady(process);
+
+            sem_wait(&sem_multiprogram);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
     }
 }
 
-void *midTerm_run(void* args) {
-    t_process * process;
-    while(1) {
-        if(!pQueue_isEmpty(newQueue)){
-            if(pQueue_isEmpty(readyQueue)) {
-                if(!pQueue_isEmpty(blockedQueue)) {
-                    // Blocked -> Suspended Blocked
-                    process = pQueue_take(blockedQueue);
-                    process->state = SUSP_BLOCKED;
-                    pQueue_put(suspendedBlockedQueue, process);
-                    sem_post(&cuposDisponibles);
-                }
+// Hilo de mediano plazo, se despierta solo cuando el grado de multiprogramacion esta copado de procesos en blocked
+// Agarra un proceso de blocked, lo pasa a suspended blocked y sube el grado de multiprogramacion
+void* thread_mediumTermFunc(void* args){
+    t_process *process;
+    int availablePrograms;
+
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+
+    t_packet* suspendRequest;
+
+    while(1){
+        pthread_mutex_lock(&mutex_mediumTerm);
+            //Espera a que se cumpla la condicion para despertarse
+            sem_getvalue(&sem_multiprogram, &availablePrograms);
+            while(availablePrograms >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
+                pthread_cond_wait(&cond_mediumTerm, &mutex_mediumTerm);
+                sem_getvalue(&sem_multiprogram, &availablePrograms);
             }
-        } else {
-            if(!pQueue_isEmpty(suspendedReadyQueue)){
-                // Suspended Ready -> Ready
-                sem_wait(&cuposDisponibles);                        //ver
-                process = pQueue_take(suspendedReadyQueue);
-                process->state = READY;
-                pQueue_put(readyQueue, process);
-            }
-        }
+            //Sacamos al proceso de la cola de blocked y lo metemos a suspended blocked
+            process = (t_process*)pQueue_takeLast(blockedQueue);
+            process->state = SUSP_BLOCKED;
+            pQueue_put(suspendedBlockedQueue, (void*)process);
+            sem_post(&sem_multiprogram);
+
+            //Notifica a memoria de la suspension
+            suspendRequest = createPacket(SUSPEND, INITIAL_STREAM_SIZE);
+            streamAdd_UINT32(suspendRequest->payload, process->pid);
+            socket_sendPacket(memorySocket, suspendRequest);
+            destroyPacket(suspendRequest);
+        pthread_mutex_unlock(&mutex_mediumTerm);
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Mediano Plazo: el proceso %u pasa a suspended blocked", process->pid);
+        pthread_mutex_unlock(&mutex_log);
     }
 }
 
+// Hilo CPU, toma un proceso de ready y ejecuta todas sus peticiones hasta que se termine o pase a blocked
+// Cuando lo pasa a blocked, recalcula el estimador de rafaga del proceso segun la cantidad de rafagas que duro
+void* thread_CPUFunc(void* args){
+    intptr_t CPUid = (intptr_t)args;
+    t_process *process = NULL;
+    t_packet *request = NULL;
+    bool keepServing = true;
+    struct timespec rafagaStart, rafagaStop;
 
-//TODO: Implementar Call io
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
 
-void *shortTerm_run(void* args) {
-    t_process* process;
-    void _updateWaited(void* p){
-        updateWaited((t_process*) process);
-    }
-    bool _compareSJF(void *p1, void *p2){
-        return compareSJF((t_process*) p1, (t_process*) p2);
-    }
-    bool _compareHRRN(void *p1, void *p2){
-        return compareHRRN((t_process*) p1, (t_process*) p2);
-    }
-    while(1) {
-        sem_wait(&runShortTerm);
-        pQueue_iterate(readyQueue, _updateWaited);
-        if(! strcmp(config->algorithm,  "SJF"))
-            pQueue_sort(readyQueue, _compareSJF);
-        else                                        //Se asume que no hay otro algoritmo
-            pQueue_sort(readyQueue, _compareHRRN);   
-    }
-}
-
-// void updateWaited(t_process* process){
-//     process->waited += 1; 
-// }                                        REDEFINICION DE FUNCION, no se cual es correcta pero deje la otra.
-
-void *cpu(void* args) {
-
-    // TODO: Habria que revisar TODA la funcion, en particular el tema del contador y las comparaciones entre enums.
-    int memSock = connectToServer(config->memoryIP, config->memoryPort);
-    t_process* process;
-    t_packet* packet;
-    while(1) {
-        
-        // TODO: Arreglar contador (siempre queda en 0).
-
+    while(1){
+        process = NULL;
+        keepServing = true;
         process = pQueue_take(readyQueue);
         process->state = EXEC;
+        
+        pthread_mutex_lock(&mutex_mediumTerm);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
+
+        t_packet* ok_packet = createPacket(OK, 0);
+        socket_sendPacket(process->socket, ok_packet);
+        destroyPacket(ok_packet);
+
+        clock_gettime(CLOCK_MONOTONIC, &rafagaStart);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(kernelLogger, "El proceso %u se encuentra ahora ejecutandose", process->pid);
+        log_info(logger, "CPU %i: el proceso %u pasa a exec", CPUid, process->pid);
         pthread_mutex_unlock(&mutex_log);
 
-        int contador = 0;
-        // int seguirAtendiendo = true;     UNUSED.
+        while(keepServing){
+            request = socket_getPacket(process->socket);
+            if(request == NULL){
+                if(!retry_getPacket(process->socket, &request)){
+                    t_packet* abruptTerm = createPacket(CAPI_TERM, INITIAL_STREAM_SIZE);
+                    streamAdd_UINT32(abruptTerm->payload, process->pid);
+                    petitionHandlers[CAPI_TERM](process, abruptTerm, memorySocket);
+                    destroyPacket(abruptTerm);
+                    petitionHandlers[DISCONNECTED](process, request, memorySocket);
+                    break;
+                }
+            }
+            keepServing = petitionHandlers[request->header](process, request, memorySocket);
 
-        processState state = CONTINUE;
-        // bool exited = false;     UNUSED.
+            if(request->header == SEM_WAIT || request->header == CALL_IO){
+                clock_gettime(CLOCK_MONOTONIC, &rafagaStop);
+                double rafagaMs = (double)(rafagaStop.tv_sec - rafagaStart.tv_sec) * 1000 
+                                + (double)(rafagaStop.tv_nsec - rafagaStart.tv_nsec) / 1000000;
+                double oldEstimate = process->estimate;
+                process->estimate = kernelConfig->alpha * rafagaMs + (1 - kernelConfig->alpha) * process->estimate;
+                pthread_mutex_lock(&mutex_log);
+                log_info(logger, "Proceso %u: Nueva estimacion - rafaga real finalizada: %f, estimador viejo: %f, estimador nuevo: %f", process->pid, rafagaMs, oldEstimate, process->estimate);
+                pthread_mutex_unlock(&mutex_log);
+            }
 
-        int socket = process->socket;
-
-        while(state == CONTINUE){
-            contador += contador;
-            packet = socket_getPacket(socket);
-            state = petitionProcessHandler[packet->header](packet, process, memSock);
-            destroyPacket(packet);
+            destroyPacket(request);
         }
-        if(state == BLOCK){ //Cambie BLOCKED por BLOCK. Ahora los tipos son compatibles pero no se que tan correcto sea.
-            process->estimator = config->alpha * contador + (1-config->alpha) * process->estimator;
-
-            pthread_mutex_lock(&mutex_log);
-            log_info(kernelLogger, "El proceso %u bloqueado tras rafaga de %u. El valor de su estimador es %f", process->pid, contador, process->estimator);
-            pthread_mutex_unlock(&mutex_log);
-
-        } 
-        else if(state == EXIT) {
-            process->state = TERMINATED;    //Posiblemente innecesario
-
-            pthread_mutex_lock(&mutex_log);
-            log_info(kernelLogger, "Destruido el proceso %u (terminado)", process->pid);
-            pthread_mutex_unlock(&mutex_log);
-
-            destroyProcess(process);
-        }
-        //TODO: Implementar exit
     }
-}
-
-bool compareSJF(t_process* p1, t_process* p2){
-    return p1->estimator < p2->estimator;
-}
-
-void updateWaited(t_process* process) {
-    struct timespec start = process->startTime, end;
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    process->waited = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
-}
-
-int responseRatio(t_process* process){
-    updateWaited(process);
-    return (process->estimator + process->waited) / process->estimator;
-}
-
-bool compareHRRN(t_process* p1, t_process* p2) {
-    return responseRatio(p1) > responseRatio(p2);
 }
 
 // Hilo Dispositivo IO, toma un proceso de su cola de espera, lo "procesa" y lo manda a la cola respectiva
@@ -313,15 +266,123 @@ void* thread_semFunc(void* args){
     }
 }
 
-void *deadlockDetector_thread(void* args){
+// Hilo deadlock detector. Se despierta cada tanto y revisa si hay deadlocks 
+void* thread_deadlockDetectorFunc(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 
-    int memorySocket = connectToServer(config->memoryIP, config->memoryPort);
+    int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
 
     while(1){
-        milliSleep(config->deadlockTime);
-        pthread_mutex_lock(&deadlockDetector->mutex);
+        for(int i = 0; i < kernelConfig->deadlockTime; i++){
+            usleep(1000);
+        }
+        pthread_mutex_lock(&dd->mutex);
         while(findDeadlocks(self, memorySocket));
-        pthread_mutex_unlock(&deadlockDetector->mutex);
+        pthread_mutex_unlock(&dd->mutex);
     }
+}
+
+// Hilo main del kernel, inicializa todo, crea a los otros hilo y hace de server para recibir nuevos procesos y mandarlos a ready
+int main(){
+    logger = log_create("./cfg/kernel.log", "Kernel", true, LOG_LEVEL_TRACE);
+    pthread_mutex_init(&mutex_log, NULL);
+
+    kernelConfig = getKernelConfig("./cfg/kernel.config");
+
+    // Inicializar estructuras de estado 
+    newQueue = pQueue_create();
+    readyQueue = pQueue_create();
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start); //Reloj de espera de ready
+    blockedQueue = pQueue_create();
+    suspendedBlockedQueue = pQueue_create();
+    suspendedReadyQueue = pQueue_create();
+
+    // Se toma el algoritmo de planificacion
+    if(!strcmp(kernelConfig->algorithm, "SJF"))
+        sortingAlgoritm = SJF;
+    if(!strcmp(kernelConfig->algorithm, "HRRN"))
+        sortingAlgoritm = HRRN;
+
+    // Inicializar semaforo de multiprocesamiento
+    sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
+    sem_init(&sem_newProcess, 0, 0);
+
+    // Inicializo condition variable para despertar al planificador de mediano plazo 
+    pthread_cond_init(&cond_mediumTerm, NULL);
+    pthread_mutex_init(&mutex_mediumTerm, NULL);
+
+    /* Inicializar CPUs */
+    thread_CPUs = malloc(sizeof(pthread_t) * kernelConfig->multiprocess);
+    for(intptr_t i = 0; i < kernelConfig->multiprocess; i++){
+        pthread_create(thread_CPUs + i, 0, thread_CPUFunc, (void*)i);
+        pthread_detach(thread_CPUs[i]);
+    }
+
+    // Inicializar Dispositivos IO 
+    IO_dict = dictionary_create();
+    for(int i = 0; kernelConfig->IODevices[i]; i++){
+        dictionary_put( IO_dict,
+                        kernelConfig->IODevices[i],
+                        createIODevice( kernelConfig->IODevices[i],
+                                        atoi(kernelConfig->IODurations[i]),
+                                        thread_IODeviceFunc));
+    }
+    pthread_mutex_init(&mutex_IO_dict, NULL);
+
+    // Crear estructura para agregar semaforos
+    sem_dict = dictionary_create();
+    pthread_mutex_init(&mutex_sem_dict, NULL);
+
+
+    // Inicializar Planificador de largo plazo
+    pthread_create(&thread_longTerm, 0, thread_longTermFunc, NULL);
+    pthread_detach(thread_longTerm);
+    
+    // Inicializar Planificador de mediano plazo
+    pthread_create(&thread_mediumTerm, 0, thread_mediumTermFunc, NULL);
+    pthread_detach(thread_mediumTerm);
+
+    // Inicializar detector de deadlocks
+    dd = createDeadlockDetector(thread_deadlockDetectorFunc);
+    // Inicializar servidor
+    int serverSocket = createListenServer(kernelConfig->ip, kernelConfig->port);
+    
+    // El main hace de server, escucha conexiones nuevas y las pone en new
+    t_process* process = NULL;
+    int memSock = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
+    while(1){
+        int newProcessSocket = getNewClient(serverSocket);
+
+        t_packet* idPacket = socket_getPacket(newProcessSocket);
+        if(idPacket == NULL){
+            if(!retry_getPacket(newProcessSocket, &idPacket)){
+                close(newProcessSocket);
+                continue;
+            }
+        }
+
+        uint32_t pid = streamTake_UINT32(idPacket->payload);
+        socket_relayPacket(memSock, idPacket);
+        socket_ignoreHeader(memSock);
+        t_packet* ignored = socket_getPacket(memSock);
+        destroyPacket(ignored);
+        socket_sendHeader(newProcessSocket, ID_KERNEL);
+
+        process = createProcess(pid, newProcessSocket, kernelConfig->initialEstimation);
+
+        pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_put(newQueue, process);
+            sem_post(&sem_newProcess);
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Proceso %u: se conecta", pid);
+            pthread_mutex_unlock(&mutex_log);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
+        
+        DDProcInit(dd, process);
+
+        destroyPacket(idPacket);
+    }
+
+    return 0;
 }

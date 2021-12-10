@@ -1,72 +1,75 @@
 #ifndef  KERNEL_H_
 #define  KERNEL_H_
 
-#include "networking.h"
 #include "pQueue.h"
+#include "mateSem.h"
 #include "process.h"
+#include "IODevice.h"
+#include "deadlockDetector.h"
+#include "kernelConfig.h"
+#include "networking.h"
+
+#include <commons/collections/dictionary.h>
+
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
-#include "kernelConfig.h"
-#include "mateSem.h"
-#include "commons/collections/dictionary.h"
-#include "deadlockDetector.h"
 #include <time.h>
-#include <string.h>
-#include <IODevice.h>
 
-//Aux
-t_log *kernelLogger;
-pthread_mutex_t mutex_log, mutex_sem_dict, mutex_mediumTerm, mutex_IO_dict;
-pthread_cond_t cond_mediumTerm;
-u_int32_t memSocket;
+// Datos de la config
+t_kernelConfig *kernelConfig;
 
-t_dictionary *sem_dict;
+// Colas de estado de planificacion
+t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedBlockedQueue, *suspendedReadyQueue;
 
-sem_t sem_multiprogram, availableCPUS, runShortTerm;
-
-#define MAX_MULTIPROCESSING 10
-
-//Colas de estado compartidas
-t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue, *suspendedBlockedQueue, *execQueue;
-
-
-t_dictionary* mateSems, *IO_dict;
-
+// Instancia de un Deadlock detector
 t_deadlockDetector* dd;
 
-pthread_t thread_longTerm, thread_mediumTerm, *thread_Cpus;
-//Ver tema implementación shortTerm planner
+// Semaforos para el planificador de largo plazo
+// El primero refleja el grado de multiprogramacion
+// El segundo indica si hay nuevos procesos
+sem_t sem_multiprogram, sem_newProcess;
 
-t_kernelConfig* config;
+// Hilos para el planificador de largo y mediano plazo
+pthread_t thread_longTerm, thread_mediumTerm;
 
-t_deadlockDetector* deadlockDetector;
+// Condition variable para despertar al planificador de medio plazo
+pthread_cond_t cond_mediumTerm;
+pthread_mutex_t mutex_mediumTerm;
 
-void *auxHandler(void *vclientSocket);
+// Array con los hilos CPU
+pthread_t *thread_CPUs;
 
-void *longTerm_run(void* args);
+//Diccionarios y sus mutexes
+t_dictionary *IO_dict, *sem_dict;
+pthread_mutex_t mutex_IO_dict, mutex_sem_dict;
 
-void *shortTerm_run(void* args);
+// Timers usados para medir el tiempo de la cola de ready para HRRN
+struct timespec start, stop;
 
-void updateWaited(t_process* process);
+// Puntero a funcion a modo de container para elegir SJF o HRRN
+bool(*sortingAlgoritm)(void*, void*);
 
-void *cpu(void* args);
+bool SJF(void*, void*); //compara segun estimador
+bool HRRN(void*, void*); //compara segun RR: tiempoEsperado / estimador
+
+void* thread_longTermFunc(void* args); 
+
+void* thread_mediumTermFunc(void* args); 
+
+void* thread_CPUFunc(void* args);
 
 void* thread_IODeviceFunc(void* args);
 
 void* thread_semFunc(void* args);
 
-bool compareSJF(t_process* p1, t_process* p2);
+void* thread_deadlockDetectorFunc(void* args);
 
-int responseRatio(t_process* process);
+//Array con funciones para procesar cada posible pedido de los procesos
+extern bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, int memorySocket);
 
-bool compareHRRN(t_process* p1, t_process* p2);
-
-processState (*petitionProcessHandler[MAX_PETITIONS])(t_packet *received, t_process* process, int memSocket);
-
-void *deadlockDetector_thread(void* args);
-
+//Funcion para hallar deadlocks y terminar un proceso
 bool findDeadlocks(t_deadlockDetector* dd, int memorySocket);
 
 #endif // !KERNEL_H_
