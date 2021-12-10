@@ -199,6 +199,7 @@ void sigIntHandlerTLB(int unused) {
 
     printf("-----------------------------------------\n");
     pthread_mutex_unlock(&tlb->mutex);
+    exit(EXIT_SUCCESS);
 }
 
 //Repeticion de logica? :P
