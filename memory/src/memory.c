@@ -8,6 +8,7 @@
 #include "swapInterface.h"
 #include "utils.h"
 #include "tlb.h"
+#include <unistd.h>
 
 // TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
