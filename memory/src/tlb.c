@@ -190,10 +190,14 @@ void sigIntHandlerTLB(int unused) {
     pthread_mutex_lock(&tlb->mutex);
     printf("-----------------------------------------\n");
     
-    printf("Cantidad total de hits: %d\n", dictionary_size(tlb->pidHits));
+    uint32_t hits = sum_dictionary_values(tlb->pidHits);
+
+    printf("Cantidad total de hits: %d\n", hits);
     printTlbHits(tlb->pidHits);
 
-    printf("Cantidad total de misses: %d\n", dictionary_size(tlb->pidMisses));
+    uint32_t misses = sum_dictionary_values(tlb->pidMisses);
+
+    printf("Cantidad total de misses: %d\n", misses);
     printTlbMisses(tlb->pidMisses);
     
 
@@ -265,4 +269,15 @@ void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
 
 void sigUsr2HandlerTLB(int unused) {
     cleanTLB();
+}
+
+//Aux
+
+uint32_t sum_dictionary_values(t_dictionary* dict) {
+    uint32_t sum = 0;
+    void sum_values(char* key, void* value) {
+        sum += *(uint32_t*)value;
+    }
+    dictionary_iterator(dict, sum_values);
+    return sum;
 }
