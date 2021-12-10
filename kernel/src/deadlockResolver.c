@@ -98,13 +98,15 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
         if(locked == dd->procs[i]){
             for(int j = 0; j < dd->m; j++){
                 if(dd->request[i][j]){
+                    pthread_mutex_lock(&mutex_mediumTerm);
                     pQueue_removeBy(dd->sems[j]->waitingProcesses, matchesPid);
                     if(locked->state == BLOCKED) pQueue_removeBy(blockedQueue, matchesPid);
                     else if(locked->state == SUSP_BLOCKED) pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+                    pthread_mutex_unlock(&mutex_mediumTerm);
                     dd->request[i][j] = 0;
                 }
                 while(dd->allocation[i][j]){
-                    mateSem_post(dd->sems[j], processQueues);
+                    mateSem_post(dd->sems[j]);
                     dd->allocation[i][j]--;
                     dd->available[j]++;
                 }
@@ -124,7 +126,7 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
             destroyPacket(response);
 
             destroyProcess(dd->procs[i]);
-            sem_post(&cuposDisponibles);
+            sem_post(&sem_multiprogram);
 
             dd->n--;
             memmove(dd->procs+i, dd->procs+i+1, sizeof(t_process*) * (dd->n - i));
