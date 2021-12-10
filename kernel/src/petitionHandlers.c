@@ -254,9 +254,9 @@ bool(*petitionHandlers[MAX_PETITIONS])(t_process* process, t_packet* petition, i
     relayPetition,
     relayPetition,
     relayPetition,
+    NULL,
     relayTerminate,
-    terminateProcess,
-    NULL
+    terminateProcess
 };
 
 
