@@ -555,7 +555,7 @@ bool capiIDHandler(t_packet* petition, int socket){
         log_info(memLogger, "Se conecto un carpincho con PID #%u.", PID);
     pthread_mutex_unlock(&logMut);
 
-    socket_sendHeader(clientSocket, ID_MEMORIA);
+    socket_sendHeader(socket, ID_MEMORIA);
 
     t_packet* response = createPacket(OK, 0);
     socket_sendPacket(socket, response);
