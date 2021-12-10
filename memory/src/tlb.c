@@ -225,7 +225,7 @@ void sigUsr1HandlerTLB(int unused) {
     //Get time
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    char* timestamp = temporal_get_string_time("%d_%m_%y__%H_%M_%S_%MS");
+    char* timestamp = temporal_get_string_time("%H_%M_%S_%MS");
 
     sprintf(filePath, "%s/Dump_%s.tlb", dirPath, timestamp);
 
