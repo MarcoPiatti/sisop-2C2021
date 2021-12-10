@@ -14,22 +14,27 @@
 #include "deadlockDetector.h"
 #include <time.h>
 #include <string.h>
+#include <IODevice.h>
 
 //Aux
 t_log *kernelLogger;
-pthread_mutex_t mutex_log;
+pthread_mutex_t mutex_log, mutex_sem_dict, mutex_mediumTerm, mutex_IO_dict;
+pthread_cond_t cond_mediumTerm;
 u_int32_t memSocket;
 
-sem_t cuposDisponibles, availableCPUS, runShortTerm;
+t_dictionary *sem_dict;
+
+sem_t sem_multiprogram, availableCPUS, runShortTerm;
 
 #define MAX_MULTIPROCESSING 10
 
 //Colas de estado compartidas
 t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedReadyQueue, *suspendedBlockedQueue, *execQueue;
 
-t_processQueues processQueues;
 
-t_dictionary* mateSems;
+t_dictionary* mateSems, *IO_dict;
+
+t_deadlockDetector* dd;
 
 pthread_t thread_longTerm, thread_mediumTerm, *thread_Cpus;
 //Ver tema implementación shortTerm planner
