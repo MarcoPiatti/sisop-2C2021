@@ -1,10 +1,12 @@
 #include <stdint.h>
 #include <commons/string.h>
 #include "memory.h"
+#include <signal.h>
 #include <commons/memory.h>
 #include "networking.h"
 #include "commons/log.h"
 #include "commons/config.h"
+#include <unistd.h>
 #include "swapInterface.h"
 #include "utils.h"
 #include "tlb.h"
@@ -13,11 +15,18 @@
 // TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
 int main(){
+    
+
+    signal(SIGINT, sigIntHandlerTLB);
+    signal(SIGUSR1, sigUsr1HandlerTLB);
+    signal(SIGUSR2, sigUsr2HandlerTLB);
 
     initalizeMemMutex();
 
     // Initialize memLogger.
     memLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
+
+    log_debug(memLogger, "PID del proceso memoria: %i.", getpid());
 
     // Load and validate config
     config = getMemoryConfig("./cfg/memory.config");

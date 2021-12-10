@@ -42,12 +42,12 @@ void freeProcessEntries(uint32_t pid);
 
 //Metricas
 void addToMetrics(t_dictionary* dic, char* pid);
-void sigIntHandlerTLB();
+void sigIntHandlerTLB(int unused);
 void printTlbHits(t_dictionary* hits);
 void printTlbMisses(t_dictionary* misses);
-void sigUsr1HandlerTLB();
+void sigUsr1HandlerTLB(int unused);
 void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry);
-void sigUsr2HandlerTLB();
+void sigUsr2HandlerTLB(int unused);
 
 //Algoritmos de reemplazo
 void lruAlgorithm(t_tlbEntry* entry);

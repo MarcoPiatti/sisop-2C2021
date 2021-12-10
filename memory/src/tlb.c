@@ -186,7 +186,7 @@ void addToMetrics(t_dictionary* dic, char* pid) {
 
 
 //Esta funcion SOLO IMPRIME las metricas pedidas del sigint
-void sigIntHandlerTLB() {
+void sigIntHandlerTLB(int unused) {
     pthread_mutex_lock(&tlb->mutex);
     printf("-----------------------------------------\n");
     
@@ -218,7 +218,7 @@ void printTlbMisses(t_dictionary* misses) {
 
 // --------------- SIGUSRs -----------------
 
-void sigUsr1HandlerTLB() {
+void sigUsr1HandlerTLB(int unused) {
     char* dirPath = config->TLBPathDump;
     char* filePath = (char*) calloc(strlen(dirPath) + 35, sizeof(char));
 
@@ -263,6 +263,6 @@ void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
     fprintf(f, "Entrada: %d\t Estado: %s\t Carpincho: %u\t Pagina: %u\t Marco: %d\n", nEntry, status, entry->pid, entry->page, entry->frame);
 }
 
-void sigUsr2HandlerTLB() {
+void sigUsr2HandlerTLB(int unused) {
     cleanTLB();
 }

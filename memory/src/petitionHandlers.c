@@ -530,7 +530,7 @@ bool capiTermHandler(t_packet* petition, int socket){
         log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
     pthread_mutex_unlock(&logMut);
 
-    sigUsr1HandlerTLB();
+    sigUsr1HandlerTLB(0);
 
     freeProcessEntries(PID);
     
