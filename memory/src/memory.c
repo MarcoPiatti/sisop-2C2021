@@ -54,7 +54,6 @@ int main(){
 void *petitionHandler(void *_clientSocket){
     int clientSocket = (int) _clientSocket;
     bool keepServing = true;
-    socket_sendHeader(clientSocket, ID_MEMORIA);
     while(keepServing){
         t_packet *petition = socket_getPacket(clientSocket);
         keepServing = petitionHandlers[petition->header](petition, clientSocket);
