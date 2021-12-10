@@ -1,6 +1,7 @@
 #include "tlb.h"
 #include "memoryConfig.h"
 #include "memory.h"
+#include <unistd.h>
 
 t_tlb* createTLB() {
 
@@ -199,6 +200,7 @@ void sigIntHandlerTLB(int unused) {
 
     printf("-----------------------------------------\n");
     pthread_mutex_unlock(&tlb->mutex);
+    close(serverSocket);
     exit(EXIT_SUCCESS);
 }
 

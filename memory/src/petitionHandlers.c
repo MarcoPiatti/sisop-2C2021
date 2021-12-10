@@ -18,6 +18,7 @@ int32_t createPage(uint32_t PID){
     if(swapInterface_savePage(swapInterface, PID, pageNumber, newPageContents)){
         return pageNumber;
     }
+    free(newPageContents);
     return -1;
 }
 

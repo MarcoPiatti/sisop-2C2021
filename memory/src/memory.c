@@ -46,7 +46,7 @@ int main(){
     swapHeader tipoAsig = strcmp(config->assignmentType, "FIJA") ? ASIG_GLOBAL : ASIG_FIJA;
     swapInterface = swapInterface_create(config->swapIP, config->swapPort, config->pageSize, tipoAsig);
 
-    int serverSocket = createListenServer(config->ip, config->port);
+    serverSocket = createListenServer(config->ip, config->port);
 
     while(1){
         runListenServer(serverSocket, petitionHandler);

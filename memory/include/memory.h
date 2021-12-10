@@ -19,6 +19,8 @@ void destroyMemMutex();
 t_swapInterface* swapInterface;
 t_memoryConfig *config;
 
+int serverSocket;
+
 extern bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket);
 
 void *petitionHandler(void *_clientSocket);
