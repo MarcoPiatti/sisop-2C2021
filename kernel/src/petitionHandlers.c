@@ -1,6 +1,5 @@
 #include "kernel.h"
 
-// Si un proceso pidio inicializar un semaforo, se ejecuta esta funcion
 bool semInit(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     t_mateSem* sem = NULL;
@@ -34,7 +33,6 @@ bool semInit(t_process* process, t_packet* petition, int memorySocket){
     return true;
 }
 
-// Si un proceso pidio un wait de un semaforo, se ejecuta esta
 bool semWait(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
@@ -92,7 +90,6 @@ bool semWait(t_process* process, t_packet* petition, int memorySocket){
 }
 
 
-// Si un proceso hizo post de un semaforo, se ejecuta esta
 bool semPost(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
@@ -129,7 +126,6 @@ bool semPost(t_process* process, t_packet* petition, int memorySocket){
 }
 
 
-// Si un proceso pidio destruir un semaforo, se ejecuta esta
 bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* semName = streamTake_STRING(petition->payload);
@@ -165,7 +161,6 @@ bool semDestroy(t_process* process, t_packet* petition, int memorySocket){
 }
 
 
-// Si un proceso pidio esperar a un IO, se ejecuta esta
 bool callIO(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = NULL;
     char* IOName = streamTake_STRING(petition->payload);
@@ -206,7 +201,7 @@ bool callIO(t_process* process, t_packet* petition, int memorySocket){
     
 }
 
-// Si un proceso pidio algo de memoria, se ejecuta esta
+// memalloc
 bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
     pthread_mutex_lock(&mutex_log);
     log_info(logger, "Proceso %u: hace un pedido a memoria", process->pid);
@@ -220,7 +215,7 @@ bool relayPetition(t_process* process, t_packet* petition, int memorySocket){
     return true;
 }
 
-// Si un proceso nos dijo chau viejo me termino, se ejecuta La de abajo, que llama a esta
+// terminated
 bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     t_packet *response = createPacket(OK, 0);
     socket_sendPacket(process->socket, response);
@@ -237,7 +232,7 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     return false;
 }
 
-// Si un proceso nos dijo chau viejo me termino, se ejecuta esta, que avisa a la memoria del evento
+// terminated (a memoria)
 bool relayTerminate(t_process* process, t_packet* petition, int memorySocket){
     socket_relayPacket(memorySocket, petition);
     t_packet* response = socket_getPacket(memorySocket);
