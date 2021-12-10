@@ -224,6 +224,95 @@ bool compareHRRN(t_process* p1, t_process* p2) {
     return responseRatio(p1) > responseRatio(p2);
 }
 
+// Hilo Dispositivo IO, toma un proceso de su cola de espera, lo "procesa" y lo manda a la cola respectiva
+// Si estaba en blocked, lo manda a ready, si estaba en suspended blocked, lo manda a suspended Ready
+void* thread_IODeviceFunc(void* args){
+    t_IODevice* self = (t_IODevice*) args;
+    t_process* process = NULL;
+    bool matchesPid(void* elem){
+        return process->pid == ((t_process*)elem)->pid;
+    };
+
+    while(1){
+        process = (t_process*)pQueue_take(self->waitingProcesses);
+        
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Dispositivo IO %s: el proceso %u se bloquea %ims", self->nombre, process->pid, self->duracion);
+        pthread_mutex_unlock(&mutex_log);
+        
+        for(int i = 0; i < self->duracion; i++){
+            usleep(1000);
+        }
+        
+        if(process->state == BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_removeBy(blockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            putToReady(process);
+        }
+        else if(process->state == SUSP_BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            pQueue_put(suspendedReadyQueue, (void*)process);
+            sem_post(&sem_newProcess);
+        }
+    }
+}
+
+// Hilo para semaforo, se despierta solo si el contador < 1 y hay algun proceso en espera
+// Toma un proceso y lo pone en ready o suspended ready respectivamente
+void* thread_semFunc(void* args){
+    t_mateSem* self = (t_mateSem*) args;
+    t_process* process = NULL;
+    bool matchesPid(void* elem){
+        return process->pid == ((t_process*)elem)->pid;
+    };
+
+    while(1){
+        pthread_mutex_lock(&self->sem_mutex);
+        while(pQueue_isEmpty(self->waitingProcesses) || !self->sem){
+            pthread_cond_wait(&self->sem_cond, &self->sem_mutex);
+        }
+        process = (t_process*)pQueue_take(self->waitingProcesses);
+        self->sem--;
+        pthread_mutex_unlock(&self->sem_mutex);
+        if(process->state == BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_removeBy(blockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Semaforo %s: el proceso %u pasa a ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
+            putToReady(process);
+        }
+        else if(process->state == SUSP_BLOCKED){
+            pthread_mutex_lock(&mutex_mediumTerm);
+            pQueue_removeBy(suspendedBlockedQueue, matchesPid);
+            pthread_mutex_unlock(&mutex_mediumTerm);
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Semaforo %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
+            pthread_mutex_unlock(&mutex_log);
+            pQueue_put(suspendedReadyQueue, (void*)process);
+            sem_post(&sem_newProcess);
+        }
+
+        DDSemAllocated(dd, process, self);
+    }
+}
+
 void *deadlockDetector_thread(void* args){
     t_deadlockDetector* self = (t_deadlockDetector*)args;
 

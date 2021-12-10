@@ -48,6 +48,10 @@ void updateWaited(t_process* process);
 
 void *cpu(void* args);
 
+void* thread_IODeviceFunc(void* args);
+
+void* thread_semFunc(void* args);
+
 bool compareSJF(t_process* p1, t_process* p2);
 
 int responseRatio(t_process* process);
