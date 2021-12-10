@@ -195,7 +195,7 @@ bool fijo(int32_t *start, int32_t *end, uint32_t PID){
 
 bool global(int32_t *start, int32_t *end, uint32_t PID){
     *start = 0;
-    *end = config->frameQty - 1;
+    *end = config->frameQty;
     return true;
 }
 
