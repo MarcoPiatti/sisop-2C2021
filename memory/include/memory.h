@@ -18,7 +18,6 @@ void destroyMemMutex();
 
 t_swapInterface* swapInterface;
 t_memoryConfig *config;
-t_log *memLogger;
 
 extern bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket);
 

@@ -174,14 +174,14 @@ int32_t getFreeAlloc(uint32_t PID, uint32_t size) {
 //  HANDLERS.
 bool memallocHandler(t_packet* petition, int socket){
     pthread_mutex_lock(&logMut);
-        log_debug(memLogger, "Paquete MEMALLOC recibido");
+        log_debug(logger, "Paquete MEMALLOC recibido");
     pthread_mutex_unlock(&logMut);
 
     uint32_t PID  = streamTake_UINT32(petition->payload);
     uint32_t size = streamTake_INT32(petition->payload);
 
     pthread_mutex_lock(&logMut);
-        log_debug(memLogger, "Haciendo alloc de %u, bytes para carpincho de PID %u.", size, PID);
+        log_debug(logger, "Haciendo alloc de %u, bytes para carpincho de PID %u.", size, PID);
     pthread_mutex_unlock(&logMut);
 
     t_packet* response = createPacket(POINTER, INITIAL_STREAM_SIZE);
@@ -192,10 +192,12 @@ bool memallocHandler(t_packet* petition, int socket){
             streamAdd_INT32(response->payload, 0);
             socket_sendPacket(socket, response);
             destroyPacket(response);
-            // TODO: Evaluar caso borde de liberar las pags creadas cuando esto da error.
+
             pthread_mutex_lock(&logMut);
-                log_debug(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
+                log_debug(logger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
             pthread_mutex_unlock(&logMut);
+
+            return true;
         }
         t_heapMetadata first;
         first.isFree = true;
@@ -205,7 +207,6 @@ bool memallocHandler(t_packet* petition, int socket){
         // Se guarda el nuevo alloc en memoria.
         heap_write(PID, 0, 9, &first);
     }
-
 
     bool useLastAlloc = false;
     uint32_t currentAllocAddr = 0;
@@ -300,10 +301,12 @@ bool memallocHandler(t_packet* petition, int socket){
             streamAdd_INT32(response->payload, 0);
             socket_sendPacket(socket, response);
             destroyPacket(response);
-            // TODO: Evaluar caso borde de liberar las pags creadas cuando esto da error.
+
             pthread_mutex_lock(&logMut);
-                log_info(memLogger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
+                log_info(logger, "No se pudo crear pagina para el carpincho de PID %u.", PID);
             pthread_mutex_unlock(&logMut);
+
+            deleteLastPages(PID, currentAllocAddr);
 
             return true;
         }
@@ -527,7 +530,7 @@ bool capiTermHandler(t_packet* petition, int socket){
     destroyPacket(response);
 
     pthread_mutex_lock(&logMut);
-        log_info(memLogger, "Se desconecto el carpincho de PID %u.", PID);
+        log_info(logger, "Se desconecto el carpincho de PID %u.", PID);
     pthread_mutex_unlock(&logMut);
 
     sigUsr1HandlerTLB(0);
@@ -552,7 +555,7 @@ bool capiIDHandler(t_packet* petition, int socket){
     free(_PID);
 
     pthread_mutex_lock(&logMut);
-        log_info(memLogger, "Se conecto un carpincho con PID #%u.", PID);
+        log_info(logger, "Se conecto un carpincho con PID #%u.", PID);
     pthread_mutex_unlock(&logMut);
 
     socket_sendHeader(socket, ID_MEMORIA);
@@ -564,8 +567,7 @@ bool capiIDHandler(t_packet* petition, int socket){
     return true;
 }
 
-bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) =
-{
+bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) = {
     capiIDHandler,
     NULL,
     NULL,

@@ -10,6 +10,7 @@
 #include "swapInterface.h"
 #include "utils.h"
 #include "tlb.h"
+#include "logs.h"
 #include <unistd.h>
 #include "sleeper.h"
 
@@ -24,14 +25,14 @@ int main(){
 
     initalizeMemMutex();
 
-    // Initialize memLogger.
-    memLogger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
+    // Initialize logger.
+    logger = log_create("./memory.log", "MEMORY", 1, LOG_LEVEL_TRACE);
 
-    log_debug(memLogger, "PID del proceso memoria: %i", getpid());
+    log_debug(logger, "PID del proceso memoria: %i", getpid());
 
     // Load and validate config
     config = getMemoryConfig("./cfg/memory.config");
-    validateConfg(config, memLogger);
+    validateConfg(config, logger);
 
     tlb = createTLB();
     ram = initializeMemory(config);
@@ -55,7 +56,7 @@ int main(){
     destroyMemoryConfig(config);
     dictionary_destroy_and_destroy_elements(pageTables, _destroyPageTable);
     swapInterface_destroy(swapInterface);
-    log_destroy(memLogger);
+    log_destroy(logger);
     destroyTLB(tlb);
 
     destroyMemMutex();
@@ -279,7 +280,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
     // Chequear que se haya podido traer.
     if (!pageFromSwap){
         pthread_mutex_lock(&logMut);
-            log_error(memLogger, "No se pudeo cargar pagina #%u del proceso #%u", page, PID);
+            log_error(logger, "No se pudeo cargar pagina #%u del proceso #%u", page, PID);
         pthread_mutex_unlock(&logMut);        
         return -1;
     }
@@ -305,7 +306,7 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
         pthread_mutex_unlock(&pageTablesMut);
 
         pthread_mutex_lock(&logMut);
-            log_info(memLogger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
+            log_info(logger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
         pthread_mutex_unlock(&logMut);
 
     }

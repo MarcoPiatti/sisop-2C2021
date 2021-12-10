@@ -45,12 +45,12 @@ int32_t getFrameFromTLB(uint32_t pid, uint32_t page) {
         addToMetrics(tlb->pidMisses, key);
 
         pthread_mutex_lock(&logMut);
-        log_info(memLogger, "TLB Miss: Proceso %s, numero de pagina %u", key, page);
+        log_info(logger, "TLB Miss: Proceso %s, numero de pagina %u", key, page);
         pthread_mutex_unlock(&logMut);
     } else {
         addToMetrics(tlb->pidHits, key);
         pthread_mutex_lock(&logMut);
-        log_info(memLogger, "TLB Hit: Proceso %s, numero de pagina %u, marco %u", key, page, frame);
+        log_info(logger, "TLB Hit: Proceso %s, numero de pagina %u, marco %u", key, page, frame);
         pthread_mutex_unlock(&logMut);
     }
 
@@ -71,7 +71,7 @@ void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
             tlb->entries[i].isFree = false;
 
             pthread_mutex_lock(&logMut);
-            log_debug(memLogger, "TLB: Ocupada entrada previamente libre");
+            log_debug(logger, "TLB: Ocupada entrada previamente libre");
             pthread_mutex_unlock(&logMut);
 
             freeFound = true;
@@ -85,7 +85,7 @@ void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
         t_tlbEntry* victim = list_remove(tlb->victimQueue, 0);
 
         pthread_mutex_lock(&logMut);
-        log_info(memLogger, "TLB, reemplazo de entrada. Sale PID: %u, numero de pagina: %u, marco: %u // Entra PID: %u, numero de pagina: %u, marco: %u", 
+        log_info(logger, "TLB, reemplazo de entrada. Sale PID: %u, numero de pagina: %u, marco: %u // Entra PID: %u, numero de pagina: %u, marco: %u", 
         victim->pid, victim->page, victim->frame, pid, page, frame);
         pthread_mutex_unlock(&logMut);
 
@@ -161,7 +161,7 @@ void freeProcessEntries(uint32_t pid) {
     }
 
     pthread_mutex_lock(&logMut);
-    log_info(memLogger, "TLB: Liberadas entradas del proceso %u", pid);
+    log_info(logger, "TLB: Liberadas entradas del proceso %u", pid);
     pthread_mutex_unlock(&logMut);
 
     pthread_mutex_unlock(&tlb->mutex);
@@ -232,12 +232,12 @@ void sigUsr1HandlerTLB(int unused) {
     FILE* f = fopen(filePath, "w");
     if(f == NULL) {
         pthread_mutex_lock(&logMut);
-        log_error(memLogger, "Error al abrir el archivo de dump de TLB %s", filePath);
+        log_error(logger, "Error al abrir el archivo de dump de TLB %s", filePath);
         pthread_mutex_unlock(&logMut);
         return;
     } else {
         pthread_mutex_lock(&logMut);
-        log_debug(memLogger, "TLB: Generado dump en %s", filePath);
+        log_debug(logger, "TLB: Generado dump en %s", filePath);
         pthread_mutex_unlock(&logMut);
     }
     
