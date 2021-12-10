@@ -22,5 +22,5 @@ echo -e "\n\n Instalando los carpinchos de prueba... \n\n"
 git clone "https://github.com/sisoputnfrba/carpinchos-pruebas.git"
 cd carpinchos-pruebas
 make compile 
+echo -e "\n\nCarpinchos de prueba compilados!\n\n"
 echo -e "\n\nDeploy terminado!\n\n"
-
