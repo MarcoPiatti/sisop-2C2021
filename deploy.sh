@@ -2,6 +2,16 @@
 length=$(($#-1))
 OPTIONS=${@:1:$length}
 REPONAME="${!#}"
+
+if [[ $# -ne 3 ]]; then
+    echo "Ingrese las tres IPs en orden Kernel -> Memoria -> Swap" >&2
+    exit 2
+fi
+
+IPKERNEL="$1"
+IPMEMORIA="$2"
+IPSWAP="$3"
+
 CWD=$PWD
 echo -e "\n\nInstalling commons libraries...\n\n"
 COMMONS="so-commons-library"
@@ -26,4 +36,28 @@ echo -e "\n\nCarpinchos de prueba compilados!\n\n"
 echo -e "\n\nCreando carpetas de dumps...\n\n"
 mkdir ~/dumps
 mkdir ~/dumps/tlb
+cd $CWD
+
+echo -e "\n\nCambiando IPs configs...\n\n"
+for i in ./kernel/cfg/*.config; do
+    sed -i "s/IP_KERNEL=127.0.0.1/IP_KERNEL=$IPKERNEL/g" $i
+    sed -i "s/IP_MEMORIA=127.0.0.1/IP_KERNEL=$IPMEMORIA/g" $i
+done
+for i in ./memory/cfg/*.config; do
+    sed -i "s/IP=127.0.0.1/IP=$IPMEMORIA/g" $i
+    sed -i "s/IP_SWAP=127.0.0.1/IP_SWAP=$IPSWAP/g" $i
+done
+for i in ./swamp/cfg/*.config; do
+    sed -i "s/IP=127.0.0.1/IP=$IPSWAP/g" $i
+done
+sed -i "s/IP_MATE=127.0.0.1/IP_MATE=$IPKERNEL/g" ./configs-carpinchos/aKernel.config
+sed -i "s/IP_MATE=127.0.0.1/IP_MATE=$IPMEMORIA/g" ./configs-carpinchos/aMemoria.config
+echo -e "IPs cambiadas!\n\n"
+
+echo -e "\n\nCopiando configs carpinchos...\n\n"
+cd $CWD
+cp ./configs-carpinchos/aKernel.config ./carpinchos-pruebas/build/aKernel.config
+cp ./configs-carpinchos/aMemoria.config ./carpinchos-pruebas/build/aMemoria.config
+echo -e "\nConfig carpinchos copiadas!\n\n"
+
 echo -e "\n\nDeploy terminado!\n\n"
