@@ -72,7 +72,7 @@ void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
             tlb->entries[i].isFree = false;
 
             pthread_mutex_lock(&logMut);
-            log_debug(logger, "TLB: Ocupada entrada previamente libre");
+            log_debug(logger, "TLB: Entrada libre ocupada %d PID: %u, Pagina: %u, Marco %u", i, pid, page, frame);
             pthread_mutex_unlock(&logMut);
 
             freeFound = true;
@@ -83,18 +83,20 @@ void addEntryToTLB(uint32_t pid, uint32_t page, int32_t frame) {
 
     //Si no hay entrada libre, reemplazo
     if(!freeFound) {
-        t_tlbEntry* victim = list_remove(tlb->victimQueue, 0);
+        if(!list_is_empty(tlb->victimQueue)){
+            t_tlbEntry* victim = list_remove(tlb->victimQueue, 0);
 
-        pthread_mutex_lock(&logMut);
-        log_info(logger, "TLB, reemplazo de entrada. Sale PID: %u, numero de pagina: %u, marco: %u // Entra PID: %u, numero de pagina: %u, marco: %u", 
-        victim->pid, victim->page, victim->frame, pid, page, frame);
-        pthread_mutex_unlock(&logMut);
+            pthread_mutex_lock(&logMut);
+            log_info(logger, "TLB, reemplazo de entrada %d. Sale PID: %u, numero de pagina: %u, marco: %u // Entra PID: %u, numero de pagina: %u, marco: %u", 
+            (victim - tlb->entries) ,victim->pid, victim->page, victim->frame, pid, page, frame);
+            pthread_mutex_unlock(&logMut);
 
-        victim->pid = pid;
-        victim->page = page;
-        victim->frame = frame;
-        victim->isFree = false;
-        list_add(tlb->victimQueue, victim);
+            victim->pid = pid;
+            victim->page = page;
+            victim->frame = frame;
+            victim->isFree = false;
+            list_add(tlb->victimQueue, victim);
+        }
     }
 
     pthread_mutex_unlock(&tlb->mutex);
