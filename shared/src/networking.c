@@ -13,8 +13,30 @@ void destroyPacket(t_packet* packet){
     free(packet);
 }
 
+int send_all(int socket, void *buffer, size_t size){
+    while (size > 0){
+        int i = send(socket, buffer, size, 0);
+        if (i == 0) return 0;
+        if (i < 0) return -1;
+        buffer += i;
+        size -= i;
+    }
+    return 1;
+}
+
+int recv_all(int socket, void *dest, size_t size){
+    while (size > 0){
+        int i = recv(socket, dest, size, 0);
+        if (i == 0) return 0;
+        if (i < 0) return -1;
+        dest += i;
+        size -= i;
+    }
+    return 1;
+}
+
 void socket_send(int socket, void* source, size_t size){
-    guard_syscall(send(socket, source, size, 0));
+    guard_syscall(send_all(socket, source, size));
 }
 
 void socket_sendHeader(int socket, uint8_t header){
@@ -36,7 +58,7 @@ void socket_relayPacket(int socket, t_packet* packet){
 bool socket_get(int socket, void* dest, size_t size){
     if(size != 0){
         int rc;
-        guard_syscall(rc = recv(socket, dest, size, 0));
+        guard_syscall(rc = recv_all(socket, dest, size));
         if(rc < 1) return false;
     }
     return true;
