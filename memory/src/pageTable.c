@@ -16,6 +16,7 @@ void destroyPageTable(t_pageTable *table){
     free(table->entries);
     free(table);
 }
+
 void _destroyPageTable(void *table){
     destroyPageTable((t_pageTable*) table);
 }
@@ -54,4 +55,15 @@ bool pageTable_isEmpty(uint32_t PID) {
         bool isEmpty = pt->pageQuantity == 0;
     pthread_mutex_unlock(&pageTablesMut);
     return isEmpty;
+}
+
+int32_t pageTable_getFrame(uint32_t PID, uint32_t page){
+    int32_t frame;
+    
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        frame = page < pt->pageQuantity ? pt->entries[page].frame : -1;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    return frame;
 }

@@ -28,3 +28,5 @@ void pageTable_destroyLastEntry(t_pageTable* pt);
 t_pageTable* getPageTable(uint32_t _PID, t_dictionary* pageTables);
 
 bool pageTable_isEmpty(uint32_t PID);
+
+int32_t pageTable_getFrame(uint32_t PID, uint32_t page);
