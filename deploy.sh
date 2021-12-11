@@ -23,4 +23,7 @@ git clone "https://github.com/sisoputnfrba/carpinchos-pruebas.git"
 cd carpinchos-pruebas
 make compile 
 echo -e "\n\nCarpinchos de prueba compilados!\n\n"
+echo -e "\n\nCreando carpetas de dumps...\n\n"
+mkdir ~/dumps
+mkdir ~/dumps/tlb
 echo -e "\n\nDeploy terminado!\n\n"
