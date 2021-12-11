@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <time.h>
 
+void sigintHandler(int unused);
+
 // Datos de la config
 t_kernelConfig *kernelConfig;
 

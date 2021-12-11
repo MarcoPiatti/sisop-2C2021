@@ -80,8 +80,10 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
     }
 
     if (!isDeadlock){
-        return false;
+        free(work);
+        free(finish);
         list_destroy(seen);
+        return false;
     }
 
     t_process* locked = list_get_maximum(inCircularWait, biggestPid);

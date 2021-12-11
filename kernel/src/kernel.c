@@ -1,7 +1,16 @@
 #include "kernel.h"
 #include <commons/temporal.h>
 #include <string.h>
+#include <signal.h>
 
+void sigintHandler(int unused){
+
+    void _mateSem_destroy(void *sem){
+        mateSem_destroy((t_mateSem*) sem);
+    }
+    dictionary_clean_and_destroy_elements(sem_dict, _mateSem_destroy);
+    exit(EXIT_SUCCESS);
+}
 
 double rr(t_process* process){
     return 1 + (process->waitedTime / process->estimate);
@@ -284,6 +293,9 @@ void* thread_deadlockDetectorFunc(void* args){
 
 // Hilo main del kernel, inicializa todo, crea a los otros hilo y hace de server para recibir nuevos procesos y mandarlos a ready
 int main(){
+
+    signal(SIGINT, sigintHandler);
+
     logger = log_create("./cfg/kernel.log", "Kernel", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
 
