@@ -228,7 +228,7 @@ bool memallocHandler(t_packet* petition, int socket){
     }
 
     // Caso hay alloc libre:
-    if (!useLastAlloc){
+    if (!useLastAlloc){ 
         t_heapMetadata *found = heap_read(PID, currentAllocAddr, 9);
         uint32_t distanceToNextAlloc = found->nextAlloc - currentAllocAddr - 9;
         streamAdd_INT32(response->payload, currentAllocAddr + 9);
@@ -269,11 +269,11 @@ bool memallocHandler(t_packet* petition, int socket){
         destroyPacket(response);
         return true;
     }
-    
+
     // Caso no hay alloc libre:
-    uint32_t lastAllocOffset = currentAllocAddr % config->pageSize;
-    uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset - 9;
-    uint32_t necessarySize = size + 9;
+    uint32_t lastAllocOffset = (currentAllocAddr + 9) % config->pageSize;
+    uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset;
+    uint32_t necessarySize = size + 9 + 1; // TODO: Ver si es necesario.
 
     t_heapMetadata *lastAlloc = heap_read(PID, currentAllocAddr, 9);
 
