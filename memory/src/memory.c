@@ -309,6 +309,10 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
             log_info(logger, "Reemplazo en el frame #%u: entra pag #%u del proceso #%u, sale pag #%u del proceso #%u.", victim, page, PID, victimPage, victimPID);
         pthread_mutex_unlock(&logMut);
 
+    } else {
+        pthread_mutex_lock(&logMut);
+            log_info(logger, "Asignacion en el frame #%u: entra pag #%u del proceso #%u.", victim, page, PID);
+        pthread_mutex_unlock(&logMut);
     }
 
     // Escribir pagina traida de swap a memoria. 
