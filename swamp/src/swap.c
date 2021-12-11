@@ -68,7 +68,7 @@ bool fija(uint32_t pid, int32_t page, void* pageContent){
     swapFile_register(file, pid, page, assignedIndex);
 
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %i en el indice %i", file->path, page, pid, assignedIndex);
+    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %u en el indice %i", file->path, page, pid, assignedIndex);
     pthread_mutex_unlock(&mutex_log);
 
     return true;
@@ -100,7 +100,7 @@ bool global(uint32_t pid, int32_t page, void* pageContent){
     swapFile_register(file, pid, page, assignedIndex);
 
     pthread_mutex_lock(&mutex_log);
-    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %i en el indice %i", file->path, page, pid, assignedIndex);
+    log_info(logger, "Archivo %s: se almaceno la pagina %i del proceso %u en el indice %i", file->path, page, pid, assignedIndex);
     pthread_mutex_unlock(&mutex_log);
 
     return true;
