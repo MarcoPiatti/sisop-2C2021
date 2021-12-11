@@ -267,6 +267,10 @@ void printTLBEntry(FILE* f, t_tlbEntry* entry, int nEntry) {
 }
 
 void sigUsr2HandlerTLB(int unused) {
+    pthread_mutex_lock(&logMut);
+        log_info(logger, "Se limpio la TLB.");
+    pthread_mutex_unlock(&logMut);
+
     cleanTLB();
 }
 
