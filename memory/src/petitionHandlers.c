@@ -350,7 +350,7 @@ bool memallocHandler(t_packet* petition, int socket){
 
     streamAdd_INT32(response->payload, currentAllocAddr + 9);
     socket_sendPacket(socket, response);
-    free(response);
+    destroyPacket(response);
 
     return true;    
 
