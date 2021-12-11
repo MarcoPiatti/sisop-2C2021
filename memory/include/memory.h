@@ -29,7 +29,6 @@ void *petitionHandler(void *_clientSocket);
 uint32_t (*algoritmo)(int32_t start, int32_t end);
 uint32_t clock_m_Counter;
 
-
 // Asignacion fija o global, devuelven en los parametros un rango de frames entre los cuales se puede elegir una victima.
 bool (*asignacion)(int32_t *start, int32_t *end, uint32_t PID);
 
@@ -107,6 +106,11 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page);
 // TODO: Implementar algorimo clock-m:
 uint32_t clock_m(int32_t start, int32_t end);
 uint32_t LRU(int32_t start, int32_t end);
+
+
+bool isPresent(uint32_t PID, uint32_t pageN);
+
+void clearFrameMetadata(uint32_t frame);
 
 #endif // !MEMORY_H_
 

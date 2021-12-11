@@ -17,7 +17,6 @@
 // TODO: cambiar metadata->firstFrame cuando se o finaliza un proceso en memoria.
 
 int main(){
-    
 
     signal(SIGINT, sigIntHandlerTLB);
     signal(SIGUSR1, sigUsr1HandlerTLB);
@@ -224,6 +223,7 @@ bool isPresent(uint32_t PID, uint32_t page){
 int32_t getFrame(uint32_t PID, uint32_t pageN){
    
     int32_t frame = getFrameFromTLB(PID, pageN);
+
     if (frame != -1){
         milliSleep(config->TLBHitDelay);
         pthread_mutex_lock(&metadataMut);
@@ -432,4 +432,13 @@ void destroyMemMutex(void){
     pthread_mutex_destroy(&ramMut);
     pthread_mutex_destroy(&metadataMut);
     pthread_mutex_destroy(&pageTablesMut);
+}
+
+void clearFrameMetadata(uint32_t frame){
+    pthread_mutex_lock(&metadataMut);
+        metadata->entries[frame].isFree = true;
+        metadata->entries[frame].page = 0;
+        metadata->entries[frame].u = 0;
+        metadata->entries[frame].modified = 0;
+    pthread_mutex_unlock(&metadataMut);
 }
