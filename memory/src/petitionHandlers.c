@@ -9,11 +9,18 @@
 
 //  AUX
 int32_t createPage(uint32_t PID){
+    
+
     pthread_mutex_lock(&pageTablesMut);
         t_pageTable* table = getPageTable(PID, pageTables);
     pthread_mutex_unlock(&pageTablesMut);
     
     int32_t pageNumber = pageTableAddEntry(table, 0);
+
+    pthread_mutex_lock(&logMut);
+        log_debug(logger, "Creando pagina %i, para carpincho de PID %u.", pageNumber, PID);
+    pthread_mutex_unlock(&logMut);
+
     void* newPageContents = calloc(1, config->pageSize);
     if(swapInterface_savePage(swapInterface, PID, pageNumber, newPageContents)){
         free(newPageContents);
@@ -33,8 +40,10 @@ void deleteLastPages(uint32_t PID, uint32_t lastAllocAddr){
     pthread_mutex_unlock(&pageTablesMut);
     
     for (uint32_t i = lastToDelete; i > firstToDelete; i--){
+        pthread_mutex_lock(&logMut);
+        log_debug(logger, "Borrando pagina %i, del carpincho de PID %u.", i, PID);
+        pthread_mutex_unlock(&logMut);
         swapInterface_erasePage(swapInterface, PID, i);
-        
         pageTable_destroyLastEntry(pt);
     }
 }
@@ -245,7 +254,6 @@ bool memallocHandler(t_packet* petition, int socket){
 
             return true;
         }
-
         // Si hay mas lugar, se crea un heapMetadata intermedio para evitar overallocar.
         t_heapMetadata *oldNextAlloc = heap_read(PID, found->nextAlloc, 9);
 
