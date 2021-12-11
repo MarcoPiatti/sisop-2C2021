@@ -8,6 +8,20 @@
 
 
 //  AUX
+
+bool validMallocAddress(uint32_t PID, uint32_t addr){
+
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        uint32_t maxPags = pt->pageQuantity;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    uint32_t maxAddr = maxPags * config->pageSize;
+
+    if (addr < maxAddr) return true;
+    return false;
+}
+
 int32_t createPage(uint32_t PID){
     
 
@@ -281,7 +295,7 @@ bool memallocHandler(t_packet* petition, int socket){
     // Caso no hay alloc libre:
     uint32_t lastAllocOffset = (currentAllocAddr + 9) % config->pageSize;
     uint32_t freeSpaceInPage = config->pageSize - lastAllocOffset;
-    uint32_t necessarySize = size + 9 + 1; // TODO: Ver si es necesario.
+    uint32_t necessarySize = size + 9 + 1;
 
     t_heapMetadata *lastAlloc = heap_read(PID, currentAllocAddr, 9);
 
@@ -342,85 +356,98 @@ bool memallocHandler(t_packet* petition, int socket){
 
 }
 
-bool memfreeHandler(t_packet* petition, int socket){
+bool memfreeHandler(t_packet* petition, int clientSocket){
     uint32_t PID = streamTake_UINT32(petition->payload);
     int32_t addr = streamTake_INT32(petition->payload);
-    t_packet *response;
+    
+    pthread_mutex_lock(&mutex_log);
+    log_info(logger, "Proceso %u: mate_memfree (direccion %i)", PID, addr);
+    pthread_mutex_unlock(&mutex_log);
+    
+    //Si la direccion es invalida corta y retorna error al carpincho
+    if(!validMallocAddress(PID, addr)){
+        t_packet* response = createPacket(ERROR, 0);
+        socket_sendPacket(clientSocket, response);
+        free(response);
 
-    pthread_mutex_lock(&pageTablesMut);
-        t_pageTable *pt = getPageTable(PID, pageTables);
-        uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
-    pthread_mutex_unlock(&pageTablesMut);
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: trato de hacer free de una direccion invalida", PID);
+        pthread_mutex_unlock(&mutex_log);
 
-    if (addr > maxAddr){
-        response = createPacket(ERROR, INITIAL_STREAM_SIZE);
-        socket_sendPacket(socket, response);
-        destroyPacket(response);
         return true;
     }
 
-    t_heapMetadata *alloc = heap_read(PID, addr - 9, 9);
-    uint32_t prevAllocAddr = alloc->prevAlloc;
-    uint32_t nextAllocAddr = alloc->nextAlloc;
-    uint32_t lastLastAllocAddr = 0;
+    int32_t thisAllocPtr, rightAllocPtr, leftAllocPtr, finalAllocPtr;
+    t_heapMetadata *thisAlloc, *rightAlloc, *leftAlloc, *finalAlloc;
+    
+    thisAllocPtr = addr - 9;
+    thisAlloc = heap_read(PID, thisAllocPtr, 9);
+    finalAllocPtr = thisAllocPtr;
+    finalAlloc = thisAlloc;
 
-    t_heapMetadata *nextAlloc;
-    t_heapMetadata *prevAlloc;
-
-    bool clearLastPages = false;
-
-    if (nextAllocAddr) {
-        nextAlloc = heap_read(PID, nextAllocAddr, 9);
-
-        if (nextAlloc->isFree){
-            uint32_t lastAllocAddr = nextAlloc->nextAlloc;
-
-            if (lastAllocAddr){
-                t_heapMetadata *lastAlloc = heap_read(PID, lastAllocAddr, 9);
-                lastAlloc->prevAlloc = addr - 9;
-                heap_write(PID, lastAllocAddr, 9, (void*) lastAlloc);
-                free(lastAlloc);
-            } else {
-                clearLastPages = true;
-                lastLastAllocAddr = addr - 9; 
-            }
-
-            alloc->nextAlloc = nextAlloc->nextAlloc;
-            alloc->isFree = true;
+    //Nuestro alloc absorbe al derecho si el derecho esta libre
+    if(thisAlloc->nextAlloc != NULL){
+        rightAllocPtr = thisAlloc->nextAlloc;
+        rightAlloc = heap_read(PID, rightAllocPtr, 9);
+        if(rightAlloc->isFree){
+            thisAlloc->nextAlloc = rightAlloc->nextAlloc;
         }
-
-        free(nextAlloc);
     }
 
-    if (prevAllocAddr) {
-        prevAlloc = heap_read(PID, prevAllocAddr, 9);
+    //El alloc izquierdo absorbe a nuestro alloc si el izquierdo esta libre
+    leftAllocPtr = thisAlloc->prevAlloc;
+    leftAlloc = heap_read(PID, leftAllocPtr, 9);
+    if(leftAlloc->isFree){
+        leftAlloc->nextAlloc = thisAlloc->nextAlloc;
+        finalAlloc = leftAlloc;
+        finalAllocPtr = leftAllocPtr;
+        heap_write(PID, leftAllocPtr, 9, leftAlloc);
+    }
 
-        if (prevAlloc->isFree){
-            prevAlloc->nextAlloc = alloc->nextAlloc;
+    thisAlloc->isFree = true;
+    heap_write(PID, thisAllocPtr, 9, thisAlloc);
 
-            if (alloc->nextAlloc){
-                t_heapMetadata *lastAlloc = heap_read(PID, alloc->nextAlloc, 9);
-                lastAlloc->prevAlloc = prevAllocAddr;
-                heap_write(PID, alloc->nextAlloc, 9, (void*) lastAlloc);
-                free(lastAlloc);
-            } else {
-                clearLastPages = true;
-                lastLastAllocAddr = prevAllocAddr;
+    //Se liberan paginas sobrantes si esta al final.
+    if(finalAlloc->nextAlloc == NULL){
+
+        pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: Se borran paginas libres en el free", PID);
+        pthread_mutex_unlock(&mutex_log);
+
+        int32_t firstFreeByte = finalAllocPtr + 9;
+        int32_t pageToDelete = 1 + firstFreeByte / config->pageSize;
+        
+        pthread_mutex_lock(&pageTablesMut);
+            t_pageTable *pt = getPageTable(PID, pageTables);
+            int totalPages = pt->pageQuantity;
+        pthread_mutex_unlock(&pageTablesMut);
+
+        for(int i = totalPages-1; i >= pageToDelete; i--){
+            if(isPresent(PID, i)){
+                int frame = pageTable_getFrame(PID, i);
+                clearFrameMetadata(frame);
+                dropEntry(PID, i);
             }
+            pageTable_destroyLastEntry(pt);
+            swapInterface_erasePage(swapInterface, PID, i);
         }
-
-        free(prevAlloc);
+    } else {
+        t_heapMetadata *rightmostAlloc = heap_read(PID, finalAlloc->nextAlloc, 9);
+        rightmostAlloc->prevAlloc = finalAllocPtr;
+        heap_write(PID, finalAlloc->nextAlloc, 9, rightmostAlloc);
+        free(rightmostAlloc);
     }
-
-    if (clearLastPages) {
-        deleteLastPages(PID, lastLastAllocAddr);
-    }
-
-    response = createPacket(OK, INITIAL_STREAM_SIZE);
-    socket_sendPacket(socket, response);
+    
+    free(thisAlloc);
+    free(leftAlloc);
+    free(rightAlloc);
+    t_packet* response = createPacket(OK, 0);
+    socket_sendPacket(clientSocket, response);
     destroyPacket(response);
 
-    free(alloc);
+    pthread_mutex_lock(&mutex_log);
+        log_info(logger, "Proceso %u: hizo free en la direccion %i", PID, addr);
+    pthread_mutex_unlock(&mutex_log);
 
     return true;
 }
@@ -594,3 +621,95 @@ bool (*petitionHandlers[MAX_PETITIONS])(t_packet* petition, int socket) = {
     capiTermHandler,
     disconnectedHandler
 };
+
+
+/*
+bool memfreeHandler(t_packet* petition, int socket){
+    uint32_t PID = streamTake_UINT32(petition->payload);
+    int32_t addr = streamTake_INT32(petition->payload);
+    t_packet *response;
+
+    pthread_mutex_lock(&logMut);
+        log_info(logger, "Llego MEMFREE: pid %u, addr: %i.", PID, addr);
+    pthread_mutex_unlock(&logMut);
+
+
+
+    pthread_mutex_lock(&pageTablesMut);
+        t_pageTable *pt = getPageTable(PID, pageTables);
+        uint32_t maxAddr = pt->pageQuantity * config->pageSize - 1;
+    pthread_mutex_unlock(&pageTablesMut);
+
+    if (addr > maxAddr){
+        response = createPacket(ERROR, INITIAL_STREAM_SIZE);
+        socket_sendPacket(socket, response);
+        destroyPacket(response);
+        return true;
+    }
+
+    t_heapMetadata *alloc = heap_read(PID, addr - 9, 9);
+    uint32_t prevAllocAddr = alloc->prevAlloc;
+    uint32_t nextAllocAddr = alloc->nextAlloc;
+    uint32_t lastLastAllocAddr = 0;
+
+    t_heapMetadata *nextAlloc;
+    t_heapMetadata *prevAlloc;
+
+    bool clearLastPages = false;
+
+    if (nextAllocAddr) {
+        nextAlloc = heap_read(PID, nextAllocAddr, 9);
+
+        if (nextAlloc->isFree){
+            uint32_t lastAllocAddr = nextAlloc->nextAlloc;
+
+            if (lastAllocAddr){
+                t_heapMetadata *lastAlloc = heap_read(PID, lastAllocAddr, 9);
+                lastAlloc->prevAlloc = addr - 9;
+                heap_write(PID, lastAllocAddr, 9, (void*) lastAlloc);
+                free(lastAlloc);
+            } else {
+                clearLastPages = true;
+                lastLastAllocAddr = addr - 9; 
+            }
+
+            alloc->nextAlloc = nextAlloc->nextAlloc;
+            alloc->isFree = true;
+        }
+
+        free(nextAlloc);
+    }
+
+    if (prevAllocAddr) {
+        prevAlloc = heap_read(PID, prevAllocAddr, 9);
+
+        if (prevAlloc->isFree){
+            prevAlloc->nextAlloc = alloc->nextAlloc;
+
+            if (alloc->nextAlloc){
+                t_heapMetadata *lastAlloc = heap_read(PID, alloc->nextAlloc, 9);
+                lastAlloc->prevAlloc = prevAllocAddr;
+                heap_write(PID, alloc->nextAlloc, 9, (void*) lastAlloc);
+                free(lastAlloc);
+            } else {
+                clearLastPages = true;
+                lastLastAllocAddr = prevAllocAddr;
+            }
+        }
+
+        free(prevAlloc);
+    }
+
+    if (clearLastPages) {
+        deleteLastPages(PID, lastLastAllocAddr);
+    }
+
+    response = createPacket(OK, INITIAL_STREAM_SIZE);
+    socket_sendPacket(socket, response);
+    destroyPacket(response);
+
+    free(alloc);
+
+    return true;
+}
+*/
