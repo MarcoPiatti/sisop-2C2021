@@ -55,7 +55,7 @@ hel: $(PROCESS_NAME)
 	valgrind --tool=helgrind ./$(PROCESS_NAME)
 
 val: $(PROCESS_NAME)
-	valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 ./$(PROCESS_NAME)
+    valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 --track-origins=yes --log-file="./cfg/valgrind.log" ./$(PROCESS_NAME)
 
 clean:
 	rm -f $(ODIR)/*.o $(PROCESS_NAME) $(TEST_NAME)
