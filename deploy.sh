@@ -41,7 +41,7 @@ cd $CWD
 echo -e "\n\nCambiando IPs configs...\n\n"
 for i in ./kernel/cfg/*.config; do
     sed -i "s/IP_KERNEL=127.0.0.1/IP_KERNEL=$IPKERNEL/g" $i
-    sed -i "s/IP_MEMORIA=127.0.0.1/IP_KERNEL=$IPMEMORIA/g" $i
+    sed -i "s/IP_MEMORIA=127.0.0.1/IP_MEMORIA=$IPMEMORIA/g" $i
 done
 for i in ./memory/cfg/*.config; do
     sed -i "s/IP=127.0.0.1/IP=$IPMEMORIA/g" $i
