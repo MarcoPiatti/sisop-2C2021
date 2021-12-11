@@ -83,6 +83,8 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
         free(work);
         free(finish);
         list_destroy(seen);
+        list_clean(inCircularWait);
+        list_destroy(inCircularWait);
         return false;
     }
 
@@ -145,5 +147,7 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
             break;
         }
     }
+    list_clean(inCircularWait);
+    list_destroy(inCircularWait);
     return true;
 }
