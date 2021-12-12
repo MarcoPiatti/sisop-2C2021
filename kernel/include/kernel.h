@@ -31,10 +31,10 @@ t_deadlockDetector* dd;
 // Semaforos para el planificador de largo plazo
 // El primero refleja el grado de multiprogramacion
 // El segundo indica si hay nuevos procesos
-sem_t sem_multiprogram, sem_newProcess;
+sem_t sem_multiprogram, sem_newProcess, longTermSem;
 
 // Hilos para el planificador de largo y mediano plazo
-pthread_t thread_longTerm, thread_mediumTerm;
+pthread_t thread_longTerm, thread_mediumTerm, thread_mediumTermUnsuspender;
 
 // Condition variable para despertar al planificador de medio plazo
 pthread_cond_t cond_mediumTerm;

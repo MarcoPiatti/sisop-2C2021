@@ -67,17 +67,39 @@ bool HRRN(void*elem1, void*elem2){
 void* thread_longTermFunc(void* args){
     t_process *process;
     while(1){
+        sem_wait(&longTermSem);
+        pthread_mutex_lock(&mutex_mediumTerm);
+            process = (t_process*)pQueue_take(newQueue);
+            process->state = READY;
+
+            pthread_mutex_lock(&mutex_log);
+            log_info(logger, "Largo Plazo: el proceso %u pasa de NEW a READY", process->pid);
+            pthread_mutex_unlock(&mutex_log);
+
+            putToReady(process);
+
+            sem_wait(&sem_multiprogram);
+        pthread_cond_signal(&cond_mediumTerm);
+        pthread_mutex_unlock(&mutex_mediumTerm);
+    }
+}
+
+void* thread_mediumTermUnsuspenderFunc(void* args){
+    t_process *process;
+    while(1){
         sem_wait(&sem_multiprogram);
         sem_post(&sem_multiprogram);
         sem_wait(&sem_newProcess);
         pthread_mutex_lock(&mutex_mediumTerm);
-            if(pQueue_isEmpty(suspendedReadyQueue))
-                process = (t_process*)pQueue_take(newQueue);
-            else process = (t_process*)pQueue_take(suspendedReadyQueue);
+            if(pQueue_isEmpty(suspendedReadyQueue)){
+                sem_post(&longTermSem);
+                pthread_mutex_unlock(&mutex_mediumTerm);
+            }
+            process = (t_process*)pQueue_take(suspendedReadyQueue);
             process->state = READY;
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Largo Plazo: el proceso %u pasa a ready", process->pid);
+            log_info(logger, "Mediano Plazo: el proceso %u pasa de SUSPENDED-READY a READY", process->pid);
             pthread_mutex_unlock(&mutex_log);
 
             putToReady(process);
@@ -153,7 +175,7 @@ void* thread_CPUFunc(void* args){
         clock_gettime(CLOCK_MONOTONIC, &rafagaStart);
 
         pthread_mutex_lock(&mutex_log);
-        log_info(logger, "CPU %i: el proceso %u pasa a exec", CPUid, process->pid);
+        log_info(logger, "CPU %i: el proceso %u pasa de READY a EXEC", CPUid, process->pid);
         pthread_mutex_unlock(&mutex_log);
 
         while(keepServing){
@@ -212,7 +234,7 @@ void* thread_IODeviceFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a ready", self->nombre, process->pid);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa de BLOCKED a READY", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
 
             putToReady(process);
@@ -223,7 +245,7 @@ void* thread_IODeviceFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Dispositivo IO %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
+            log_info(logger, "Dispositivo IO %s: el proceso %u pasa de SUSPENDED-BLOCKED a SUSPENDED-READY", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
 
             pQueue_put(suspendedReadyQueue, (void*)process);
@@ -255,7 +277,7 @@ void* thread_semFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Semaforo %s: el proceso %u pasa a ready", self->nombre, process->pid);
+            log_info(logger, "Semaforo %s: el proceso %u pasa de BLOCKED a READY", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
             putToReady(process);
         }
@@ -265,7 +287,7 @@ void* thread_semFunc(void* args){
             pthread_mutex_unlock(&mutex_mediumTerm);
 
             pthread_mutex_lock(&mutex_log);
-            log_info(logger, "Semaforo %s: el proceso %u pasa a suspended ready", self->nombre, process->pid);
+            log_info(logger, "Semaforo %s: el proceso %u pasa de SUSPENDED-BLOCKED a SUSPENDED-READY", self->nombre, process->pid);
             pthread_mutex_unlock(&mutex_log);
             pQueue_put(suspendedReadyQueue, (void*)process);
             sem_post(&sem_newProcess);
@@ -349,6 +371,9 @@ int main(){
     // Inicializar Planificador de largo plazo
     pthread_create(&thread_longTerm, 0, thread_longTermFunc, NULL);
     pthread_detach(thread_longTerm);
+
+    pthread_create(&thread_mediumTermUnsuspender, 0, thread_mediumTermUnsuspenderFunc, NULL);
+    pthread_detach(thread_mediumTermUnsuspender);
     
     // Inicializar Planificador de mediano plazo
     pthread_create(&thread_mediumTerm, 0, thread_mediumTermFunc, NULL);

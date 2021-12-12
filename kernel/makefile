@@ -52,7 +52,7 @@ run: $(PROCESS_NAME)
 	./$(PROCESS_NAME)
 
 hel: $(PROCESS_NAME)
-	valgrind --tool=helgrind ./$(PROCESS_NAME)
+	valgrind --tool=helgrind --log-file="./cfg/helgrind.log" ./$(PROCESS_NAME)
 
 val: $(PROCESS_NAME)
 	valgrind --tool=memcheck --leak-check=yes --show-possibly-lost=no --show-reachable=no --num-callers=20 --track-origins=yes --log-file="./cfg/valgrind.log" ./$(PROCESS_NAME)
