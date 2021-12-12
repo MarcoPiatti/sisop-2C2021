@@ -159,9 +159,7 @@ void updateTimestamp(uint32_t frame) {
 }
 
 void *ram_getFrame(t_memory *mem, uint32_t frame){
-    pthread_mutex_lock(&ramMut);
         void* ptr = mem->memory + frame * config->pageSize;
-    pthread_mutex_unlock(&ramMut);
     return ptr;
 }
 
@@ -297,7 +295,9 @@ uint32_t replace(uint32_t victim, uint32_t PID, uint32_t page){
 
         dropEntry(victimPID, victimPage);
 
+        pthread_mutex_lock(&ramMut);
         if(modified) swapInterface_savePage(swapInterface, victimPID, victimPage, ram_getFrame(ram, victim));
+        pthread_mutex_unlock(&ramMut);
         // Modificar tabla de paginas del proceso cuya pagina fue reemplazada.
         pthread_mutex_lock(&pageTablesMut);
             t_pageTable *ptReemplazado = getPageTable(victimPID, pageTables);

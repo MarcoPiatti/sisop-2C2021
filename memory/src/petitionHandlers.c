@@ -590,7 +590,9 @@ bool capiIDHandler(t_packet* petition, int socket){
 
     t_pageTable *newPageTable = initializePageTable();
     char *_PID = string_itoa(PID);
+    pthread_mutex_lock(&pageTablesMut);
     dictionary_put(pageTables, _PID, (void*) newPageTable);
+    pthread_mutex_unlock(&pageTablesMut);
     free(_PID);
 
     pthread_mutex_lock(&logMut);
