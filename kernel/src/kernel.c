@@ -84,6 +84,7 @@ void* thread_longTermFunc(void* args){
     }
 }
 
+//Hilo del mediano plazo que pasa a Ready a aquellos procesos en Suspended-Ready
 void* thread_mediumTermUnsuspenderFunc(void* args){
     t_process *process;
     while(1){
@@ -94,6 +95,7 @@ void* thread_mediumTermUnsuspenderFunc(void* args){
             if(pQueue_isEmpty(suspendedReadyQueue)){
                 sem_post(&longTermSem);
                 pthread_mutex_unlock(&mutex_mediumTerm);
+                continue;
             }
             process = (t_process*)pQueue_take(suspendedReadyQueue);
             process->state = READY;
