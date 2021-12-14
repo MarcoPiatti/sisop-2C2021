@@ -340,6 +340,7 @@ int main(){
     // Inicializar semaforo de multiprocesamiento
     sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
     sem_init(&sem_newProcess, 0, 0);
+    sem_init(&longTermSem, 0, 0);
 
     // Inicializo condition variable para despertar al planificador de mediano plazo 
     pthread_cond_init(&cond_mediumTerm, NULL);
