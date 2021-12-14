@@ -318,7 +318,7 @@ int main(){
 
     signal(SIGINT, sigintHandler);
 
-    logger = log_create("./cfg/kernel.log", "Kernel", true, LOG_LEVEL_TRACE);
+    logger = log_create("./kernel.log", "Kernel", true, LOG_LEVEL_TRACE);
     pthread_mutex_init(&mutex_log, NULL);
 
     kernelConfig = getKernelConfig("./cfg/kernel.config");
