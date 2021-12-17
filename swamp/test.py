@@ -106,9 +106,10 @@ if __name__ == "__main__":
         print("Tests reconocidos:")
         for test in tests:
             print("\t {}".format(test))
+        sys.exit()
     
 
 
     if "1" == sys.argv[2]:
-        os.system("./{}.out".format(module))
         print("Ejecutando {}.out".format(module))
+        os.system("./{}.out".format(module))

@@ -29,41 +29,50 @@ if __name__ == "__main__":
     print("Working directory: {}".format(path))
 
     if test == "batallaPorNordelta":
+        print('Ejecutando /build/BatallaPorNordelta /build/aKernel.config')
         os.system("{}/build/BatallaPorNordelta {}/build/aKernel.config".format(path, path))
 
     elif "asignacion" in test:
+        print("/build/PruebaAsignacion /build/aKernel.config")
         os.system("{}/build/PruebaAsignacion {}/build/aKernel.config".format(path, path))
         
     elif test == "saludoAlHumedal":
-        _thread.start_new_thread(os.system, ("{}/build/PruebaBase_Carpincho1 {}/build/aKernel.config".format(path, path),))
-        input("Press Enter to continue...")
-        _thread.start_new_thread(os.system, ("{}/build/PruebaBase_Carpincho2 {}/build/aKernel.config".format(path, path),))
+        print("Este test debe ser ejecutado a mano. Se recomienda el uso de 'screen'")
 
     elif test == "deadlock":
+        print("/build/PruebaDeadlock /build/aKernel.config")
         os.system("{}/build/PruebaDeadlock {}/build/aKernel.config".format(path, path))
 
     elif test == "mmuClock":
+        print("/build/PruebaMMU /build/aKernel.config")
         os.system("{}/build/PruebaMMU {}/build/aKernel.config".format(path, path))
 
     elif test == "mmuLRU":
+        print("/build/PruebaAsignacion /build/aKernel.config")
         os.system("{}/build/PruebaAsignacion {}/build/aKernel.config".format(path, path))
 
     elif test == "planificacionSJF":
+        print("/build/PruebaPlanificacion /build/aKernel.config")
         os.system("{}/build/PruebaPlanificacion {}/build/aKernel.config".format(path, path))
 
     elif test == "planificacionHRRN":
+        print("/build/PruebaPlanificacion /build/aKernel.config")
         os.system("{}/build/PruebaPlanificacion {}/build/aKernel.config".format(path, path))
 
     elif test == "suspension":
+        print("/build/PruebaSuspension /build/aKernel.config")
         os.system("{}/build/PruebaSuspension {}/build/aKernel.config".format(path, path))
 
     elif test == "swamp":
+        print("/build/prueba_swamp /build/aMemoria.config")
         os.system("{}/build/prueba_swamp {}/build/aMemoria.config".format(path, path))
 
     elif test == "tlbFIFO":
+        print("/build/prueba_tlb_fifo /build/aKernel.config")
         os.system("{}/build/prueba_tlb_fifo {}/build/aKernel.config".format(path, path))
 
     elif test == "tlbLRU":
+        print("/build/prueba_tlb_lru /build/aKernel.config")
         os.system("{}/build/prueba_tlb_lru {}/build/aKernel.config".format(path, path))
 
     else:
