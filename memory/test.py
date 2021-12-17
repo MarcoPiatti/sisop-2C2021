@@ -24,8 +24,9 @@ def cleanLog():
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
-        print('Uso: python prepareTest.py "nombreTest" \n \t Reemplazar "nombreTest" por "list" para ver lista de todos los tests')
+    if len(sys.argv) != 3:
+        print('Uso: python test.py "nombreTest" "1"/"0" (Para iniciar módulo) \n \t Reemplazar "nombreTest" por "list" para ver lista de todos los tests')
+        
         
 
     test = sys.argv[1]
@@ -100,3 +101,6 @@ if __name__ == "__main__":
             print("\t {}".format(test))
     
 
+    if "1" == sys.argv[2]:
+        os.system("./{}.out".format(module))
+        print("Ejecutando {}.out".format(module))
