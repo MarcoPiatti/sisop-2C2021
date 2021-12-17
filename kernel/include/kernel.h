@@ -28,6 +28,9 @@ t_pQueue *newQueue, *readyQueue, *blockedQueue, *suspendedBlockedQueue, *suspend
 // Instancia de un Deadlock detector
 t_deadlockDetector* dd;
 
+int cuposLibres;
+pthread_mutex_t mutex_cupos;
+
 // Semaforos para el planificador de largo plazo
 // El primero refleja el grado de multiprogramacion
 // El segundo indica si hay nuevos procesos

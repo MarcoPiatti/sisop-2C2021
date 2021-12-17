@@ -131,6 +131,9 @@ bool findDeadlocks(t_deadlockDetector* dd, int memorySocket){
 
             destroyProcess(dd->procs[i]);
             sem_post(&sem_multiprogram);
+            pthread_mutex_lock(&mutex_cupos);
+            cuposLibres++;
+            pthread_mutex_unlock(&mutex_cupos);
 
             dd->n--;
             memmove(dd->procs+i, dd->procs+i+1, sizeof(t_process*) * (dd->n - i));

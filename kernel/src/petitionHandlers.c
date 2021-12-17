@@ -229,6 +229,9 @@ bool terminateProcess(t_process* process, t_packet* petition, int memorySocket){
     destroyPacket(response);
     destroyProcess(process);
     sem_post(&sem_multiprogram);
+    pthread_mutex_lock(&mutex_cupos);
+        cuposLibres++;
+    pthread_mutex_unlock(&mutex_cupos);
     return false;
 }
 

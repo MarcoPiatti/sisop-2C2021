@@ -77,8 +77,10 @@ void* thread_longTermFunc(void* args){
             pthread_mutex_unlock(&mutex_log);
 
             putToReady(process);
+            pthread_mutex_lock(&mutex_cupos);
+            cuposLibres--;
+            pthread_mutex_unlock(&mutex_cupos);
 
-            sem_wait(&sem_multiprogram);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
     }
@@ -89,7 +91,6 @@ void* thread_mediumTermUnsuspenderFunc(void* args){
     t_process *process;
     while(1){
         sem_wait(&sem_multiprogram);
-        sem_post(&sem_multiprogram);
         sem_wait(&sem_newProcess);
         pthread_mutex_lock(&mutex_mediumTerm);
             if(pQueue_isEmpty(suspendedReadyQueue)){
@@ -105,8 +106,10 @@ void* thread_mediumTermUnsuspenderFunc(void* args){
             pthread_mutex_unlock(&mutex_log);
 
             putToReady(process);
+            pthread_mutex_lock(&mutex_cupos);
+            cuposLibres--;
+            pthread_mutex_unlock(&mutex_cupos);
 
-            sem_wait(&sem_multiprogram);
         pthread_cond_signal(&cond_mediumTerm);
         pthread_mutex_unlock(&mutex_mediumTerm);
     }
@@ -116,7 +119,6 @@ void* thread_mediumTermUnsuspenderFunc(void* args){
 // Agarra un proceso de blocked, lo pasa a suspended blocked y sube el grado de multiprogramacion
 void* thread_mediumTermFunc(void* args){
     t_process *process;
-    int availablePrograms;
 
     int memorySocket = connectToServer(kernelConfig->memoryIP, kernelConfig->memoryPort);
 
@@ -125,16 +127,22 @@ void* thread_mediumTermFunc(void* args){
     while(1){
         pthread_mutex_lock(&mutex_mediumTerm);
             //Espera a que se cumpla la condicion para despertarse
-            sem_getvalue(&sem_multiprogram, &availablePrograms);
-            while(availablePrograms >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
+            pthread_mutex_lock(&mutex_cupos);
+            while(cuposLibres >= 1 || pQueue_isEmpty(newQueue) || !pQueue_isEmpty(readyQueue) || pQueue_isEmpty(blockedQueue)){
+                pthread_mutex_unlock(&mutex_cupos);
                 pthread_cond_wait(&cond_mediumTerm, &mutex_mediumTerm);
-                sem_getvalue(&sem_multiprogram, &availablePrograms);
+                pthread_mutex_lock(&mutex_cupos);
             }
+            pthread_mutex_unlock(&mutex_cupos);
             //Sacamos al proceso de la cola de blocked y lo metemos a suspended blocked
             process = (t_process*)pQueue_takeLast(blockedQueue);
             process->state = SUSP_BLOCKED;
             pQueue_put(suspendedBlockedQueue, (void*)process);
+
             sem_post(&sem_multiprogram);
+            pthread_mutex_lock(&mutex_cupos);
+            cuposLibres++;
+            pthread_mutex_unlock(&mutex_cupos);
 
             //Notifica a memoria de la suspension
             suspendRequest = createPacket(SUSPEND, INITIAL_STREAM_SIZE);
@@ -341,6 +349,9 @@ int main(){
 
     // Inicializar semaforo de multiprocesamiento
     sem_init(&sem_multiprogram, 0, kernelConfig->multiprogram);
+    cuposLibres = kernelConfig->multiprogram;
+    pthread_mutex_init(&mutex_cupos, NULL);
+
     sem_init(&sem_newProcess, 0, 0);
     sem_init(&longTermSem, 0, 0);
 
