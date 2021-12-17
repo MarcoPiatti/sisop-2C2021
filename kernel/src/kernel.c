@@ -13,7 +13,8 @@ void sigintHandler(int unused){
 }
 
 double rr(t_process* process){
-    return 1 + (process->waitedTime / process->estimate);
+    //return 1 + (process->waitedTime / process->estimate);
+    return (process->waitedTime + process->estimate) / process->estimate;
 }
 
 // Funcion para poner un proceso a ready, actualiza la cola de ready y la reordena segun algoritmo
