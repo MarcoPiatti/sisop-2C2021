@@ -1,6 +1,3 @@
-# tp-2021-2c-pepinOS
+# Trabajo Práctico 2C2021 - Sistemas Operativos UTN FRBA
 
-#### TO-DO:
- - [ ] Arreglar makefile de libmate para que genere biblioteca .so.
- - [ ] Comentar makefile.
- - [ ] Añadir soporte para tests de las shared libs.
+[Consigna](https://docs.google.com/document/d/1BDpr5lfzOAqmOOgcAVg6rUqvMPUfCpMSz1u1J_Vjtac/edit)
